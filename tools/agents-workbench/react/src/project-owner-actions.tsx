@@ -79,7 +79,7 @@ export function DiscoverIrisTools({handoff}:{handoff:()=>void}) {
   </div>;
 }
 
-export function PluginActions({name,onChange,onInit}:{name:string;onChange:()=>void;onInit:(source:string)=>void}) {
+export function PluginActions({name,onChange,onInit}:{name:string;onChange:()=>void;onInit:()=>void}) {
   const [state,setState]=useState<PluginState>(),[message,setMessage]=useState(""),[busy,setBusy]=useState(true);
   const [confirm,setConfirm]=useState<Operation>();
   useEffect(()=>{
@@ -104,10 +104,10 @@ export function PluginActions({name,onChange,onInit}:{name:string;onChange:()=>v
     !busy && <div className="flex flex-wrap gap-2">
       {state && (!state.installed || state.added.length>0) && <Button type="button" onClick={()=>setConfirm("install")}>补装插件与依赖</Button>}
       {state?.installed && state.status!=="enabled" && (state.initialization || state.dependencies.length || state.missing.length ?
-        <Button type="button" onClick={()=>onInit([state.initialization,...state.dependencies,...state.missing].filter(Boolean).join("、"))}>接续初始化</Button> :
+        <Button type="button" onClick={onInit}>接续初始化</Button> :
         <Button type="button" onClick={()=>setConfirm("enable")}>启用插件</Button>)}
       {state?.status==="enabled" && (state.requiredBy.length ? <p>仍被已启用插件引用：{state.requiredBy.join("、")}</p>:<Button type="button" variant="outline" onClick={()=>setConfirm("disable")}>停用插件</Button>)}
-      {!state && <Button type="button" variant="outline" onClick={()=>onInit("plugin-management，先核对本工程的框架来源、插件清单和可复用入口")}>生成插件管理请求</Button>}
+      {!state && <Button type="button" variant="outline" onClick={onInit}>生成插件管理请求</Button>}
       <Button type="button" variant="ghost" onClick={()=>run("inspect")}>重读插件状态</Button>
     </div>}{message && <p role="status">{message}</p>}</section>;
 }

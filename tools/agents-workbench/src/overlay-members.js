@@ -126,4 +126,4 @@ function inspectRegisteredMember(root, id) {
   if (candidates.length === 1) return inspectMember(candidates[0],root);
 }
 
-module.exports = { planOverlayUpdate, inspectRoot, inspectRegisteredMember, inspectOverlayLink, canOpenMember };
+module.exports = { directoryIdentity, planOverlayUpdate, inspectRoot, inspectRegisteredMember, inspectOverlayLink, canOpenMember };

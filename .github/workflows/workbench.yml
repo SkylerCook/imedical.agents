@@ -41,9 +41,14 @@ jobs:
           scripts/tests/iris-session-routing.tests.js
           tools/agents-workbench/tests/deployment.test.js
           tools/agents-workbench/tests/project-context.test.js
+          tools/agents-workbench/tests/update-note.test.js
+          tools/agents-workbench/tests/task-owner-observations.test.js
+          tools/agents-workbench/tests/project-recovery.test.js
+          tools/agents-workbench/tests/state-export.test.js
           tools/agents-workbench/tests/overlay-update.test.js
           tools/agents-workbench/tests/knowledge.test.js
           tools/agents-workbench/tests/knowledge-build.test.js
+          tools/agents-workbench/tests/manual-search.test.js
           tools/agents-workbench/tests/package-runtime.test.js
       - name: Verify Windows launch and original framework operations
         if: runner.os == 'Windows'

@@ -16,11 +16,11 @@
 
 - imedical-ui 0.3.0 增加[手机端活力蓝参考](../plugins/imedical-ui/references/vital-blue-mobile.md)，开发和评审按项目基准读取。完整原型留源仓本地，真实设备与宿主验证沿现有 UI 队列。
 
-- 工作台 0.2.0 可在 Windows standard 工程首装、检查、取版预演并写入复查。运行、隔离验收及回退见[工作台说明](../tools/agents-workbench/react/README.md)和维护日志；Overlay 写入仍沿工作台计划。
+- 工作台正式包 0.3.1 包含离线首装修复与独立 ZIP 导入、回退。0.4.0 候选的已部署工程使用首页固定更新提示词，Overlay 沿标准根与实际项目工作区清单接续；Windows 任务页复用原回执识别和恢复可确认的部分写入。分发版本以包外记录为准，验收与试用见[工作台说明](../tools/agents-workbench/react/README.md)和维护日志。
 
 - 新离线部署默认 Node 24.22.3，工作台复用 ai-dev-offline 环境；框架最低兼容要求保留，验证范围见维护日志与工具准备回执。
 
-- BOS 初始化与配置报错已补逐字段凭证获取指引，统一 access_key 与两项个人凭证分开，使用归[配置说明](../plugins/bos-plugin/references/usage.md#凭证来源与填写)；不内置真实凭据，无私有配置迁移。
+- BOS 0.19.0 与新版工作台在原 `BOS_MCP_CONFIG` 路径兼容 JSONC，默认初始化仍生成严格 JSON。混用旧宿主、格式回退和凭证指引归[配置说明](../plugins/bos-plugin/references/usage.md#共享私有配置)。普通能力包更新保留私有文件和绑定。
 
 - 开发复用已接入通用角色和 IRIS 三个编码入口，事实源为[共享流程](../agents/_shared/execution-guidance.md#开发复用)，验收范围与局限见[本轮记录](../maintenance/validation/development-reuse-2026-11-16.md)。
 

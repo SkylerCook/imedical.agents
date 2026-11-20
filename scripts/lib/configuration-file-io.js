@@ -80,4 +80,25 @@ function edit(text, changes) {
     return bom + body;
 }
 
-module.exports = {readText, parse, edit};
+function copyFileAccess(source, target) {
+    if (process.platform !== 'win32') {
+        fs.chmodSync(target, fs.statSync(source).mode & 0o7777);
+        return;
+    }
+    const script = [
+        "$ErrorActionPreference='Stop'",
+        '[Console]::InputEncoding=[Text.UTF8Encoding]::new($false)',
+        '$paths=[Console]::In.ReadToEnd() | ConvertFrom-Json',
+        '$section=[Security.AccessControl.AccessControlSections]::Access',
+        '$original=[IO.File]::GetAccessControl($paths.source,$section)',
+        '$replacement=[Security.AccessControl.FileSecurity]::new()',
+        '$replacement.SetSecurityDescriptorSddlForm($original.GetSecurityDescriptorSddlForm($section),$section)',
+        '[IO.File]::SetAccessControl($paths.target,$replacement)',
+    ].join('\n');
+    require('node:child_process').execFileSync('powershell.exe', ['-NoProfile','-NonInteractive','-Command',script], {
+        input: Buffer.from(JSON.stringify({source, target}), 'utf8'),
+        windowsHide: true, stdio: ['pipe','pipe','pipe'],
+    });
+}
+
+module.exports = {readText, parse, edit, copyFileAccess};

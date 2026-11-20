@@ -46,7 +46,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 - 角色与 workflow 的 canonical 分别归 `agents/` 和 `workflows/`，可复用能力实现归 `plugins/`；工具 adapter 从事实源生成。
 - Codex、Claude Code、OpenCode、CodeBuddy 等工具专属入口只是 adapter，可删除重建。
 - 业务项目差异写入业务项目自己的 `AGENTS.md`、`.agents/config/`、`.agents/rules/`、`.agents/memory/`。
-- 连接配置遵循各能力的私有配置契约：IRIS 使用目标工程被忽略的 `.mcp.json`；BOS 使用 BOS_MCP_CONFIG 指向的按 skill 分段的仓外个人配置。真实连接信息与凭据不进入能力包或 Git 历史。
+- IRIS 使用目标工程被忽略的 `.mcp.json`。BOS 使用 `BOS_MCP_CONFIG` 指向的分段仓外个人配置，0.19.0 起兼容 JSONC。真实连接信息与凭据只放在各 owner 支持的私有来源。 [BOS 配置与兼容](plugins/bos-plugin/references/usage.md#共享私有配置)
 
 ## 给 Agent 的落地入口
 
@@ -81,7 +81,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 
 ## 给人的手工操作
 
-Windows x64 标准工程可以从[工作台安装和更新](docs/update-agents.md#使用工作台安装与更新)。下面是直接使用 PowerShell 的操作。
+Windows x64 标准工程可用工作台首装。已有工程可在首页[复制更新提示词](docs/update-agents.md#使用工作台安装与更新)，交由当前工程的 Agent 执行。下面是直接使用 PowerShell 的操作。
 
 ### 首次安装到业务项目
 
@@ -719,4 +719,4 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 
 ### 工程工作台
 
-Windows x64 工作台 ZIP 随带便携 Node 24、界面字体和离线手册，解压后可双击启动并选择工程。标准工程支持首装、检查、取版预演和写入复查。工作台提供工程连接、个人连接、插件和知识索引的管理入口。需要 Agent 处理的任务可准备带工程上下文的请求，在既有客户端执行后返回复查。各发行版本支持的离线能力包、Overlay 更新和工作台版本恢复以发放记录与[工作台说明](tools/agents-workbench/react/README.md)为准，使用步骤见[团队使用手册](docs/guides/usage-manual.md)。
+Windows x64 工作台 ZIP 随带便携 Node 24、界面字体和离线手册，解压后可双击启动并选择工程。标准工程可直接首装并检查落盘结果。已有工程在首页复制固定更新提示词，交给当前工程的 Agent 沿原流程处理，完成后回工作台重新读取。工作台还提供工程连接、个人连接、插件和知识索引的管理入口。项目规则、业务插件初始化以及宿主实际加载可按需接续到 Agent。各发行版本的离线能力、Overlay 范围和工作台版本恢复方式见[工作台说明](tools/agents-workbench/react/README.md)，日常操作见[团队使用手册](docs/guides/usage-manual.md)。

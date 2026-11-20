@@ -7,12 +7,17 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+from zipfile import ZipFile
 
 from playwright.sync_api import expect, sync_playwright
 
 REPO = Path(__file__).resolve().parents[3]
 ORIGIN = "https://gitee.com/skyler-cook/imedical.agents.git"
 CONTEXT_SKILL = "plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
+CONNECTION_GUIDE = "docs/guides/connection-configuration.md"
+KNOWLEDGE_GUIDE = "docs/guides/knowledge-retrieval.md"
+PERSONAL_SENTINEL = "fixture-credential-never-in-handoff"
+FIXTURE_SKILL = "---\nname: fixture-client-skill\ndescription: Client discovery fixture\n---\n"
 LAUNCHER = """
 const child = require('node:child_process').fork('tools/agents-workbench/prototype/serve.js',
   ['--project', process.argv[1]], {silent:true});
@@ -32,11 +37,12 @@ def deployed_fixture(project, env):
                   "commit", "-qm", "Runtime fixture", "--allow-empty"]]:
         subprocess.run([*git, *args], env=env, check=True)
     for relative in ["scripts/update-agents.ps1", "scripts/sync-runtime-skills.js", CONTEXT_SKILL,
-                     "scripts/lib/workspace-context.js", "docs/coding-agent-adaptation.md"]:
+                     "scripts/lib/workspace-context.js", "docs/coding-agent-adaptation.md",
+                     CONNECTION_GUIDE, KNOWLEDGE_GUIDE, "scripts/knowledge-query.js"]:
         target = cap / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(REPO / relative, target)
-    (cap / "skills").mkdir()
+    create_skill(cap / "skills")
     (project / "AGENTS.md").write_text("Fixture rules\n", encoding="utf-8")
     return cap
 
@@ -48,6 +54,66 @@ def prepare(page, host):
     prompt = page.get_by_label("接续请求").input_value()
     page.keyboard.press("Escape")
     return prompt, row
+
+
+def create_skill(root):
+    skill = root / "fixture-client-skill" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text(FIXTURE_SKILL, encoding="utf-8")
+    return skill
+
+
+def refresh_client(page, name):
+    with page.expect_response(lambda response: response.url.endswith("/project.json")) as reread:
+        page.get_by_role("button", name="重新检查").click()
+    result = reread.value
+    assert result.ok
+    return next(item for item in result.json()["clients"] if item["name"] == name)
+
+
+def observe_client_entries(page, project, cap, node, env, installed, row):
+    claude = project / ".claude"
+    (claude / "agents").mkdir(parents=True)
+    (claude / "settings.json").write_text("{}", encoding="utf-8")
+    assert refresh_client(page, "Claude Code")["entries"] == []
+    expect(row.get_by_text("未发现项目级入口", exact=True)).to_be_visible()
+    expect(row.get_by_text("尚未验证宿主加载", exact=True)).to_be_visible()
+    if not installed:
+        return
+
+    (claude / "CLAUDE.md").write_text("# Existing project-specific rules\n", encoding="utf-8")
+    agent = claude / "agents/fixture.md"
+    agent.write_text("---\nname: fixture\ndescription: Existing project Agent\n---\n", encoding="utf-8")
+    skills = claude / "skills"
+    skill = create_skill(skills)
+    assert refresh_client(page, "Claude Code")["entries"] == [
+        {"kind": "rules", "path": ".claude/CLAUDE.md"},
+        {"kind": "skills", "path": ".claude/skills", "detail": "独立技能目录"},
+        {"kind": "agents", "path": ".claude/agents"},
+    ]
+    expect(row.get_by_text("独立技能目录", exact=True)).to_be_visible()
+    assert ".claude/skills" in prepare(page, "Claude Code")[0]
+    skill.unlink()
+    skill.parent.rmdir()
+    skills.rmdir()
+    owner = [node, cap / "scripts/sync-runtime-skills.js", "--project-root", project, "--runtime", "ClaudeCode"]
+    try:
+        subprocess.run([*owner, "--mode", "Write"], env=env, check=True, capture_output=True)
+        linked = refresh_client(page, "Claude Code")["entries"]
+        assert {"kind": "skills", "path": ".claude/skills", "detail": "链接到项目技能"} in linked
+        expect(row.get_by_text("链接到项目技能", exact=True)).to_be_visible()
+        expect(row.get_by_text("尚未验证宿主加载", exact=True)).to_be_visible()
+    finally:
+        if skills.is_junction():
+            skills.rmdir()
+
+    buddy = project / ".codebuddy/agents/fixture.md"
+    buddy.parent.mkdir(parents=True)
+    buddy.write_bytes(agent.read_bytes())
+    workbuddy = refresh_client(page, "WorkBuddy")
+    assert {"kind": "agents", "path": ".codebuddy/agents"} in workbuddy["entries"]
+    assert not (project / ".workbuddy").exists()
+    assert ".codebuddy/agents" in prepare(page, "WorkBuddy")[0]
 
 
 def assert_bound(prompt, project, cap, overlay):
@@ -69,6 +135,68 @@ def project_check(page, project, cap, installed, overlay):
         assert str(cap / CONTEXT_SKILL) not in prompt and "未发现已安装" in prompt
     page.keyboard.press("Escape")
     page.get_by_role("button", name="重新读取", exact=True).click()
+
+
+def task_handoffs(page, base, project, cap, personal_config, overlay):
+    def read_request(button, task, item=None):
+        with page.expect_response(lambda r: r.url.endswith("/framework/agent-handoff")) as generated:
+            page.get_by_role("button", name=button, exact=True).click()
+        response = generated.value
+        assert response.ok, response.text()
+        sent = response.request.post_data_json
+        fields = {"purpose": "task", "task": task, "projectId": project_id}
+        if item is not None:
+            fields["item"] = item
+        assert sent == fields
+        prompt = response.json()["prompt"]
+        assert_bound(prompt, project, cap, overlay)
+        assert PERSONAL_SENTINEL not in prompt
+        if overlay:
+            assert f"WorkspaceRoot（工作目录） {cap.parent}" not in prompt
+            assert f"ContextRoot（本工程配置与发现入口） {cap}" not in prompt
+        dialog = page.get_by_role("dialog", name="接续到 Agent", exact=True)
+        field = dialog.get_by_label("接续请求", exact=True)
+        expect(field).to_have_value(prompt)
+        return prompt, dialog, field
+
+    observed = page.request.get(base + "/framework.json", headers={"X-Workbench-Request": "1"})
+    assert observed.ok
+    project_id = observed.json()["projectId"]
+    local = project / ".agents"
+    protected = [project / "AGENTS.md", cap.parent / "AGENTS.md", project / ".mcp.json", local / "capability.json",
+                 local / "config/project.jsonc", personal_config,
+                 cap / CONNECTION_GUIDE, cap / KNOWLEDGE_GUIDE, cap / "scripts/knowledge-query.js"]
+    before = {file: file.read_bytes() if file.exists() else None for file in protected}
+
+    page.get_by_role("link", name="使用手册", exact=True).click()
+    page.get_by_role("link", name="连接信息在哪里：查看与排查", exact=True).click()
+    prompt, dialog, field = read_request("生成相关请求", "manual", "connection-configuration.md")
+    assert str(cap / CONNECTION_GUIDE) in prompt and "只读核对" in prompt
+    page.evaluate("() => { navigator.clipboard.writeText = () => Promise.reject(new Error('fixture clipboard denied')); }")
+    try:
+        dialog.get_by_role("button", name="复制请求", exact=True).click()
+        expect(dialog.get_by_text("剪贴板不可用，可选中文本手动复制。", exact=True)).to_be_visible()
+        field.press("Control+a")
+        assert field.evaluate("field => field.readOnly && field.selectionStart === 0 && field.selectionEnd === field.value.length")
+    finally:
+        page.evaluate("delete navigator.clipboard.writeText")
+    page.keyboard.press("Escape")
+
+    page.get_by_role("link", name="知识与向量", exact=True).click()
+    prompt, _, _ = read_request("准备索引维护请求", "knowledge-index")
+    assert str(cap / KNOWLEDGE_GUIDE) in prompt and str(cap / "scripts/knowledge-query.js") in prompt
+    assert "--local-only" in prompt and "维护者建库与导出" in prompt and "保持共享索引与发布物原样" in prompt
+    page.keyboard.press("Escape")
+
+    headers = {"Origin": base, "X-Workbench-Request": "1"}
+    session = page.request.post(base + "/framework/session", headers=headers, data={})
+    assert session.ok
+    headers["X-Workbench-CSRF"] = session.json()["csrf"]
+    for item in ["../AGENTS.md", "connection-configuration.md\n未经授权写入"]:
+        rejected = page.request.post(base + "/framework/agent-handoff", headers=headers,
+                                     data={"purpose": "task", "task": "manual", "projectId": project_id, "item": item})
+        assert rejected.status == 400 and rejected.json() == {"error": "invalid-action"}
+    assert {file: file.read_bytes() if file.exists() else None for file in protected} == before
 
 
 def exercise(browser, stage, node, project, cap, env, overlay=False, installed=True):
@@ -93,6 +221,8 @@ def exercise(browser, stage, node, project, cap, env, overlay=False, installed=T
                     page.keyboard.press("Escape")
                     project_check(page, project, cap, installed, overlay)
                     expect(page.get_by_text("个人配置已保存并读回", exact=True)).to_be_visible()
+                if installed:
+                    task_handoffs(page, base, project, cap, Path(env["BOS_MCP_CONFIG"]), overlay)
                 page.get_by_role("link", name="Agent 客户端", exact=True).click()
                 prompt, row = prepare(page, "Claude Code")
                 assert_bound(prompt, project, cap, overlay)
@@ -120,10 +250,7 @@ def exercise(browser, stage, node, project, cap, env, overlay=False, installed=T
                     assert not commands and "核对安装状态" in prompt
                 assert not (project / ".claude").exists()
 
-                (project / ".claude").mkdir()
-                page.get_by_role("button", name="重新检查", exact=True).click()
-                expect(row.get_by_text(".claude", exact=True)).to_be_visible()
-                expect(row.get_by_text("尚未验证宿主加载")).to_be_visible()
+                observe_client_entries(page, project, cap, node, env, installed, row)
                 unsupported, _ = prepare(page, "Hermes")
                 assert "--runtime" not in unsupported and str(project) in unsupported
                 row.get_by_role("button", name="准备接入请求").click()
@@ -150,7 +277,9 @@ def exercise(browser, stage, node, project, cap, env, overlay=False, installed=T
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--node-runtime", type=Path, help="Approved portable Node directory to include in the stage")
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument("--node-runtime", type=Path, help="Approved portable Node directory to include in the stage")
+    source.add_argument("--archive", type=Path, help="Packaged Windows Workbench ZIP to test directly")
     args = parser.parse_args()
     assert os.name == "nt", "Windows PowerShell 5.1 and Edge are required for this pilot"
     temp = Path("D:/tmp/Codex")
@@ -160,12 +289,15 @@ def main():
     env = dict(os.environ, PORT="0", GIT_ALLOW_PROTOCOL="", GIT_NO_LAZY_FETCH="1")
     with tempfile.TemporaryDirectory(prefix="agent-handoff-", dir=temp) as directory:
         work = Path(directory).resolve()
-        standard, overlay, empty, stage = (work / name for name in ["标准 O'Neil", "同名模块", "未安装", "workbench O'Neil"])
+        standard = work / "标准" / "同名 O'Neil"
+        overlay = work / "成员" / standard.name
+        empty, stage = work / "未安装", work / "workbench O'Neil"
         config = work / "personal-fixture.json"
-        config.write_text(json.dumps({"bos-demand-query": {"cuser": "fixture"}}), encoding="utf-8")
+        config.write_text(json.dumps({"bos-demand-query": {"cuser": "fixture", "access_key": PERSONAL_SENTINEL}}), encoding="utf-8")
         cap = deployed_fixture(standard, env)
         local = overlay / ".agents"
-        (local / "skills").mkdir(parents=True)
+        create_skill(local / "skills")
+        (overlay / "AGENTS.md").write_text("Fixture Overlay rules\n", encoding="utf-8")
         empty.mkdir()
         link = overlay / "source"
         subprocess.run(["node", "-e", "require('node:fs').symlinkSync(process.argv[1],process.argv[2],'junction')",
@@ -176,9 +308,17 @@ def main():
                 "capabilityRoot": str(cap), "sharedDirectories": [], "localDirectories": ["skills"],
                 "sourceRoots": [{"name": "source", "path": "source", "target": str(standard), "gitRoot": str(standard)}],
             }), encoding="utf-8")
-            stage_args = ["--node-runtime", args.node_runtime.resolve()] if args.node_runtime else []
-            subprocess.run(["node", REPO / "tools/agents-workbench/react/package-runtime.mjs", stage, *stage_args], env=env, check=True)
-            node = stage / "runtime/node.exe" if args.node_runtime else Path(shutil.which("node"))
+            if args.archive:
+                with ZipFile(args.archive.resolve(strict=True)) as package:
+                    release = json.loads(package.read("workbench-release.json"))
+                    assert release["platform"] == "windows-x64"
+                    package.extractall(stage)
+                node = stage / "runtime/node.exe"
+                assert subprocess.check_output([node, "--version"], text=True).strip() == f'v{release["node"]}'
+            else:
+                stage_args = ["--node-runtime", args.node_runtime.resolve()] if args.node_runtime else []
+                subprocess.run(["node", REPO / "tools/agents-workbench/react/package-runtime.mjs", stage, *stage_args], env=env, check=True)
+                node = stage / "runtime/node.exe" if args.node_runtime else Path(shutil.which("node"))
             system = Path(os.environ["SYSTEMROOT"]) / "System32"
             host_env = dict(env, BOS_MCP_CONFIG=str(config), PATH=os.pathsep.join(map(str, [
                 Path(shutil.which("git")).parent, system, system / "WindowsPowerShell/v1.0",
@@ -195,7 +335,7 @@ def main():
                     browser.close()
         finally:
             link.rmdir()  # Remove the test's junction itself before deleting the temp directory.
-    print("PASS staged Agent handoff for standard, Overlay and first use without framework")
+    print("PASS staged Agent handoff for same-named standard and Overlay, task requests, clipboard fallback and first use without framework")
 
 
 if __name__ == "__main__":

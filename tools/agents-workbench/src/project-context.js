@@ -3,10 +3,22 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { resolveWorkspaceContext } = require('../../../scripts/lib/workspace-context');
+const { resolveWorkspaceContext, validateWorkspaceDeclaration } = require('../../../scripts/lib/workspace-context');
 
 function stat(file) {
   return fs.lstatSync(file, { throwIfNoEntry: false });
+}
+
+function inspectProjectContext(root) {
+  try {
+    const local = path.join(root, '.agents');
+    const directory = stat(local);
+    if (directory && !directory.isDirectory()) return null;
+    const manifest = stat(path.join(local, 'capability.json'));
+    if (manifest && (!manifest.isFile() || manifest.nlink !== 1)) return null;
+    const context = resolveWorkspaceContext(root);
+    return validateWorkspaceDeclaration(context).length ? null : context;
+  } catch { return null; }
 }
 
 function inspectFramework(projectRoot) {
@@ -21,9 +33,8 @@ function inspectFramework(projectRoot) {
   if (!directory) return status('no-framework');
   if (!directory.isDirectory()) return status('custom-layout');
   if (stat(path.join(cap, 'capability.json'))?.isSymbolicLink()) return status('custom-layout');
-  let context;
-  try { context = resolveWorkspaceContext(root); }
-  catch { return status('invalid-declaration'); }
+  const context = inspectProjectContext(root);
+  if (!context) return status('invalid-declaration');
   if (context.manifestPath) return status(context.mode === 'workspace-overlay' ? 'overlay-declared' : 'invalid-declaration');
   const metadata = path.join(cap, '.git');
   if (!stat(metadata)?.isDirectory()) return status('partial');
@@ -42,4 +53,4 @@ function inspectFramework(projectRoot) {
   return status('standard');
 }
 
-module.exports = { inspectFramework };
+module.exports = { inspectFramework, inspectProjectContext };

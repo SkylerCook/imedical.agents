@@ -270,7 +270,7 @@ function DemoKnowledge({ id, project, nav, open }: { id: DemoId; project: DemoPr
 
 function DemoManual({ nav, newTask }: { nav: Navigation; newTask: (title: string) => void }) {
   const guides = useResource(readGuides);
-  return guides.data ? <GuideReader nav={nav} guides={guides.data} onHandoff={newTask} /> : <>
+  return guides.data ? <GuideReader nav={nav} guides={guides.data} onHandoff={title => newTask(title)} /> : <>
     <PageHeading title="使用手册" description="查看本机运行包中的原文。" />
     <ReadState label="正在读取手册目录…" error={guides.error} retry={guides.retry} />
   </>;

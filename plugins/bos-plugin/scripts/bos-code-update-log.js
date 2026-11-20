@@ -9,6 +9,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const personal = require('./personal-config');
+const { parseConnectionUrl } = require('./bos-connection');
 const { verifyRealCommits } = require('../../../scripts/lib/real-repository-commit');
 const DEFAULT_TIMEOUT = 30000;
 const MAX_BUFFER = 64 * 1024 * 1024;
@@ -137,9 +138,7 @@ function loadConfig(env = process.env) {
   if (selected.connection !== undefined && selected.connection !== 'company') throw new Error('bos-code-update-log connection 无效');
   if (selected.connection === 'company' && Object.hasOwn(selected, 'url')) throw new Error('公司连接配置不能同时设置 url');
   const url = selected.connection === 'company' ? personal.companyUrl('codeUpdateLogUrl') : selected.url;
-  let parsed;
-  try { parsed = new URL(url); } catch { throw new Error('代码更新日志接口地址不是有效 URL'); }
-  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error('代码更新日志接口地址必须为不含鉴权参数的 HTTPS 地址');
+  const parsed = parseConnectionUrl('bos-code-update-log', url);
   const required = (key) => {
     const value = selected[key];
     if (typeof value !== 'string' || !value.trim() || /^(TODO|xxxxx)$/i.test(value.trim())) throw new Error('请补全 bos-code-update-log.' + key + '，凭据和关联项目不能为 TODO。' + personal.fieldHelp('bos-code-update-log.' + key));

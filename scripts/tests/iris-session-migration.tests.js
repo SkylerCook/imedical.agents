@@ -42,6 +42,58 @@ test('Check rejects old or modified vendor without connecting or changing privat
   assert.equal(fs.readFileSync(f.file,'utf8'),before);
 });
 
+test('a second Node installation can check and keep the registered managed host unchanged',t=>{
+  const f=fixture(t);
+  assert.equal(migrate({projectRoot:f.root,mode:'Write'}).status,'applied');
+  const portable=path.join(f.root,process.platform==='win32'?'node.exe':'node');
+  fs.copyFileSync(process.execPath,portable);
+  const migration=path.resolve('plugins/coding-iris-plugin/scripts/iris-tools/session-migration.js');
+  const backend=path.join(f.root,'.agents/config/iris-session-backend.json');
+  const before=fs.readFileSync(f.file),receipt=fs.readFileSync(backend);
+  for(const mode of ['DryRun','Check','Write']) {
+    const run=spawnSync(portable,[migration,'--project-root',f.root,'--mode',mode],{encoding:'utf8',windowsHide:true});
+    assert.equal(run.status,0,run.stderr || run.error?.message || run.stdout);
+    assert.equal(JSON.parse(run.stdout)[0].status,'config-migration-unchanged');
+    assert.deepEqual(fs.readFileSync(f.file),before);
+    assert.deepEqual(fs.readFileSync(backend),receipt);
+  }
+});
+
+test('a valid Node path alone cannot replace the recorded host or change its canonical adapter',t=>{
+  const f=fixture(t);
+  migrate({projectRoot:f.root,mode:'Write'});
+  const backendFile=path.join(f.root,'.agents/config/iris-session-backend.json');
+  const backend=JSON.parse(fs.readFileSync(backendFile,'utf8'));
+  const config=JSON.parse(fs.readFileSync(f.file,'utf8'));
+  const server=config.mcpServers['iris-agentic-dev'];
+  const originalCommand=server.command,originalArgs=server.args.slice();
+  const alternate=path.join(f.root,process.platform==='win32'?'node.exe':'node');
+  fs.copyFileSync(process.execPath,alternate);
+  server.command=alternate;
+  fs.writeFileSync(f.file,JSON.stringify(config));
+  assert.throws(()=>migrate({projectRoot:f.root,mode:'Check'}),/session-managed-config-drift/);
+
+  const checkWithRecordedBinding=()=>{
+    const {hash}=require('../lib/iris-session-manager');
+    const changed=JSON.stringify(config);
+    const changedReceipt=JSON.stringify({...backend,managedHash:hash({command:server.command,args:server.args})});
+    fs.writeFileSync(f.file,changed);
+    fs.writeFileSync(backendFile,changedReceipt);
+    for(const mode of ['DryRun','Check','Write']) assert.throws(()=>migrate({projectRoot:f.root,mode}),/session-managed-config-drift/);
+    assert.equal(fs.readFileSync(f.file,'utf8'),changed);
+    assert.equal(fs.readFileSync(backendFile,'utf8'),changedReceipt);
+  };
+  server.command=originalCommand;
+  server.args=[...originalArgs,'--modified'];
+  checkWithRecordedBinding();
+  server.args=originalArgs;
+  server.command=path.join(f.root,'.agents/scripts/iris-session-mcp.js');
+  checkWithRecordedBinding();
+  server.command=alternate;
+  fs.unlinkSync(alternate);
+  checkWithRecordedBinding();
+});
+
 test('updates and rollback preserve private cookie format bindings byte for byte',t=>{
   const f=fixture(t),directory=path.join(f.root,'.agents/config');
   fs.mkdirSync(directory,{recursive:true});
@@ -56,6 +108,30 @@ test('updates and rollback preserve private cookie format bindings byte for byte
     assert.equal(fs.readFileSync(file,'utf8'),original,mode+' must not rewrite private policy');
   }
   assert.deepEqual(JSON.parse(fs.readFileSync(f.file)),f.config);
+});
+
+test('rollback respects the selected connection pool in the prior coordination directory',t=>{
+  const f=fixture(t),directory=path.join(f.root,'.agents/config');
+  const remote=require('../lib/iris-remote-operations');
+  const selected={host:'example.invalid',port:443,scheme:'https',namespace:'TEST',tlsVerify:false};
+  const original={...selected,host:'original.example.invalid'};
+  const policy={schema:'iris-remote-policy/v1',enabled:true,poolKey:remote.instanceIdentity(original),
+    coordinationRoot:path.join(f.root,'prior-coordination')};
+  fs.mkdirSync(directory,{recursive:true});
+  fs.writeFileSync(path.join(directory,'project.jsonc'),JSON.stringify({irisConnections:{
+    active:'selected',serverName:'iris-agentic-dev',profiles:{selected,original},bindings:{mcp:true}
+  }}));
+  fs.writeFileSync(path.join(directory,'iris-remote-policy.json'),JSON.stringify(policy));
+  assert.equal(migrate({projectRoot:f.root,mode:'Write'}).status,'applied');
+  const before=fs.readFileSync(f.file);
+  const owner=remote.createRemoteOperation({policy:{...policy,poolKey:remote.instanceIdentity(selected)},connection:selected});
+  owner.acquire();
+  try {
+    assert.equal(migrate({projectRoot:f.root,mode:'Check'}).status,'unchanged');
+    assert.throws(()=>migrate({projectRoot:f.root,mode:'Rollback'}),/session-legacy-pool-unresolved/);
+    assert.deepEqual(fs.readFileSync(f.file),before);
+  } finally { owner.close(); }
+  assert.equal(migrate({projectRoot:f.root,mode:'Rollback'}).status,'rolled-back');
 });
 
 test('custom entries and rollback drift stop without replacing user changes',t=>{

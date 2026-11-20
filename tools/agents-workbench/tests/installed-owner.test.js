@@ -24,7 +24,7 @@ test('installed standard owner Check and local DryRun preserve the project', {sk
     GIT_CONFIG_KEY_0:'url.' + mirror.replaceAll('\\','/') + '.insteadOf', GIT_CONFIG_VALUE_0:origin,
     GIT_CONFIG_KEY_1:'protocol.allow', GIT_CONFIG_VALUE_1:'never',
     GIT_ALLOW_PROTOCOL:'file', GIT_TERMINAL_PROMPT:'0'};
-  env.PSModulePath = path.join(env.SystemRoot,'System32/WindowsPowerShell/v1.0/Modules');
+  env.PSModulePath = path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/Modules');
   delete env.IMEDICAL_DEPLOYMENT_LOCK;
   function run(program,args) {
     const r = spawnSync(program,args,{cwd:root, env, encoding:'utf8',windowsHide:true,maxBuffer:16*1024*1024});

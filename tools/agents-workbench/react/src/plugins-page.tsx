@@ -13,7 +13,7 @@ const states = ["all", "enabled", "available", "disabled", "pending", "unknown"]
 const stateLabel = (state: string) => state === "all" ? "全部状态" : pluginStatus(state);
 
 export function PluginsPage({ project, nav, onHandoff, refresh }: {
-  project: ProjectSummary; nav: Navigation; refresh:()=>void; onHandoff: (title: string) => void;
+  project: ProjectSummary; nav: Navigation; refresh:()=>void; onHandoff: (name: string) => void;
 }) {
   const search = useRef<HTMLInputElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -64,7 +64,10 @@ export function PluginsPage({ project, nav, onHandoff, refresh }: {
     </Details></div>}
     <PluginPreview plugin={target} project={project} catalog={data} configHref={configHref}
       actions={target && (project.pluginIssue ? <div className="mt-4"><Notice error>{project.pluginIssue}</Notice></div>
-        : <PluginActions key={target.name} name={target.name} onChange={refresh} onInit={source=>{nav.replace({preview:undefined});onHandoff(`初始化 ${target.name}，核对依赖、配置和入口 ${source}，完成后读回插件状态与宿主发现结果`);}} />)}
+        : <PluginActions key={target.name} name={target.name} onChange={refresh} onInit={() => {
+          nav.replace({ preview: undefined });
+          onHandoff(target.name);
+        }} />)}
       onClose={() => nav.replace({ preview: undefined })}
       onRestoreFocus={event => {
         event.preventDefault();

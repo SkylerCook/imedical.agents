@@ -18,32 +18,49 @@ async function openDefault(projectRoot) {
   if (!selection || selection.current.base) return false;
 
   const { launchSelectedRelease, openBrowser } = require('./release-launcher');
+  const startup = new AbortController();
+  const signals = ['SIGINT', 'SIGTERM', 'SIGBREAK'];
   let next = selection.current;
   let started;
-  while (next && !next.base) {
-    try {
-      started = await launchSelectedRelease({ anchor, entry: next, projectRoot, port: process.env.PORT || '0', owned: true });
-      break;
-    } catch {
-      console.error(`Workbench ${next.version} could not start. Trying the previous installation.`);
-      next = next === selection.current ? selection.previous : null;
+  const stop = () => {
+    if (started) started.disconnect();
+    else startup.abort();
+  };
+  for (const signal of signals) process.on(signal, stop);
+  try {
+    while (next && !next.base) {
+      try {
+        started = await launchSelectedRelease({ anchor, entry: next, projectRoot, port: process.env.PORT || '0',
+          owned: true, signal: startup.signal });
+        break;
+      } catch (error) {
+        if (startup.signal.aborted) {
+          if (error.code === 'cleanup-failed') throw error;
+          return true;
+        }
+        console.error(`Workbench ${next.version} could not start. Trying the previous installation.`);
+        next = next === selection.current ? selection.previous : null;
+      }
     }
-  }
-  if (next !== selection.current) {
-    // An explicitly occupied port affects both versions. Keep the saved choice for a normal start.
-    if (!process.env.PORT || process.env.PORT === '0' || started) {
-      try { saveSelection(anchor, projectRoot, selection, next ? { current: next, previous: null } : null); }
-      catch { /* A parallel change is retained. Recovery still opens the previous installation. */ }
+    if (next !== selection.current) {
+      // An explicitly occupied port affects both versions. Keep the saved choice for a normal start.
+      if (!process.env.PORT || process.env.PORT === '0' || started) {
+        try { saveSelection(anchor, projectRoot, selection, next ? { current: next, previous: null } : null); }
+        catch { /* A parallel change is retained. Recovery still opens the previous installation. */ }
+      }
     }
+    if (!started) return false;
+
+    const address = new URL(started.address);
+    console.log(`Workbench: ${address.origin}/#home`);
+    if (process.send) process.send({ address: `${address.origin}/#home`, bootstrap: address.hash.slice('#bootstrap='.length) });
+    if (process.argv.includes('--open')) openBrowser(started.address);
+    const [code] = await started.ended;
+    process.exitCode = code ?? 1;
+    return true;
+  } finally {
+    for (const signal of signals) process.removeListener(signal, stop);
   }
-  if (!started) return false;
-  const address = new URL(started.address);
-  console.log(`Workbench: ${address.origin}/#home`);
-  if (process.send) process.send({ address: `${address.origin}/#home`, bootstrap: address.hash.slice('#bootstrap='.length) });
-  if (process.argv.includes('--open')) openBrowser(started.address);
-  const [code] = await started.ended;
-  process.exitCode = code ?? 1;
-  return true;
 }
 
 const projectIndex = process.argv.indexOf('--project');

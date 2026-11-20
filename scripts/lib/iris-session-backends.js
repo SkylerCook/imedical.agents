@@ -52,11 +52,11 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
     if (policy.schema !== 'iris-remote-policy/v1') throw failure('session-policy-invalid');
     remote.frameworkSessionLimit(policy);
     if(!require('node:path').isAbsolute(policy.coordinationRoot || '') || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || '') || policy.maxConcurrent!==undefined && policy.maxConcurrent!==1)throw failure('session-policy-invalid');
-    if (!localOnly && policy.coordinationRoot && policy.poolKey) {
+    policy=remote.managedPolicy(context,policy,true,connection);
+    if (!localOnly) {
       // Resource admission belongs to owner.run/SessionManager after effects and scope are derived.
-      remote.poolStatus({policy});
+      remote.poolStatus({policy:{...policy,coordinationRoot:policy.legacyCoordinationRoot || policy.coordinationRoot}});
     }
-    policy=remote.managedPolicy(context,policy,true);
   }
   const backendFile = path.join(context.contextRoot, 'config', 'iris-session-backend.json');
   let backend;
@@ -82,8 +82,9 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
     else effectiveArgs.push(flag);
   }
   // Credentials are resolved here, in the user's process, never sent in CLI arguments or receipts.
+  const admission = policy?.enabled ? [policy.poolKey, policy.coordinationRoot, policy.legacyCoordinationRoot] : null;
   return {context, connection, env, backend, policy, pool: policy?.allowSharedPool === true ? policy.poolKey : instance,
-    identity: hash([instance, Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))), connection.rejectUnauthorized, runtimeIdentity, effectiveArgs, env.IRIS_NAMESPACE])};
+    identity: hash([instance, Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))), connection.rejectUnauthorized, runtimeIdentity, effectiveArgs, env.IRIS_NAMESPACE, admission])};
 }
 async function verifyBackendConfiguration(client, expected, assertSession) {
   assertSession();

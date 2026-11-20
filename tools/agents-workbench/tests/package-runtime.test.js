@@ -71,10 +71,24 @@ test('stage preserves directory contents under a Unicode path and serves its bou
   for (const dir of ['vendor/jsonc-parser','tools/ai-dev-offline/vendor/jsonc-parser','vendor/iarna-toml','tools/ai-dev-offline/vendor/iarna-toml', react + '/dist/assets']) compare(dir);
   const metadata = JSON.parse(fs.readFileSync(path.join(stage, 'workbench-release.json'), 'utf8'));
   assert.equal(metadata.formal, false);
+  const startup = fs.readFileSync(path.join(stage, 'README.md'), 'utf8');
+  assert.match(startup, /工作台 .*试用包/);
+  assert.match(startup, /试用 ZIP 完整解压到独立的新目录/);
+  assert.match(startup, /只接受带包外发行记录的正式 ZIP/);
+  assert.match(startup, /PATH 中的 Git 和 Windows PowerShell 5\.1/);
+  assert.match(startup, /capability\.bundle.*包外离线发行记录.*选择并预演离线能力包/);
+  assert.match(startup, /复制更新提示词/);
+  assert.match(startup, /重新读取/);
   assert.deepEqual(fs.readFileSync(path.join(stage, 'import-workbench-release.ps1')),
     fs.readFileSync(path.join(repo, react, 'import-workbench-release.ps1')));
   compare('tools/agents-workbench/src/release-launcher.js');
+  compare('tools/agents-workbench/src/task-owner-observations.js');
+  compare('tools/agents-workbench/src/state-export.js');
+  compare('tools/agents-workbench/src/manual-search.js');
+  compare('scripts/lib/offline-capability-update.js');
+  compare('plugins/bos-plugin/scripts/bos-connection.js');
   const manuals = ['docs/update-agents.md', 'docs/workspace-overlay.md', 'docs/guides/usage-manual.md'];
+  for (const manual of manuals.slice(0, 2)) assert.ok(startup.includes(`](${manual})`));
   for (const manual of manuals) {
     compare(manual);
     assert.ok(Object.hasOwn(metadata.documentationSha256, manual));
@@ -124,5 +138,21 @@ test('stage preserves directory contents under a Unicode path and serves its bou
     assert.equal(result.matches[0].path, source);
     assert.equal(result.matches[0].line, 1);
     assert.match(result.matches[0].text, /标签对齐/);
+
+    const manualSearch = new URL('/manuals/search', hello.address);
+    manualSearch.searchParams.set('q', 'trustedruntimetree');
+    assert.equal((await fetch(manualSearch)).status, 403);
+    assert.equal((await fetch(manualSearch, { headers: { ...headers, Origin: 'http://untrusted.invalid' } })).status, 403);
+    const manualResponse = await fetch(manualSearch, { headers, signal: AbortSignal.timeout(5000) });
+    assert.equal(manualResponse.status, 200);
+    const { matches } = await manualResponse.json();
+    const match = matches.find(item => item.file === 'update-agents.md');
+    assert.ok(match);
+    const lines = fs.readFileSync(path.join(stage, 'docs/update-agents.md'), 'utf8').split(/\r?\n/u);
+    assert.match(lines[match.line - 1], /TrustedRuntimeTree/u);
+    manualSearch.searchParams.set('q', '工单检索验收关键词');
+    assert.deepEqual(await (await fetch(manualSearch, { headers })).json(), { matches: [], truncated: false });
+    manualSearch.searchParams.set('file', '.mcp.json');
+    assert.equal((await fetch(manualSearch, { headers })).status, 400);
   } finally { server.kill(); await stopped; }
 });

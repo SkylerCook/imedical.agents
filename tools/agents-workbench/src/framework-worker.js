@@ -13,6 +13,7 @@ const projectActions = require('./project-owner-actions');
 const { planOverlayUpdate, inspectOverlayLink, inspectRegisteredMember } = require('./overlay-members');
 const { applyOverlayUpdate, refreshBoundOverlay, runCanonicalMember } = require('./overlay-update');
 const { runOwnerPowerShell } = require('./owner-powershell');
+const { exportProjectState } = require('./state-export');
 
 const runtimeTrees = ['scripts','plugins','vendor','hooks'];
 // Each pilot commit is approved with the digest of its deployed runtime entries.
@@ -24,27 +25,35 @@ const trustedRuntime = new Map([
   ['1a8a257cffa676a486a126ceab48b234babdd398', 'e43844b42644d604220126adebf35b8799f76521cb7d603280bd2631adafeb4e'],
   ['536d12b49bea961295162030e0926ebf65562330', '46c8d133986c4f4aaf2480d71e6ec611ca2938f0e77411d6670cc19d7d98a753'],
   ['08fe2e9099dfe95db53118f42fc43d683009023f', '7465f52d4bb222fe3b07868c50bb8001d75c0d31086fbdf163a259ed52f83e8f'],
+  ['afb19d0e980a48ce2c49d945aff11c2120861d3a', '7465f52d4bb222fe3b07868c50bb8001d75c0d31086fbdf163a259ed52f83e8f'],
+  ['35a8d2109fab6d18d2e529606ff8d8cbc7356408', '0a0a8e8d127f00eb1ffac2fb235a5795b2eb9cb07233b0d99cba06a5d3f53b57'],
+  ['1cc5b8bc6b7470979867f55f6efb89bb6d1bf69b', '98db0fe5fd6707cf6c2322f0ee3174865e716983a7225648e6e74d9ec90496c3'],
 ]);
 
-function packagedRuntimePin() {
+function packagedRuntime() {
   const root = path.resolve(__dirname, '../../..');
   const record = path.join(root, 'workbench-release.json');
   try {
     if (fs.lstatSync(path.join(root, '.git'), { throwIfNoEntry: false }) ||
         !fs.lstatSync(path.join(root, 'runtime/node.exe'), { throwIfNoEntry: false })?.isFile() ||
-        !fs.lstatSync(record, { throwIfNoEntry: false })?.isFile()) return null;
+        !fs.lstatSync(record, { throwIfNoEntry: false })?.isFile()) return {};
     // This is the local envelope from the publisher-verified full ZIP, never a project's record.
     const release = JSON.parse(fs.readFileSync(record, 'utf8'));
+    if (release.platform !== 'windows-x64') return {};
+    if (release.formal === false && trustedRuntime.has(release.sourceBaseRevision)) {
+      // A trial record can select an already approved public baseline, never approve a new tree.
+      return { installBaseline: release.sourceBaseRevision };
+    }
     const pin = release.runtimePin;
-    if (release.formal !== true || release.localBuildChanges !== false || release.platform !== 'windows-x64' ||
+    if (release.formal !== true || release.localBuildChanges !== false ||
         typeof pin?.revision !== 'string' || pin.revision !== release.sourceBaseRevision ||
         !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(pin.revision) ||
-        typeof pin.treeDigest !== 'string' || !/^[a-f0-9]{64}$/u.test(pin.treeDigest)) return null;
-    return pin;
-  } catch { return null; }
+        typeof pin.treeDigest !== 'string' || !/^[a-f0-9]{64}$/u.test(pin.treeDigest)) return {};
+    return { pin, installBaseline: pin.revision };
+  } catch { return {}; }
 }
 
-const ownPin = packagedRuntimePin();
+const { pin: ownPin, installBaseline } = packagedRuntime();
 if (ownPin && !trustedRuntime.has(ownPin.revision)) trustedRuntime.set(ownPin.revision, ownPin.treeDigest);
 const sourceUrl = 'https://gitee.com/skyler-cook/imedical.agents.git';
 const companyIndexFile = 'vendor/knowledge-index/company.sqlite';
@@ -146,9 +155,11 @@ function observeCompanyIndex(root, state) {
 function observe(root, includeIndex = false) {
   const state = inspectFramework(root);
   if (includeIndex) state.companyIndex = observeCompanyIndex(root, state);
-  if (!['standard','no-framework'].includes(state.status)) return {...state,observedAt:new Date().toISOString()};
+  if (!['standard','no-framework','partial','invalid-head','unknown-source','invalid-declaration','framework-checkout'].includes(state.status))
+    return {...state,observedAt:new Date().toISOString()};
   const identity = [root];
-  if (state.status === 'standard') identity.push(path.join(root,'.agents'),path.join(root,'.agents/.git'));
+  if (!['no-framework','framework-checkout'].includes(state.status)) identity.push(path.join(root,'.agents'));
+  if (state.revision || state.status === 'invalid-head') identity.push(path.join(root,'.agents/.git'));
   if (state.status === 'standard') {
     const cap = path.join(root,'.agents');
     let profileExists = false;
@@ -258,7 +269,35 @@ function memberRefresh({root,expectedRevision,expectedBinding,overlaySelection},
   },done);
 }
 
+function runExportState(root, expectedRevision, expectedBinding, expectedShared) {
+  const before = observe(root);
+  if (!['standard', 'overlay-declared', 'no-framework'].includes(before.status)) return {error:'unsupported-project'};
+  const isOverlay = before.status === 'overlay-declared';
+  function overlayLink() {
+    try { return inspectOverlayLink(root); }
+    catch { return null; }
+  }
+  const link = isOverlay ? overlayLink() : null;
+  const binding = isOverlay ? link?.member.identity : before.binding;
+  if (!expectedBinding || binding !== expectedBinding || (isOverlay && link.root.binding !== expectedShared?.binding))
+    return {error:'binding-changed'};
+  if (before.revision !== expectedRevision || (isOverlay && link.root.revision !== expectedShared.revision))
+    return {error:'stale-observation'};
+  const contextRoot = isOverlay ? link.member.contextRoot : path.join(root,'.agents');
+  const state = exportProjectState(root, {
+    layout:isOverlay ? 'overlay' : before.status === 'standard' ? 'standard' : 'not-installed',
+    revision:isOverlay ? link.root.revision : before.revision,
+    contextRoot,
+    capabilityRoot:isOverlay ? link.root.capabilityRoot : before.status === 'standard' ? contextRoot : null,
+  });
+  const after = observe(root);
+  if (after.status !== before.status || after.binding !== before.binding || after.revision !== before.revision ||
+      (isOverlay && overlayLink()?.id !== link.id)) return {error:'binding-changed'};
+  return state;
+}
+
 function run({root,action,expectedRevision,expectedBinding,offlineSelection,overlaySelection}) {
+  if (action === 'export-state') return runExportState(root,expectedRevision,expectedBinding,overlaySelection);
   const before = observe(root,true);
   if (action === 'observe') return before;
   if (action === 'overlay-member-refresh') return memberRefresh({root,expectedRevision,expectedBinding,overlaySelection},before);
@@ -434,12 +473,12 @@ function run({root,action,expectedRevision,expectedBinding,offlineSelection,over
       Object.assign(env,{GIT_CONFIG_COUNT:'2',GIT_CONFIG_KEY_1:'url.'+url+'.insteadOf',GIT_CONFIG_VALUE_1:sourceUrl});
     }
     const params = {TrustedRuntimeTree:[...trustedRuntime].map(pair => pair.join(':')).join(',')};
-    if (ownPin) params.PublishedRevision = ownPin.revision;
+    if (installBaseline) params.PublishedRevision = installBaseline;
     if (!owner('install',installer,params,env)) return receipt('install-failed');
     const installed = observe(root);
     if (installed.status !== 'standard') return receipt('revision-mismatch');
     const result = initializeInstalled(installed);
-    if (!ownPin) return result;
+    if (!installBaseline) return result;
     const published = git(cap,['rev-parse','refs/remotes/origin/master']).toString().trim();
     return compatibility(result,published,installed.revision);
   }

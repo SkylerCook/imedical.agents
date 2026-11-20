@@ -54,65 +54,99 @@ async function execute(root, action, secret, approved, options = {}) {
   if (action !== 'start' || signature !== approved) throw failure('knowledge-preview-stale');
   if (!providerReady) throw failure('knowledge-provider-config');
   const result = await build(context,{embedding:profile,approveTransfer:proposal.transferSnapshot,
-    fetch:options.fetch,onProgress:options.onProgress,confirmProfile:() => {
+    fetch:options.fetch,onProgress:options.onProgress,shouldStop:options.shouldStop,confirmProfile:() => {
       const current = inputs();
       return sign(current.identity,current.profile) === approved;
     }});
   const {indexed,remainingVectors,embeddingTokens} = result;
   const complete = result.complete && remainingVectors === 0 && result.warnings.length === 0;
-  return {complete,indexed,remainingVectors,embeddingTokens,retryable:!complete};
+  return {complete,indexed,remainingVectors,embeddingTokens,retryable:!complete,...(result.stopped && {stopped:true})};
 }
 
 function createKnowledgeBuildService(root) {
   const secret = crypto.randomBytes(32);
-  let proposal, run, preparing = false;
+  let proposal, run, stopFlag, inFlight, closing;
 
-  function worker(action, approved, onProgress) {
+  function worker(action, approved, onProgress, stopBuffer) {
     return new Promise((resolve,reject) => {
-      const job = new Worker(__filename,{workerData:{root,action,secret,approved}});
+      const job = new Worker(__filename,{workerData:{root,action,secret,approved,stopBuffer}});
+      let result, error;
       job.on('message',message => {
         if (message.progress) onProgress?.(message.progress);
-        else if (message.error) reject(failure(message.error));
-        else resolve(message.value);
+        else result = message;
       });
-      job.once('error',reject);
-      job.once('exit',() => reject(failure('knowledge-build-unavailable')));
+      job.once('error',cause => { error = cause; });
+      job.once('exit',code => {
+        if (error) reject(error);
+        else if (code !== 0 || !result) reject(failure('knowledge-build-unavailable'));
+        else if (result.error) reject(failure(result.error));
+        else resolve(result.value);
+      });
     });
+  }
+
+  function requestStop() {
+    Atomics.store(stopFlag,0,1);
+    run.stopRequested = true;
+  }
+
+  function shutdown() {
+    if (!closing) {
+      proposal = undefined;
+      if (run?.status === 'running') requestStop();
+      closing = inFlight ? inFlight.then(() => {}, () => {}) : Promise.resolve();
+    }
+    return closing;
   }
 
   async function handle(data, observation) {
     try {
       if (data.action === 'status') return {run};
-      if (preparing || run?.status === 'running') throw failure('knowledge-build-busy');
+      if (data.action === 'stop') {
+        if (run?.status !== 'running' || data.runId !== run.runId) throw failure('knowledge-run-changed');
+        requestStop();
+        return {run};
+      }
+      if (closing) throw failure('knowledge-shutting-down');
+      if (inFlight) throw failure('knowledge-build-busy');
       if (observation.status !== 'standard') throw failure('knowledge-root-required');
       if (data.action === 'preview') {
-        preparing = true;
         proposal = undefined;
+        inFlight = worker('preview');
         try {
-          const {signature,preview} = await worker('preview');
+          const {signature,preview} = await inFlight;
+          if (closing) throw failure('knowledge-shutting-down');
           proposal = {signature,revision:observation.revision,binding:observation.binding,id:crypto.randomUUID()};
           return {planId:proposal.id,preview};
-        } finally { preparing = false; }
+        } finally { inFlight = undefined; }
       }
       if (!proposal || data.planId !== proposal.id || observation.revision !== proposal.revision ||
           observation.binding !== proposal.binding) throw failure('knowledge-preview-stale');
       const approved = proposal.signature;
       proposal = undefined;
-      run = {status:'running'};
-      void worker('start',approved,progress => { run.progress = progress; }).then(result => {
-        run = {status:result.complete?'complete':'partial',...result};
-      }).catch(error => { run = {status:'failed',error:safetyMessage(error)}; });
+      stopFlag = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
+      run = {status:'running',runId:crypto.randomUUID()};
+      inFlight = worker('start',approved,progress => { run.progress = progress; },stopFlag.buffer).then(result => {
+        run = {status:result.complete?'complete':result.stopped?'paused':'partial',...result};
+      }).catch(error => { run = {status:'failed',error:safetyMessage(error)}; }).finally(() => {
+        inFlight = undefined;
+        stopFlag = undefined;
+      });
       return {run};
     } catch (error) { return {error:safetyMessage(error)}; }
   }
 
-  return {handle};
+  return {handle,shutdown};
 }
 
 module.exports = { createKnowledgeBuildService, execute };
 
 if (!isMainThread) {
-  const {root,action,secret,approved} = workerData;
-  void execute(root,action,secret,approved,{onProgress:progress => parentPort.postMessage({progress})})
+  const {root,action,secret,approved,stopBuffer} = workerData;
+  const stopFlag = stopBuffer ? new Int32Array(stopBuffer) : null;
+  void execute(root,action,secret,approved,{
+    onProgress:progress => parentPort.postMessage({progress}),
+    shouldStop:stopFlag ? () => Atomics.load(stopFlag,0) === 1 : undefined,
+  })
     .then(value => parentPort.postMessage({value}), error => parentPort.postMessage({error:safetyMessage(error)}));
 }

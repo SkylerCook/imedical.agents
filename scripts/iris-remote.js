@@ -131,7 +131,9 @@ async function main(argv = process.argv.slice(2)) {
         if(selected.active) selected=await client.request('close',{...params,token:selected.reconciliationToken});
         const token=selected.reconciliationToken;
         const policy=remote.localPolicy(context), prior=remote.poolStatus({policy});
-        if(prior.ownerPresent)throw new Error('session-reconcile-admission-first');
+        const legacy=policy.legacyCoordinationRoot &&
+          remote.poolStatus({policy:{...policy,coordinationRoot:policy.legacyCoordinationRoot}});
+        if(prior.ownerPresent || legacy?.ownerPresent)throw new Error('session-reconcile-admission-first');
         params={...params,token,confirm:true,writeOutcome:args['write-outcome'],writeIds:args.writeIds,evidence};
       }
       console.log(JSON.stringify(await client.request(command==='sessions'?'status':command==='close-sessions'?'close':'reconcile',params)));

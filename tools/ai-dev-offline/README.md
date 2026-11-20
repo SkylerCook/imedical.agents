@@ -177,3 +177,5 @@ Rollback 必须仍与本次写入结果一致才恢复；出现后来 PATH 修�
 在 Windows standard 工程中，Agent 或 CLI 可向 `node configure-project.js` 的 stdin 传入 JSON。所有请求包含绝对路径 `projectRoot`。以 `action: "projectProfiles"` 读取当前目标、已保存的档案和已绑定入口；首次沿用已有连接，保存为 `current`。切换已有档案时传 `action: "projectPlan"` 和 `profile: {"id":"current"}`，确认返回的目标和文件后，用同样的请求加上返回的 `fingerprint`，把 action 改为 `projectApply`。CLI 和界面使用同一个配置事务。恢复使用原 `projectRollback` 和本次应用回执。
 
 新增档案时在 `profile` 传 `id`、`connection`（host、port、scheme、namespace、alias、tlsVerify），并通过私有 stdin 传入该档案的凭据，或显式选择 `useCurrentCredentials: true`。优先复用既有私有工程配置保存凭据；主配置仅保存档案字段和来源引用。切换后重连实际客户端，在工程目录运行 `node .agents/scripts/iris-mcp.js check --verify-profile --json` 得到只读核验回执。工作台在配置变化后自动舍弃过期的显示结果。
+
+已在 VS Code 配好目标库时，`connection.alias` 可使用原服务器名。目标的主机、Web 端口和协议须一致，原条目里的账号及密码字段如已设置也须与所选私有凭据一致。切换时保留服务器条目，更新 `objectscript.conn` 的目标和命名空间。

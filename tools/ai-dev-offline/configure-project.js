@@ -15,6 +15,9 @@ const failure = message => { throw new Error(message); };
 const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const BACKUPS = '.ai-dev-config-backups';
 const LOCK = '.ai-dev-config.lock';
+const receiptIdPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+const fileHashPattern = /^[a-f0-9]{64}$/;
+const receiptStates = new Set(['prepared', 'applied', 'rolling-back', 'rolled-back', 'reverted-after-failure', 'reverted-after-interruption']);
 
 function snapshot(file) {
   editor.safePath(file);
@@ -188,8 +191,17 @@ function ensurePrivate(root, files, gitExe, requireIgnored = false) {
     }
   }
 }
-function plan(request) {
+function supportsManagedNode(executable) {
+  if (typeof executable !== 'string' || !path.isAbsolute(executable) ||
+      !fs.statSync(executable, {throwIfNoEntry:false})?.isFile()) return false;
+  const version = spawnSync(executable, ['--version'], {windowsHide: true, encoding: 'utf8', timeout: 10000});
+  const match = /^v(\d+)\.(\d+)\./.exec((version.stdout || '').trim());
+  return version.status === 0 && !!match && (+match[1] > 22 || +match[1] === 22 && +match[2] >= 5);
+}
+function plan(request, dependencies = {}) {
   const root = projectRoot(request), changes = [];
+  const specifiedNode = own(request, 'nodeExe');
+  const requestedNode = request.nodeExe;
   const observed=new Map();
   function read(file) {
     if (!observed.has(file)) observed.set(file,snapshot(file));
@@ -197,7 +209,7 @@ function plan(request) {
   }
   const profile = request.profile ? profiles.prepare(root,request.profile,{snapshot:read,object,toml}) : null;
   if (profile) request = {projectRoot:root,connection:profile.connection,configureMcp:profile.bindings.mcp,
-    syncProjectEnv:profile.bindings.central,gitExe:request.gitExe,nodeExe:process.execPath};
+    syncProjectEnv:profile.bindings.central,gitExe:request.gitExe};
   const c = connection(request);
   let bindings = profile?.bindings;
   if (!profile && object(read(path.join(root,profiles.mainPath)).text).irisConnections) {
@@ -216,16 +228,20 @@ function plan(request) {
   };
   const settingsFile = path.join(root, '.vscode', 'settings.json');
   const s = ['intersystems.servers', c.alias];
-  const selected = [
+  // An existing matching profile can select the original VS Code server without rewriting it.
+  const selected = profile?.reuseVscode ? [] : [
     {path: [...s, 'webServer', 'host'], value: c.host}, {path: [...s, 'webServer', 'port'], value: c.port},
     {path: [...s, 'webServer', 'scheme'], value: c.scheme}
   ];
   if (bindings) {
     selected.push({path:['objectscript.conn','server'],value:c.alias},{path:['objectscript.conn','ns'],value:c.namespace});
   } else selected.push({path:['objectscript.conn'],value:{server:c.alias,ns:c.namespace,active:true}});
-  if (c.description) selected.push({path: [...s, 'description'], value: c.description});
-  if (c.writeCredentials) selected.push({path: [...s, 'username'], value: c.username}, {path: [...s, 'password'], value: undefined});
-  if (!bindings || bindings.vscode) add(settingsFile, jsonChanges(read(settingsFile), selected), ['intersystems.servers / 所选服务器', 'objectscript.conn']);
+  if (!profile?.reuseVscode) {
+    if (c.description) selected.push({path: [...s, 'description'], value: c.description});
+    if (c.writeCredentials) selected.push({path: [...s, 'username'], value: c.username}, {path: [...s, 'password'], value: undefined});
+  }
+  if (!bindings || bindings.vscode) add(settingsFile, jsonChanges(read(settingsFile), selected),
+    profile?.reuseVscode ? ['objectscript.conn'] : ['intersystems.servers / 所选服务器', 'objectscript.conn']);
   if (request.configureMcp) {
     const mcpFile = path.join(root, '.mcp.json'), configFile = path.join(root, '.iris-agentic-dev.toml');
     const before = read(mcpFile), mcp = object(before.text);
@@ -238,11 +254,10 @@ function plan(request) {
       if (!path.isAbsolute(mcpProgram) || path.basename(mcpProgram).toLowerCase() !== 'iris-agentic-dev.exe') failure('请填写 iris-agentic-dev.exe 的完整路径，也可以使用自动填入的待部署路径。');
       const adapter = path.join(root, '.agents', 'scripts', 'iris-session-mcp.js');
       if (fs.existsSync(adapter)) {
-        if (!request.nodeExe || !path.isAbsolute(request.nodeExe) || !fs.existsSync(request.nodeExe)) failure('此项目使用受管 MCP，请选择已安装的 node.exe。');
-        const version = spawnSync(request.nodeExe, ['--version'], {windowsHide: true, encoding: 'utf8', timeout: 10000});
-        const match = /^v(\d+)\.(\d+)\./.exec((version.stdout || '').trim());
-        if (version.status !== 0 || !match || +match[1] < 22 || +match[1] === 22 && +match[2] < 5) failure('受管 MCP 需要 Node.js 22.5.0 或以上。');
-        server = {command: request.nodeExe, args: [adapter, '--project-root', root, '--server-name', name]};
+        const nodeExe = specifiedNode ? requestedNode : dependencies.resolveNodeExe ? dependencies.resolveNodeExe() : profile ? process.execPath : undefined;
+        if (!nodeExe || !path.isAbsolute(nodeExe) || !fs.existsSync(nodeExe)) failure('此项目使用受管 MCP，请选择已安装的 node.exe。');
+        if (!supportsManagedNode(nodeExe)) failure('受管 MCP 需要 Node.js 22.5.0 或以上。');
+        server = {command: nodeExe, args: [adapter, '--project-root', root, '--server-name', name]};
         const backendFile = path.join(root, '.agents', 'config', 'iris-session-backend.json');
         if (fs.existsSync(backendFile)) failure('项目已有受管后端记录但缺少 MCP 入口，请先核对该记录。');
         const backend = {schema: 'iris-session-backend/v1', serverName: name, command: mcpProgram,
@@ -393,11 +408,23 @@ function summary(planned, state = 'planned') {
     mcpProgramPresent: planned.mcpProgramPresent, warnings: planned.warnings,
     files: planned.changes.map(c => ({file: c.file, operation: c.before.exists ? '更新' : '新增', keys: c.keys}))};
 }
-function writeFile(file, bytes, expected) {
+function writeFile(file, bytes, expected, receiptFile) {
   editor.safePath(file);
   if (snapshot(file).hash !== expected) failure('配置在操作期间发生变化，请重新预览。');
-  fs.mkdirSync(path.dirname(file), {recursive: true});
-  const temporary = path.join(path.dirname(file), '.ai-dev-config-' + crypto.randomUUID() + '.tmp');
+  const directory = path.dirname(file);
+  let staging = directory;
+  if (receiptFile) {
+    const receiptDirectory = path.dirname(receiptFile);
+    const project = path.dirname(path.dirname(receiptDirectory));
+    const relative = path.relative(project, file);
+    if (!path.isAbsolute(relative) && relative.split(path.sep)[0] !== '..') {
+      // A process exit can leave the staged bytes behind. Keep them with the private receipt.
+      staging = receiptDirectory;
+      editor.safePath(staging);
+    }
+  }
+  fs.mkdirSync(directory, {recursive: true});
+  const temporary = path.join(staging, '.ai-dev-config-' + crypto.randomUUID() + '.tmp');
   try {
     fs.writeFileSync(temporary, bytes, {flag: 'wx', mode: 0o600});
     if (snapshot(file).hash !== expected) failure('配置在操作期间发生变化，请重新预览。');
@@ -405,62 +432,244 @@ function writeFile(file, bytes, expected) {
     if (snapshot(file).hash !== sha(bytes)) failure('配置写入后读回校验失败。');
   } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
 }
-function saveReceipt(file, receipt) {
+function saveReceipt(file, receipt, expected = snapshot(file).hash) {
   const bytes = Buffer.from(JSON.stringify(receipt, null, 2) + '\n');
-  writeFile(file, bytes, snapshot(file).hash);
+  writeFile(file, bytes, expected);
+  return sha(bytes);
 }
-function restoreEntries(entries) {
+function recoveryConflict(message) {
+  throw Object.assign(new Error(message), {code:'project-recovery-conflict'});
+}
+function writtenEntries(entries) {
+  const written = [];
   for (const entry of entries) {
     const current = snapshot(entry.file);
     if (current.hash === entry.beforeHash) continue;
-    if (current.hash !== entry.afterHash) failure('配置已有后续修改，恢复已停止。');
+    if (current.hash !== entry.afterHash) recoveryConflict('配置已有后续修改，恢复已停止。');
+    written.push(entry);
   }
-  for (const entry of entries.slice().reverse()) {
+  return written;
+}
+function restoreEntries(entries, receiptFile, expectedWritten) {
+  const written = writtenEntries(entries);
+  if (expectedWritten && !isDeepStrictEqual(written, expectedWritten)) {
+    recoveryConflict('配置在恢复前发生变化，请重新读取。');
+  }
+  for (const entry of (expectedWritten || entries).slice().reverse()) {
     const current = snapshot(entry.file);
     if (current.hash === entry.beforeHash) continue;
-    if (current.hash !== entry.afterHash) failure('配置在恢复期间发生变化，请核对后重试。');
+    if (current.hash !== entry.afterHash) recoveryConflict('配置在恢复期间发生变化，请核对后重试。');
     if (entry.beforeHash === 'absent') fs.unlinkSync(entry.file);
-    else writeFile(entry.file, Buffer.from(entry.original, 'base64'), current.hash);
+    else writeFile(entry.file, Buffer.from(entry.original, 'base64'), current.hash, receiptFile);
   }
+  if (entries.some(entry => snapshot(entry.file).hash !== entry.beforeHash)) recoveryConflict('恢复后读回与原配置不一致，请核对后重试。');
 }
 function validateReceipt(request, root, receipt) {
-    if (receipt.schema !== 1 || receipt.tool !== 'ai-dev-project' || receipt.projectRoot !== root || !['applied', 'prepared'].includes(receipt.state) || !Array.isArray(receipt.entries)) failure('回执无效或已经恢复。');
+    if (receipt.schema !== 1 || receipt.tool !== 'ai-dev-project' || receipt.projectRoot !== root || !['applied', 'prepared', 'rolling-back'].includes(receipt.state) || !Array.isArray(receipt.entries)) failure('回执无效或已经恢复。');
     const allowed = [path.join(root, '.vscode', 'settings.json'), path.join(root, '.mcp.json'), path.join(root, '.iris-agentic-dev.toml'), path.join(root, '.agents', 'config', 'iris-session-backend.json'), path.join(root, '.agents', 'config', 'project-env.json')];
     allowed.push(path.join(root,profiles.mainPath),path.join(root,profiles.privatePath));
     if (request.codeExe) allowed.push(userSettings(request));
     const used = new Set();
     for (const entry of receipt.entries) {
-      if (!allowed.includes(entry.file) || used.has(entry.file)) failure('回执文件范围不匹配，请核对 VS Code 用户设置模式。');
+      if (!entry || !allowed.includes(entry.file) || used.has(entry.file)) failure('回执文件范围不匹配，请核对 VS Code 用户设置模式。');
       used.add(entry.file);
+      if (typeof entry.original !== 'string' || typeof entry.afterHash !== 'string' || !fileHashPattern.test(entry.afterHash) ||
+          entry.beforeHash !== 'absent' && (typeof entry.beforeHash !== 'string' || !fileHashPattern.test(entry.beforeHash)) ||
+          entry.beforeHash === entry.afterHash) failure('配置回执的文件摘要无效。');
       const original = Buffer.from(entry.original, 'base64');
       if (entry.beforeHash !== 'absent' && sha(original) !== entry.beforeHash || entry.beforeHash === 'absent' && original.length) failure('原配置备份校验失败。');
     }
  }
-function recoverPrepared(request, root) {
+function validReceiptId(id) {
+  return typeof id === 'string' && receiptIdPattern.test(id);
+}
+function recoveryCode(receipt, written) {
+  if (written.length === 0) return 'unchanged';
+  return written.length < receipt.entries.length ? 'available' : 'review-required';
+}
+function recoveryFingerprint(id, saved, written) {
+  return sha(JSON.stringify([id,saved.hash,written.map(entry => entry.file)]));
+}
+function latestUndoReceipt({receipts, unreadableUpdated}) {
+  if (receipts.some(row => row.state === 'prepared' && row.recovery !== 'unchanged')) return;
+  const inProgress = receipts.filter(row => row.state === 'rolling-back');
+  let candidate;
+  if (inProgress.length) {
+    if (inProgress.length === 1) candidate = inProgress[0];
+  } else {
+    const [latest, previous] = receipts.filter(row => row.state === 'applied').sort((a,b) => b.updated.localeCompare(a.updated));
+    if (latest?.updated !== previous?.updated) candidate = latest;
+  }
+  if (candidate && unreadableUpdated !== null && (unreadableUpdated === undefined || unreadableUpdated < candidate.updated))
+    return candidate;
+}
+function describeUndo(root, directory, row, signRecovery) {
+  if (!row) return;
+  try {
+    const saved = snapshot(path.join(directory, row.id, 'receipt.json'));
+    const receipt = object(saved.text);
+    if (receipt.state !== row.state) return;
+    validateReceipt({}, root, receipt);
+    const written = writtenEntries(receipt.entries);
+    if (receipt.state === 'applied' && (!written.length || written.length !== receipt.entries.length)) return;
+    row.recovery = 'undo-available';
+    row.restoreFiles = written.length;
+    row.recoveryToken = signRecovery(recoveryFingerprint(row.id, saved, written));
+  } catch (error) {
+    if (row.state === 'rolling-back') row.recovery = error.code === 'project-recovery-conflict' ? 'conflict' : 'unsupported';
+  }
+}
+function scanReceipts(root, signRecovery) {
+  const receipts = [];
+  // Undefined means the scan is complete. Null means an unreadable receipt has no trustworthy timestamp.
+  let unreadableUpdated;
+  const directory = path.join(root, BACKUPS);
+  try {
+    editor.safePath(directory);
+    const directories = fs.readdirSync(directory);
+    for (const id of directories.filter(validReceiptId)) {
+      const file = path.join(directory, id, 'receipt.json');
+      let updated = null;
+      try {
+        editor.safePath(file);
+        const stat = fs.lstatSync(file, {throwIfNoEntry:false});
+        if (!stat) continue;
+        if (!stat.isFile()) failure('无效配置回执。');
+        updated = stat.mtime.toISOString();
+        const saved = snapshot(file);
+        const receipt = object(saved.text);
+        if (receipt.schema !== 1 || receipt.tool !== 'ai-dev-project' || receipt.projectRoot !== root ||
+            !receiptStates.has(receipt.state) || !Array.isArray(receipt.entries)) failure('无效配置回执。');
+        const row = {id, state:receipt.state, files:receipt.entries.length, updated};
+        if (receipt.state === 'prepared') {
+          try {
+            validateReceipt({}, root, receipt);
+            const written = writtenEntries(receipt.entries);
+            row.recovery = recoveryCode(receipt, written);
+            if (row.recovery === 'available' && process.platform !== 'win32') row.recovery = 'unsupported';
+            if (process.platform === 'win32' && ['available', 'review-required'].includes(row.recovery)) {
+              row.restoreFiles = written.length;
+              if (signRecovery) row.recoveryToken = signRecovery(recoveryFingerprint(id, saved, written));
+            }
+          } catch (error) {
+            row.recovery = error.code === 'project-recovery-conflict' ? 'conflict' : 'unsupported';
+          }
+        }
+        receipts.push(row);
+      } catch {
+        if (unreadableUpdated === undefined || updated === null || (unreadableUpdated !== null && updated > unreadableUpdated))
+          unreadableUpdated = updated;
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') unreadableUpdated = null;
+  }
+  return {directory, receipts, unreadableUpdated};
+}
+function readReceipts(root, signRecovery) {
+  const scan = scanReceipts(root, signRecovery);
+  if (process.platform === 'win32' && signRecovery) describeUndo(root, scan.directory, latestUndoReceipt(scan), signRecovery);
+  return {receipts:scan.receipts, ...(scan.unreadableUpdated !== undefined ? {receiptIssue:true} : {})};
+}
+function finishUndo(file, receipt, expected, written) {
+  if (receipt.state !== 'rolling-back') {
+    receipt.state = 'rolling-back';
+    expected = saveReceipt(file, receipt, expected);
+  }
+  restoreEntries(receipt.entries, file, written);
+  receipt.state = 'rolled-back';
+  saveReceipt(file, receipt, expected);
+}
+function recoverInterrupted(request, dependencies = {}) {
+  const root = projectRoot(request);
+  const {receiptId} = request;
+  const verify = dependencies.verify === true;
+  const undo = dependencies.undo === true;
+  if (!validReceiptId(receiptId)) failure('配置回执无效。');
+  const file = path.join(root, BACKUPS, receiptId, 'receipt.json');
+  return runtime.withLock(root, request, async () => {
+    await dependencies.beforeRestore?.();
+    const saved = snapshot(file);
+    const receipt = object(saved.text);
+    const notAvailable = () => Object.assign(new Error('当前回执没有可安全处理的配置变更。'), {code:'project-recovery-not-available'});
+    if (undo ? !['applied', 'rolling-back'].includes(receipt.state) : receipt.state !== 'prepared') throw notAvailable();
+    if (undo && latestUndoReceipt(scanReceipts(root))?.id !== receiptId) throw notAvailable();
+    validateReceipt({}, root, receipt);
+    const written = writtenEntries(receipt.entries);
+    if (undo && receipt.state === 'applied' && (!written.length || written.length !== receipt.entries.length)) throw notAvailable();
+    if (!undo && recoveryCode(receipt, written) !== (verify ? 'review-required' : 'available')) throw notAvailable();
+    if (!dependencies.confirmRecovery?.(recoveryFingerprint(receiptId, saved, written))) {
+      recoveryConflict('配置回执或待恢复文件与确认时不一致，请重新读取。');
+    }
+    ensurePrivate(path.dirname(file), [file], request.gitExe, true);
+    if (!verify) for (const entry of written) ensurePrivate(path.dirname(entry.file), [entry.file], request.gitExe, true);
+    if (snapshot(file).hash !== saved.hash) recoveryConflict('配置回执在恢复前发生变化，请重新读取。');
+    if (undo) {
+      finishUndo(file, receipt, saved.hash, written);
+      return {receiptId, state:receipt.state};
+    }
+    if (verify) {
+      verifyAppliedProfiles(root, written);
+      if (writtenEntries(receipt.entries).length !== written.length)
+        recoveryConflict('配置在核验期间发生变化，请重新读取。');
+      receipt.state = 'applied';
+    } else {
+      restoreEntries(receipt.entries, file, written);
+      receipt.state = 'reverted-after-interruption';
+    }
+    saveReceipt(file, receipt, saved.hash);
+    return {receiptId, state:receipt.state};
+  });
+}
+function verifyAppliedProfiles(root, written) {
+  const projectFile = path.join(root, profiles.mainPath);
+  if (written.some(entry => entry.file === projectFile) && object(snapshot(projectFile).text).irisConnections &&
+      !profiles.describe(root, {snapshot,object,toml}).consistent)
+    recoveryConflict('已写入的开发库配置读回不一致，请复查项目配置回执。');
+}
+function recoverPrepared(request, root, requireRecoveryConfirmation = false) {
   const directory = path.join(root, BACKUPS);
   if (!fs.existsSync(directory)) return;
   editor.safePath(directory);
   for (const name of fs.readdirSync(directory)) {
-    if (!/^[a-f0-9-]{36}$/.test(name)) continue;
+    if (!validReceiptId(name)) continue;
     const file = path.join(directory, name, 'receipt.json');
     if (!fs.existsSync(file)) continue;
-    const receipt = object(snapshot(file).text);
+    const saved = snapshot(file);
+    const receipt = object(saved.text);
+    if (receipt.state === 'rolling-back') recoveryConflict('请先处理上次中断的配置撤销。');
     if (receipt.state !== 'prepared') continue;
     validateReceipt(request, root, receipt);
+    const written = writtenEntries(receipt.entries);
+    if (recoveryCode(receipt, written) === 'review-required') {
+      verifyAppliedProfiles(root, written);
+      if (requireRecoveryConfirmation) {
+        ensurePrivate(path.dirname(file), [file], request.gitExe, true);
+        if (writtenEntries(receipt.entries).length !== written.length) recoveryConflict('配置在核验期间发生变化。');
+      }
+      receipt.state = 'applied'; saveReceipt(file, receipt, saved.hash);
+      continue;
+    }
+    if (requireRecoveryConfirmation && written.length) recoveryConflict('上次保存仍有待确认的部分写入。');
     runtime.progress(request, '正在恢复上次未完成的项目配置…', false);
-    restoreEntries(receipt.entries);
-    receipt.state = 'reverted-after-interruption'; saveReceipt(file, receipt);
+    restoreEntries(receipt.entries, file, requireRecoveryConfirmation ? written : undefined);
+    if (requireRecoveryConfirmation) ensurePrivate(path.dirname(file), [file], request.gitExe, true);
+    receipt.state = 'reverted-after-interruption'; saveReceipt(file, receipt, saved.hash);
   }
 }
 function apply(request, dependencies = {}) {
   const root = projectRoot(request);
   return runtime.withLock(root, request, async () => {
     runtime.progress(request, '正在核对并应用项目配置…', false);
-    recoverPrepared(request, root);
-    let planned = plan(request);
+    try { recoverPrepared(request, root, dependencies.requireRecoveryConfirmation); }
+    catch (error) {
+      if (!dependencies.requireRecoveryConfirmation) throw error;
+      throw Object.assign(new Error('请先处理上次保存的回执。'), {code:'project-recovery-required'});
+    }
+    let planned = plan(request, dependencies);
     if (planned.profile?.legacyHost) {
       await profiles.awaitLegacyExit({snapshot,object});
-      planned=plan(request);
+      planned=plan(request, dependencies);
       if (planned.profile?.legacyHost) failure('旧版宿主正在使用连接，稍后重新预览。');
     }
     if (!request.fingerprint || request.fingerprint !== planned.fingerprint) failure('配置或输入已变化，请重新预览。');
@@ -471,9 +680,9 @@ function apply(request, dependencies = {}) {
     // The ignore file is applied first, before saving private originals.
     const ignore = planned.changes.find(c => c.file === path.join(root, '.gitignore'));
     if (ignore) writeFile(ignore.file, ignore.bytes, ignore.before.hash);
-    ensurePrivate(root, [...planned.privateFiles, path.join(root, BACKUPS, 'probe')], request.gitExe, true);
-    fs.mkdirSync(directory, {recursive: true});
     const receiptFile = path.join(directory, 'receipt.json');
+    ensurePrivate(root, [...planned.privateFiles, receiptFile], request.gitExe, true);
+    fs.mkdirSync(directory, {recursive: true});
     const entries = planned.changes.filter(c => c !== ignore).map(c => ({file: c.file, beforeHash: c.before.hash,
       afterHash: sha(c.bytes), original: c.before.bytes.toString('base64')}));
     // Keep ignore rules after rollback so remaining backup material stays private.
@@ -482,7 +691,7 @@ function apply(request, dependencies = {}) {
     try {
       for (const change of planned.changes.filter(c => c !== ignore)) {
         if (dependencies.beforeWrite) dependencies.beforeWrite(change.file);
-        writeFile(change.file, change.bytes, change.before.hash);
+        writeFile(change.file, change.bytes, change.before.hash, receiptFile);
       }
       if (planned.profile) {
         const readback=profiles.describe(root,{snapshot,object,toml});
@@ -490,7 +699,7 @@ function apply(request, dependencies = {}) {
       }
       receipt.state = 'applied'; saveReceipt(receiptFile, receipt);
     } catch (error) {
-      try { restoreEntries(entries); receipt.state = 'reverted-after-failure'; saveReceipt(receiptFile, receipt); }
+      try { restoreEntries(entries, receiptFile); receipt.state = 'reverted-after-failure'; saveReceipt(receiptFile, receipt); }
       catch { failure('应用失败且存在并发修改。请通过恢复入口检查本项目最新回执。'); }
       throw error;
     }
@@ -502,10 +711,10 @@ function rollback(request) {
   const file = path.resolve(request.receiptFile || '');
   if (path.dirname(path.dirname(file)) !== path.join(root, BACKUPS) || path.basename(file) !== 'receipt.json') failure('请选择本项目的配置回执。');
   return runtime.withLock(root, request, () => {
-    const receipt = object(snapshot(file).text);
+    const saved = snapshot(file);
+    const receipt = object(saved.text);
     validateReceipt(request, root, receipt);
-    restoreEntries(receipt.entries);
-    receipt.state = 'rolled-back'; saveReceipt(file, receipt);
+    finishUndo(file, receipt, saved.hash, writtenEntries(receipt.entries));
     return {state: 'rolled-back', receiptFile: file};
   }, path.join(root, LOCK));
 }
@@ -523,7 +732,7 @@ function main(request) {
   failure('无效的项目配置操作。');
 }
 function inspectProfiles(request) { return profiles.describe(projectRoot(request),{snapshot,object,toml}); }
-module.exports = {snapshot, object, editToml, plan, inspect, inspectProfiles, apply, rollback, main};
+module.exports = {snapshot, object, editToml, plan, inspect, inspectProfiles, apply, rollback, main, readReceipts, recoverInterrupted, validReceiptId, supportsManagedNode};
 if (require.main === module) {
   let input = '';
   process.stdin.setEncoding('utf8');

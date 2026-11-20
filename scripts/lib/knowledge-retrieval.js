@@ -1,12 +1,16 @@
 'use strict';
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 const { digest, chunks, loadDocuments } = require('./knowledge-sources');
 const { resolveEmbedding, embed, validVector } = require('./knowledge-embedding');
 
 const VERSION = 'knowledge-chunks/v1';
 const TERMS_VERSION = 'knowledge-terms/v2';
+const BUILD_LOCK_PROTOCOL = 'knowledge-build-lock/v1';
+const SQLITE_BUSY = 5;
 const segmenter = new Intl.Segmenter('zh', { granularity: 'word' });
 
 function terms(text) {
@@ -67,10 +71,13 @@ function embeddingEligible(item, policy) {
 
 function assertCachePath(root) {
     const cache = path.join(root, '.knowledge-cache');
-    if (fs.existsSync(cache) && fs.lstatSync(cache).isSymbolicLink()) throw new Error('Knowledge cache cannot be a link');
-    for (const name of fs.existsSync(cache) ? fs.readdirSync(cache) : []) {
-        const file = path.join(cache, name);
-        if (fs.existsSync(file) && fs.lstatSync(file).isSymbolicLink()) throw new Error('Knowledge cache file cannot be a link');
+    const stat = fs.lstatSync(cache, {throwIfNoEntry:false});
+    if (!stat) return;
+    if (stat.isSymbolicLink()) throw new Error('Knowledge cache cannot be a link');
+    for (const name of fs.readdirSync(cache)) {
+        if (fs.lstatSync(path.join(cache, name), {throwIfNoEntry:false})?.isSymbolicLink()) {
+            throw new Error('Knowledge cache file cannot be a link');
+        }
     }
 }
 
@@ -281,6 +288,84 @@ function previewTransfer(context, options = {}) {
     return {...plan,...describeTransfer(plan,pending,profile)};
 }
 
+function readBuildOwner(file) {
+    const stat = fs.lstatSync(file, {throwIfNoEntry:false});
+    if (!stat?.isFile()) return null;
+    try {
+        const owner = JSON.parse(fs.readFileSync(file, 'utf8'));
+        return Number.isSafeInteger(owner?.pid) && owner.pid > 0 && owner.pid <= 0x7fffffff &&
+            typeof owner.created === 'string' && Number.isFinite(Date.parse(owner.created)) ? owner : null;
+    } catch (error) {
+        if (error instanceof SyntaxError || error.code === 'ENOENT') return null;
+        throw error;
+    }
+}
+
+function isDeadBuildOwner(owner, host) {
+    if (!owner || (owner.host !== undefined && owner.host !== host)) return false;
+    try { process.kill(owner.pid, 0); return false; }
+    catch (error) { return error.code === 'ESRCH'; }
+}
+
+function isGuardedBuildOwner(owner, host) {
+    return owner?.protocol === BUILD_LOCK_PROTOCOL && owner.host === host &&
+        typeof owner.id === 'string' && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(owner.id);
+}
+
+function publishBuildMarker(ticket, file) {
+    // A legacy builder also claims this path exclusively. Publish only complete owner data.
+    try { fs.linkSync(ticket, file); return true; }
+    catch (error) { if (error.code === 'EEXIST') return false; throw error; }
+}
+
+function acquireBuildLock(file) {
+    const { DatabaseSync } = require('node:sqlite');
+    const guardFile = file + '.build-guard';
+    const stat = fs.lstatSync(guardFile, {throwIfNoEntry:false});
+    if (stat && (!stat.isFile() || stat.nlink !== 1)) throw new Error('Invalid knowledge build guard');
+    // Keep the guard file at a stable path. SQLite releases its transaction when the process exits.
+    const guard = new DatabaseSync(guardFile);
+    const lock = file + '.lock';
+    const recovery = lock + '.recovery';
+    const ticket = file + '.build-ticket';
+    const owner = { protocol: BUILD_LOCK_PROTOCOL, pid: process.pid, created: new Date().toISOString(), host: os.hostname(), id: randomUUID() };
+    let claimed = false;
+    const release = () => {
+        try { if (claimed) fs.unlinkSync(lock); }
+        finally { guard.close(); }
+    };
+    try {
+        guard.exec('PRAGMA busy_timeout=0; BEGIN IMMEDIATE');
+        // Only holders of the guard use this path, including after an incomplete ticket write.
+        fs.rmSync(ticket, {force:true});
+        try {
+            fs.writeFileSync(ticket, JSON.stringify(owner), {flag:'wx', mode:0o600});
+            // Holding the guard proves that a compatible local owner is gone, even if its host process survived.
+            if (isGuardedBuildOwner(readBuildOwner(recovery), owner.host)) fs.unlinkSync(recovery);
+            claimed = publishBuildMarker(ticket, lock);
+            if (!claimed) {
+                const previous = readBuildOwner(lock);
+                const recoverable = isGuardedBuildOwner(previous, owner.host) || isDeadBuildOwner(previous, owner.host);
+                if (!recoverable || !publishBuildMarker(ticket, recovery)) throw new Error('knowledge-build-busy');
+                try {
+                    const latest = readBuildOwner(lock);
+                    if (latest?.pid !== previous.pid || latest.created !== previous.created || latest.id !== previous.id || latest.host !== previous.host) {
+                        throw new Error('knowledge-build-busy');
+                    }
+                    fs.unlinkSync(lock);
+                    claimed = publishBuildMarker(ticket, lock);
+                    if (!claimed) throw new Error('knowledge-build-busy');
+                } finally { fs.unlinkSync(recovery); }
+            }
+        } finally { fs.rmSync(ticket, {force:true}); }
+    } catch (error) {
+        release();
+        if (error.code === 'ERR_SQLITE_ERROR' && (error.errcode & 0xff) === SQLITE_BUSY) throw new Error('knowledge-build-busy');
+        throw error;
+    }
+    return release;
+}
+
 async function build(context, options = {}) {
     const profile = resolveEmbedding(options);
     options = { ...options, embedding: profile };
@@ -289,31 +374,10 @@ async function build(context, options = {}) {
     assertCachePath(context.capabilityRoot);
     const file = databasePath(context, profile);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    const lock = file + '.lock';
-    let handle;
-    try { handle = fs.openSync(lock, 'wx'); }
-    catch (error) {
-        if (error.code !== 'EEXIST') throw error;
-        // Dead owners can be recovered. Live/unknown owners remain authoritative.
-        let owner;
-        try { owner = JSON.parse(fs.readFileSync(lock, 'utf8')); } catch { throw new Error('knowledge-build-busy'); }
-        if (!Number.isInteger(owner.pid) || owner.pid < 1) throw new Error('knowledge-build-busy');
-        try { process.kill(owner.pid, 0); throw new Error('knowledge-build-busy'); }
-        catch (probe) { if (probe.code !== 'ESRCH') throw new Error('knowledge-build-busy'); }
-        // Atomic rename claims recovery so another recovery attempt cannot remove a new lock.
-        const recovery = lock + '.recovery';
-        let recoveryHandle;
-        try { recoveryHandle = fs.openSync(recovery, 'wx'); } catch { throw new Error('knowledge-build-busy'); }
-        try {
-            const latest = JSON.parse(fs.readFileSync(lock, 'utf8'));
-            if (latest.pid !== owner.pid || latest.created !== owner.created) throw new Error('knowledge-build-busy');
-            fs.unlinkSync(lock);
-            handle = fs.openSync(lock, 'wx');
-        } finally { fs.closeSync(recoveryHandle); fs.unlinkSync(recovery); }
-    }
-    fs.writeFileSync(handle, JSON.stringify({ pid: process.pid, created: new Date().toISOString() }));
+    const release = acquireBuildLock(file);
     let database;
     let tokens = 0;
+    let stopped = false;
     const warnings = [];
     try {
         const {items, policy, plan} = prepared ?? buildInputs(context,profile);
@@ -342,6 +406,11 @@ async function build(context, options = {}) {
         const count = database.prepare('SELECT COUNT(*) AS count FROM chunks WHERE generation=?').get(plan.snapshot).count;
         if (count !== items.length) throw new Error('knowledge-readback-failed');
         for (let offset = 0; offset < pending.length && offset / 16 < (options.maxBatches ?? Infinity); offset += 16) {
+            // The previous batch was committed and read back before another request can start.
+            if (options.shouldStop?.()) {
+                stopped = true;
+                break;
+            }
             const batch = pending.slice(offset, offset + 16);
             try {
                 const result = await embed(batch.map(item => item.heading + '\n' + item.text), options);
@@ -374,11 +443,10 @@ async function build(context, options = {}) {
         }
         database.prepare('INSERT OR REPLACE INTO state VALUES (?,?)').run('approved-policy-' + digest(context.contextRoot), policyHash);
         database.exec('COMMIT');
-        return { ...plan, indexed: count, complete, remainingVectors, embeddingTokens: tokens, warnings };
+        return { ...plan, indexed: count, complete, remainingVectors, embeddingTokens: tokens, warnings, ...(stopped && {stopped}) };
     } finally {
-        database?.close();
-        fs.closeSync(handle);
-        fs.unlinkSync(lock);
+        try { database?.close(); }
+        finally { release(); }
     }
 }
 

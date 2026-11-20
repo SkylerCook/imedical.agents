@@ -22,6 +22,65 @@ function fixture(t, onDemand = false) {
   return { root, context, policy, connection, selected: () => remote.loadRemotePolicy(context, { policy, connection }) };
 }
 
+test('profile routing leaves explicit keys, shared pools and ambiguous legacy records under original admission', t => {
+  const f = fixture(t);
+  const current = {host:f.connection.hostname,port:f.connection.port,scheme:'https',namespace:'TEST',tlsVerify:true};
+  const alternate = {...current,host:'other.invalid'};
+  const config = path.join(f.context.contextRoot,'config');
+  const select = active => fs.writeFileSync(path.join(config,'project.jsonc'),JSON.stringify({irisConnections:{
+    active,serverName:'fixture-iris',profiles:{current,alternate}
+  }}));
+  select('alternate');
+  assert.equal(remote.loadRemotePolicy(f.context,{connection:alternate,policy:f.policy}).poolKey,'synthetic');
+  const key = remote.instanceIdentity(current), otherKey = remote.instanceIdentity(alternate);
+  const policy = {...f.policy,poolKey:key};
+  const resolve = connection => remote.loadRemotePolicy(f.context,{connection,policy});
+  assert.equal(resolve(alternate).poolKey,otherKey);
+  assert.equal(resolve({...alternate,host:'different.invalid'}).poolKey,key);
+
+  const shared = {...policy,allowSharedPool:true};
+  assert.equal(remote.loadRemotePolicy(f.context,{connection:alternate,policy:shared}).poolKey,key);
+  for (const connection of [current,alternate]) {
+    const owner = remote.createRemoteOperation({policy:shared,connection});
+    owner.acquire();
+    owner.close();
+  }
+  assert.equal(resolve(alternate).poolKey,key);
+
+  const directory = path.join(policy.coordinationRoot,fs.readdirSync(policy.coordinationRoot)[0]);
+  const stateFile = path.join(directory,'state.json');
+  const unclaimed = JSON.stringify({schema:'iris-remote-pool/v1',instances:[],status:'ready'});
+  fs.writeFileSync(stateFile,unclaimed);
+  assert.equal(resolve(alternate).poolKey,otherKey);
+  assert.equal(fs.readFileSync(stateFile,'utf8'),unclaimed);
+  fs.writeFileSync(stateFile,JSON.stringify({...JSON.parse(unclaimed),inFlight:{effects:'write'}}));
+  assert.throws(()=>resolve(alternate),{code:'remote-pool-unattributed-state',beforeSend:true});
+  fs.writeFileSync(path.join(config,'iris-remote-policy.json'),JSON.stringify(policy));
+  assert.throws(()=>remote.localPoolStatus(f.context),{code:'remote-pool-unattributed-state',beforeSend:true});
+  select('current');
+  assert.equal(remote.localPoolStatus(f.context).pendingEffects,'write');
+  select('alternate');
+  fs.unlinkSync(stateFile);
+  fs.writeFileSync(path.join(directory,'owner.lock'),'{}');
+  assert.throws(()=>resolve(alternate),{code:'remote-pool-unattributed-state',beforeSend:true});
+});
+
+test('recovery refuses identical recorded tokens in both effective coordination directories', t => {
+  const f = fixture(t);
+  const policy = {...f.policy,legacyCoordinationRoot:path.join(f.root,'legacy-coordination')};
+  const state = {schema:'iris-remote-pool/v1',instances:[remote.instanceIdentity(f.connection)],status:'reconciliation-required'};
+  for (const root of [policy.coordinationRoot,policy.legacyCoordinationRoot]) {
+    const key = require('node:crypto').createHash('sha256').update(policy.poolKey).digest('hex');
+    const directory = path.join(root,key);
+    fs.mkdirSync(directory,{recursive:true});
+    fs.writeFileSync(path.join(directory,'state.json'),JSON.stringify(state));
+  }
+  const token = remote.poolStatus({policy}).reconciliationToken;
+  assert.throws(()=>remote.reconcileRemotePool({policy,token,confirm:true}),{code:'remote-recovery-token-ambiguous'});
+  assert.throws(()=>remote.createRecoveryReadOperation({policy,connection:f.connection,token,confirmRecovery:true,
+    documents:['Demo.A.cls']}),{code:'remote-recovery-token-ambiguous'});
+});
+
 test('admission generations retain historical warnings and recover using local exit evidence',async t=>{
   const f=fixture(t);
   const first=remote.createRemoteOperation({policy:f.policy,connection:f.connection,channel:'atelier'});

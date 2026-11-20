@@ -46,6 +46,25 @@ function bundleMetadata(f, file) {
         ref, revision: f.revision, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
 }
 
+function packageCli(cwd, args, nodeArgs = []) {
+    const command = path.join(__dirname, '..', 'build', 'build-offline-package.js');
+    const result = spawnSync(process.execPath, [...nodeArgs, command, ...args], {
+        cwd, encoding: 'utf8', windowsHide: true
+    });
+    assert.ifError(result.error);
+    return result;
+}
+
+function verifyArgs(f, manifest) {
+    return ['verify', '--package', f.output, '--ref', manifest.ref, '--revision', manifest.revision, '--sha256', manifest.sha256];
+}
+
+function rejectedCli(result, diagnostic) {
+    assert.equal(result.status, 1, result.stdout || result.stderr);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, diagnostic);
+}
+
 test('release defaults yield an isolated, complete offline repository without changing source refs', async t => {
     const f = fixture(t);
     const sourceRefs = git(f.source, ['show-ref']);
@@ -111,6 +130,9 @@ test('rejects an incremental bundle even with approved digest and advertised tip
     const manifest = bundleMetadata(f, file);
     fs.writeFileSync(manifestFile(f.output), JSON.stringify(manifest));
     await assert.rejects(withVerifiedPackage(f.output, manifest, assert.fail), /外部前置对象/);
+    const record = path.join(f.root, 'unverified.json');
+    rejectedCli(packageCli(f.root, [...verifyArgs(f, manifest), '--release-record', record]), /外部前置对象/);
+    assert.equal(fs.existsSync(record), false);
 });
 
 test('rejects a filtered bundle whose promised blobs are unavailable offline', async t => {
@@ -139,12 +161,75 @@ test('rejects a re-labelled ref, independent trust mismatch and same-size tamper
     await assert.rejects(withVerifiedPackage(f.output, manifest, assert.fail), /内容与批准的 SHA-256/);
 });
 
-test('fixed CLI flags return independent verification metadata without an ephemeral path', t => {
+test('fixed CLI flags keep stdout and export only verified release metadata to a new JSON file', t => {
     const f = fixture(t);
-    const command = path.join(__dirname, '..', 'build', 'build-offline-package.js');
-    const cli = args => JSON.parse(execFileSync(process.execPath, [command, ...args], { encoding: 'utf8' }));
-    const manifest = cli(['build', '--source', f.source, '--output', f.output]);
-    assert.deepEqual(cli(['verify', '--package', f.output, '--ref', ref, '--revision', f.revision, '--sha256', manifest.sha256]), manifest);
+    const built = packageCli(f.root, ['build', '--source', f.source, '--output', f.output]);
+    assert.equal(built.status, 0, built.stderr);
+    const manifest = JSON.parse(built.stdout);
+    const verify = verifyArgs(f, manifest);
+    const verified = packageCli(f.root, verify);
+    assert.equal(verified.status, 0, verified.stderr);
+    assert.deepEqual(JSON.parse(verified.stdout), manifest);
+
+    const record = '另行发放.JSON';
+    const withRecord = packageCli(f.root, [...verify, '--release-record', record]);
+    assert.equal(withRecord.status, 0, withRecord.stderr);
+    assert.deepEqual(JSON.parse(withRecord.stdout), manifest);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(f.root, record), 'utf8')), manifest);
+
+    const decorated = { ...manifest, privateNote: 'metadata outside the release schema' };
+    fs.writeFileSync(manifestFile(f.output), JSON.stringify(decorated));
+    const other = path.join(f.root, 'verified-absolute.json');
+    const absolute = packageCli(f.root, [...verify, '--release-record', other]);
+    assert.equal(absolute.status, 0, absolute.stderr);
+    assert.deepEqual(JSON.parse(absolute.stdout), decorated);
+    assert.deepEqual(JSON.parse(fs.readFileSync(other, 'utf8')), manifest);
+    assert.deepEqual(fs.readdirSync(f.output).sort(), ['capability.bundle', 'manifest.json']);
+});
+
+test('release record rejects mismatched approval, existing files, and physical package paths', async t => {
+    const f = fixture(t);
+    const manifest = await buildPackage({ source: f.source, output: f.output });
+    const verify = verifyArgs(f, manifest);
+    const invalid = path.join(f.root, 'invalid.json');
+    for (const change of [{ ref: 'refs/heads/another-branch' }, { revision: f.previous }, { sha256: '0'.repeat(64) }]) {
+        rejectedCli(packageCli(f.root, [...verifyArgs(f, { ...manifest, ...change }), '--release-record', invalid]), /清单与批准/);
+        assert.equal(fs.existsSync(invalid), false);
+    }
+
+    const existing = path.join(f.root, 'existing.json');
+    fs.writeFileSync(existing, 'existing record');
+    rejectedCli(packageCli(f.root, [...verify, '--release-record', existing]), /发行记录输出已存在/);
+    assert.equal(fs.readFileSync(existing, 'utf8'), 'existing record');
+
+    const nested = path.join(f.output, 'nested');
+    fs.mkdirSync(nested);
+    const alias = path.join(f.root, 'linked-package.json');
+    fs.symlinkSync(f.output, alias, process.platform === 'win32' ? 'junction' : 'dir');
+    rejectedCli(packageCli(f.root, [...verify, '--release-record', alias]), /发行记录输出已存在/);
+    assert.ok(fs.lstatSync(alias).isSymbolicLink());
+    for (const parent of [f.output, nested, alias]) {
+        const inside = path.join(parent, 'release-record.json');
+        rejectedCli(packageCli(f.root, [...verify, '--release-record', inside]), /离线包目录之外/);
+        assert.equal(fs.existsSync(inside), false);
+    }
+});
+
+test('release record removes a partially written file when writing fails', async t => {
+    const f = fixture(t);
+    const manifest = await buildPackage({ source: f.source, output: f.output });
+    const fault = path.join(f.root, 'fixture-write-error.cjs');
+    fs.writeFileSync(fault, `const fs = require('node:fs');
+fs.writeFileSync = (fd) => {
+    fs.writeSync(fd, 'partial record');
+    throw Object.assign(new Error('fixture write failure'), { code: 'EIO' });
+};
+`);
+    const output = path.join(f.root, 'release-record.json');
+    const before = fs.readdirSync(f.root).sort();
+    rejectedCli(packageCli(f.root, [...verifyArgs(f, manifest), '--release-record', output], ['--require', fault]), /EIO/);
+    assert.equal(fs.existsSync(output), false);
+    assert.deepEqual(fs.readdirSync(f.root).sort(), before);
 });
 
 test('a detached SHA-256 source still packages the release branch by default', async t => {
@@ -165,6 +250,78 @@ const approvedRevision = '3246ca4e7442c9e81977626c438922b757efbddb';
 const approvedTree = approvedRevision + ':f0a05c1ee334f4f37fadaaeb313f9f9c67b93ee0f25938fd9b982a0ce155620c';
 const nextRevision = 'b65675b656519b2a2bda02fd2b26e1a19fdbdd62';
 const nextTree = nextRevision + ':30b13b1d4a6e499cbc56e7da2355ff345ac269f74d8222a07b8d523e03ce9427';
+
+function windowsLineEndings(root, baseEnv) {
+    // Use native Git with fixture system and global files, even when a child discards GIT_*.
+    const directory = path.join(root, 'Git settings fixture');
+    fs.mkdirSync(directory);
+    const system = path.join(directory, 'system.gitconfig');
+    const global = path.join(directory, 'global.gitconfig');
+    fs.writeFileSync(system, '[core]\n\tautocrlf = true\n\teol = crlf\n');
+    fs.writeFileSync(global, '');
+    const gitExe = execFileSync('where.exe', ['git.exe'], { encoding:'utf8', windowsHide:true }).trim().split(/\r?\n/)[0];
+    const compile = String.raw`
+$ErrorActionPreference = 'Stop'
+$code = @'
+using System;
+using System.Diagnostics;
+using System.Text;
+public static class GitFixture {
+    static string Quote(string value) {
+        StringBuilder result = new StringBuilder("\"");
+        int slashes = 0;
+        foreach (char ch in value) {
+            if (ch == '\\') { slashes++; continue; }
+            result.Append('\\', ch == '"' ? slashes * 2 + 1 : slashes);
+            result.Append(ch);
+            slashes = 0;
+        }
+        return result.Append('\\', slashes * 2).Append('"').ToString();
+    }
+    public static int Main(string[] args) {
+        var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("WORKBENCH_EOL_FIXTURE_REAL_GIT"),
+            String.Join(" ", Array.ConvertAll(args, Quote)));
+        start.UseShellExecute = false;
+        start.EnvironmentVariables["GIT_CONFIG_SYSTEM"] = Environment.GetEnvironmentVariable("WORKBENCH_EOL_FIXTURE_SYSTEM");
+        start.EnvironmentVariables["GIT_CONFIG_GLOBAL"] = Environment.GetEnvironmentVariable("WORKBENCH_EOL_FIXTURE_GLOBAL");
+        using (var git = Process.Start(start)) { git.WaitForExit(); return git.ExitCode; }
+    }
+}
+'@
+Add-Type -TypeDefinition $code -OutputAssembly $env:WORKBENCH_EOL_FIXTURE_EXE -OutputType ConsoleApplication
+`;
+    execFileSync('powershell.exe', ['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(compile,'utf16le').toString('base64')], {
+        cwd:root, env:{...baseEnv,WORKBENCH_EOL_FIXTURE_EXE:path.join(directory,'git.exe')}, encoding:'utf8', windowsHide:true, timeout:15000,
+    });
+    const native = Object.fromEntries(Object.entries(baseEnv).filter(([name])=>!/^path$/iu.test(name)));
+    Object.assign(native, {
+        PATH:[directory,path.dirname(process.execPath),process.env.PATH].join(path.delimiter),
+        WORKBENCH_EOL_FIXTURE_REAL_GIT:gitExe, WORKBENCH_EOL_FIXTURE_SYSTEM:system, WORKBENCH_EOL_FIXTURE_GLOBAL:global,
+    });
+    const caller = {...native,GIT_CONFIG_COUNT:'2',GIT_CONFIG_KEY_0:'core.autocrlf',GIT_CONFIG_VALUE_0:'false',
+        GIT_CONFIG_KEY_1:'core.eol',GIT_CONFIG_VALUE_1:'lf'};
+    const readGit = (cwd, env, ...args) => execFileSync(path.join(directory,'git.exe'),['-C',cwd,...args],{
+        env,encoding:'utf8',windowsHide:true,timeout:15000,
+    }).trim();
+    return { native, caller, readGit };
+}
+
+async function makeHistoricalBundle(root, name, revision, branch = ref) {
+    const source = path.join(root, `${name}.git`);
+    const output = path.join(root, name);
+    fs.mkdirSync(source);
+    git(source, ['init', '--quiet', '--bare', '--template=', '--initial-branch=master']);
+    const objects = git(framework, ['rev-parse', '--path-format=absolute', '--git-path', 'objects']);
+    fs.writeFileSync(path.join(source, 'objects', 'info', 'alternates'), `${objects}\n`);
+    git(source, ['update-ref', branch, revision]);
+    return { output, manifest: await buildPackage({ source, ref: branch, revision, output }) };
+}
+
+function runOwner(cwd, env, file, ...args) {
+    return spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file, ...args], {
+        cwd, env, encoding: 'utf8', windowsHide: true, maxBuffer: 4 * 1024 * 1024, timeout:150000,
+    });
+}
 
 async function boundFramework(t, stage, project) {
     const { createFrameworkService } = require(path.join(stage, 'tools', 'agents-workbench', 'src', 'framework-service.js'));
@@ -204,7 +361,7 @@ async function boundFramework(t, stage, project) {
     return { post, state, choose: input => { files = input; }, pickCount: () => pickCount };
 }
 
-test('staged Workbench uses Windows PowerShell 5.1 to install and update approved offline Git objects', {
+test('staged Workbench installs approved offline objects and leaves installed-project updates to the original owner', {
     skip: process.platform !== 'win32' && 'Windows PowerShell 5.1 required'
 }, async t => {
     const hasRevision = spawnSync('git', ['-C', framework, 'cat-file', '-e', `${approvedRevision}^{commit}`]);
@@ -217,16 +374,7 @@ test('staged Workbench uses Windows PowerShell 5.1 to install and update approve
     const stage = path.join(root, '工作台 暂存');
     execFileSync(process.execPath, [path.join(framework, 'tools', 'agents-workbench', 'react', 'package-runtime.mjs'), stage],
         { cwd: root, windowsHide: true, encoding: 'utf8' });
-    const objects = git(framework, ['rev-parse', '--path-format=absolute', '--git-path', 'objects']);
-    async function makeBundle(name, revision, branch = ref) {
-        const source = path.join(root, `${name}.git`);
-        const output = path.join(root, name);
-        fs.mkdirSync(source);
-        git(source, ['init', '--quiet', '--bare', '--template=', '--initial-branch=master']);
-        fs.writeFileSync(path.join(source, 'objects', 'info', 'alternates'), `${objects}\n`);
-        git(source, ['update-ref', branch, revision]);
-        return { output, manifest: await buildPackage({ source, ref: branch, revision, output }) };
-    }
+    const makeBundle = (name, revision, branch) => makeHistoricalBundle(root, name, revision, branch);
     const old = await makeBundle('old', approvedRevision);
 
     git(project, ['init', '--quiet', '--template=']);
@@ -240,10 +388,7 @@ test('staged Workbench uses Windows PowerShell 5.1 to install and update approve
     const ownerEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(Git_.*|PSModulePath|IMEDICAL_DEPLOYMENT_LOCK)$/i.test(key)));
     ownerEnv.GIT_ALLOW_PROTOCOL = '';
     ownerEnv.PSModulePath = path.join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/Modules');
-    const owner = (file, ...args) => spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-        '-File', path.join(stage, 'scripts', file), ...args], {
-        cwd: project, env: ownerEnv, encoding: 'utf8', windowsHide: true, maxBuffer: 4 * 1024 * 1024
-    });
+    const owner = (file,...args) => runOwner(project,ownerEnv,path.join(stage,'scripts',file),...args);
     const install = (repository, expected) => owner('install-agents.ps1', '-RepositorySource', repository,
         '-ExpectedRevision', expected, '-TrustedRuntimeTree', approvedTree);
     const lock = path.join(target, '.git', 'plugin-deployment.lock');
@@ -274,7 +419,10 @@ test('staged Workbench uses Windows PowerShell 5.1 to install and update approve
         assert.ok(!fs.readdirSync(project).some(name => name.startsWith('.agents')));
     });
     assert.equal(fs.existsSync(detachedSource), false);
-    const approval = choose(old);
+    const releaseRecord = path.join(root, 'verified-approval.json');
+    const issued = packageCli(root, [...verifyArgs(old, old.manifest), '--release-record', releaseRecord]);
+    assert.equal(issued.status, 0, issued.stderr);
+    bound.choose({ releaseRecord, bundle: path.join(old.output, 'capability.bundle') });
     const selectedInstall = await bound.post('select', null);
     assert.equal(selectedInstall.status, 200, JSON.stringify(selectedInstall.data));
     assert.equal(selectedInstall.data.offline.install, true);
@@ -327,18 +475,20 @@ test('staged Workbench uses Windows PowerShell 5.1 to install and update approve
     };
     const moveFixtureHead = (expected, actual) => git(target, ['update-ref', ref, expected, actual]);
     choose(next);
-    const stagedPreview = await bound.post('select', approvedRevision);
-    assert.equal(stagedPreview.status, 200, JSON.stringify(stagedPreview.data));
-    assert.equal(stagedPreview.data.offline.install, false);
-    assert.equal(stagedPreview.data.offline.revision, nextRevision);
-    assert.equal(stagedPreview.data.after.revision, approvedRevision);
-    assert.equal(fs.existsSync(lock), false);
-    assertPreserved();
-    fs.writeFileSync(approval, JSON.stringify({ ...next.manifest, sha256: '0'.repeat(64) }));
-    const changed = await bound.post('apply', approvedRevision, { selectionId: stagedPreview.data.offline.selectionId });
-    assert.equal(changed.data.error, 'offline-selection-stale');
+    const pickCount = bound.pickCount();
+    for (const [action, extra] of [['select', {}], ['apply', { selectionId: selectedInstall.data.offline.selectionId }]]) {
+        const retired = await bound.post(action, approvedRevision, extra);
+        assert.equal(retired.status, 409);
+        assert.equal(retired.data.error, 'framework-update-use-agent');
+    }
+    for (const action of ['fetch-preview', 'apply']) {
+        const retired = await bound.post(action, approvedRevision, {}, true, 'action');
+        assert.equal(retired.status, 409);
+        assert.equal(retired.data.error, 'framework-update-use-agent');
+    }
+    assert.equal(bound.pickCount(), pickCount);
     assert.equal(revision(), approvedRevision);
-    choose(next);
+    assertPreserved();
     await withVerifiedPackage(next.output, next.manifest, ({ repository }) => {
         detachedSource = repository;
         const update = (mode, approval = nextTree) => owner('update-agents.ps1', '-ProjectRoot', project, '-Mode', mode,
@@ -382,13 +532,14 @@ test('staged Workbench uses Windows PowerShell 5.1 to install and update approve
         moveFixtureHead(approvedRevision, diverged);
         assertPreserved();
 
+        const written = update('Write');
+        assert.equal(written.status, 0, written.stderr || written.stdout);
+        assert.equal(revision(), nextRevision);
     });
     assert.equal(fs.existsSync(detachedSource), false);
-    const approvedPreview = await bound.post('select', approvedRevision);
-    assert.equal(approvedPreview.status, 200, JSON.stringify(approvedPreview.data));
-    const stagedApply = await bound.post('apply', approvedRevision, { selectionId: approvedPreview.data.offline.selectionId });
-    assert.equal(stagedApply.status, 200, JSON.stringify(stagedApply.data));
-    assert.equal(stagedApply.data.after.revision, nextRevision);
+    const reread = await bound.post('refresh', approvedRevision, {}, true, 'action');
+    assert.equal(reread.status, 200);
+    assert.equal(reread.data.revision, nextRevision);
     assert.equal(fs.existsSync(lock), false);
     assertPreserved();
 
@@ -413,25 +564,123 @@ test('staged Workbench uses Windows PowerShell 5.1 to install and update approve
     assert.ok(guidance.startsWith(business['AGENTS.md']));
     assert.match(guidance, /\(\.agents\/docs\/README\.md\)/);
 
-    await withVerifiedPackage(next.output, next.manifest, async ({ repository }) => {
-        git(repository, ['config', 'uploadpack.allowFilter', 'true']);
-        const vars = {
-            GIT_ALLOW_PROTOCOL: 'file', GIT_CONFIG_COUNT: '1',
-            GIT_CONFIG_KEY_0: `url.${repository.replaceAll('\\', '/')}.insteadOf`,
-            GIT_CONFIG_VALUE_0: 'https://gitee.com/skyler-cook/imedical.agents.git',
-        };
-        const saved = Object.fromEntries(Object.keys(vars).map(name => [name, process.env[name]]));
-        try {
-            Object.assign(process.env, vars);
-            const online = await bound.post('fetch-preview', nextRevision, {}, true, 'action');
-            assert.equal(online.status, 200, JSON.stringify(online.data));
-            assert.equal(online.data.exitCode, 0, JSON.stringify(online.data));
-            assert.equal(online.data.after.revision, nextRevision);
-        } finally {
-            for (const [name, value] of Object.entries(saved)) {
-                if (value === undefined) delete process.env[name];
-                else process.env[name] = value;
-            }
+});
+
+test('Windows offline updater preserves the effective caller line endings without changing Git config', {
+    skip: process.platform !== 'win32' && 'Windows PowerShell 5.1 required',
+}, async t => {
+    // Both revisions and pins are from published fixtures, including the historical offline updater.
+    const prior = 'afb19d0e980a48ce2c49d945aff11c2120861d3a';
+    const priorApproval = prior + ':7465f52d4bb222fe3b07868c50bb8001d75c0d31086fbdf163a259ed52f83e8f';
+    const latest = '1cc5b8bc6b7470979867f55f6efb89bb6d1bf69b';
+    const targetApproval = latest + ':98db0fe5fd6707cf6c2322f0ee3174865e716983a7225648e6e74d9ec90496c3';
+    const app = process.env.WORKBENCH_OFFLINE_OWNER_PILOT_APP;
+    const packageDirectory = process.env.WORKBENCH_OFFLINE_OWNER_PILOT_PACKAGE;
+    const releaseRecord = process.env.WORKBENCH_OFFLINE_OWNER_PILOT_RECORD;
+    assert.equal(Boolean(packageDirectory),Boolean(releaseRecord),'External bundle and independent release record must be provided together');
+    const ownerRoot = app ? fs.realpathSync.native(app) : framework;
+    let verifyPackage = withVerifiedPackage;
+    if (app) {
+        assert.equal(fs.existsSync(path.join(ownerRoot,'.git')),false,'Expected the extracted Workbench package');
+        const release = JSON.parse(fs.readFileSync(path.join(ownerRoot,'workbench-release.json'),'utf8'));
+        assert.equal(release.platform,'windows-x64');
+        assert.equal(release.node,process.versions.node);
+        assert.equal(fs.realpathSync.native(process.execPath),path.join(ownerRoot,'runtime','node.exe'));
+        verifyPackage = require(path.join(ownerRoot,'tools/agents-workbench/build/build-offline-package.js')).withVerifiedPackage;
+        t.diagnostic('Running the original installers and verifier from Workbench ' + release.version + ' using its portable Node');
+    }
+    if ([prior,latest].some(revision=>spawnSync('git',['-C',framework,'cat-file','-e',revision+'^{commit}']).status!==0)) {
+        return t.skip('Historical framework fixtures are unavailable in this clone');
+    }
+    const root = createTempDirectory('offline-caller-line-endings-');
+    t.after(() => { assert.ok(ownsTempDirectory(root)); fs.rmSync(root,{recursive:true,force:true,maxRetries:3}); });
+    const ownerEnv = Object.fromEntries(Object.entries(process.env).filter(([name])=>!/^(git_.*|psmodulepath|imedical_deployment_lock)$/iu.test(name)));
+    ownerEnv.GIT_ALLOW_PROTOCOL = '';
+    ownerEnv.PSModulePath = path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/Modules');
+    const { native,caller,readGit } = windowsLineEndings(root,ownerEnv);
+    const old = await makeHistoricalBundle(root,'historical',prior);
+    const current = packageDirectory ? {
+        output:fs.realpathSync.native(packageDirectory),
+        manifest:JSON.parse(fs.readFileSync(releaseRecord,'utf8').replace(/^\uFEFF/u,'')),
+    } : await makeHistoricalBundle(root,'target',latest);
+    assert.equal(current.manifest.revision,latest);
+    assert.equal(current.manifest.ref,ref);
+    const projects = ['原历史更新器','本轮更新器'].map(name=>path.join(root,name));
+    const installedUpdate = project => path.join(project,'.agents/scripts/update-agents.ps1');
+    const success = result => {
+        assert.ifError(result.error);
+        assert.equal(result.status,0,(result.stderr || result.stdout || '').slice(-6000));
+        return result.stdout;
+    };
+    await verifyPackage(old.output,old.manifest,({repository})=>{
+        for (const project of projects) {
+            fs.mkdirSync(project);
+            readGit(project,caller,'init','--quiet','--template=');
+            fs.writeFileSync(path.join(project,'AGENTS.md'),'# Existing project instructions.\n');
+            fs.writeFileSync(path.join(project,'.mcp.json'),'{"mcpServers":{"fixture":{"command":"never-run-this-fixture"}}}\n');
+            fs.writeFileSync(path.join(project,'business.txt'),'Preserve isolated business bytes.\r\n');
+            success(runOwner(project,caller,path.join(ownerRoot,'scripts/install-agents.ps1'),'-RepositorySource',repository,
+                '-ExpectedRevision',prior,'-TrustedRuntimeTree',priorApproval));
+            success(runOwner(project,caller,installedUpdate(project),'-ProjectRoot',project,'-Mode','Write','-NoPull'));
         }
     });
+    const observe = project => {
+        const cap = path.join(project,'.agents');
+        assert.equal(readGit(cap,native,'config','--get','core.autocrlf'),'true');
+        assert.equal(readGit(cap,native,'config','--get','core.eol'),'crlf');
+        assert.equal(readGit(cap,caller,'config','--get','core.autocrlf'),'false');
+        assert.equal(readGit(cap,caller,'config','--get','core.eol'),'lf');
+        assert.equal(readGit(cap,caller,'rev-parse','HEAD'),prior);
+        readGit(cap,caller,'update-ref','refs/remotes/origin/protected',prior);
+        fs.writeFileSync(path.join(cap,'.git/FETCH_HEAD'),'fixture FETCH_HEAD survives\r\n');
+        fs.writeFileSync(path.join(cap,'config/offline-fixture-private.json'),'{"keep":true}\r\n');
+        const files = [path.join(cap,'.git/config'),path.join(cap,'.git/FETCH_HEAD'),
+            path.join(cap,'config/offline-fixture-private.json'),...['AGENTS.md','.mcp.json','business.txt'].map(file=>path.join(project,file))];
+        const refs = () => readGit(cap,caller,'for-each-ref','--format=%(refname) %(objectname)').split('\n')
+            .filter(row=>!row.startsWith(ref+' '));
+        const contents = files.map(file=>fs.readFileSync(file));
+        const preservedRefs = refs();
+        assert.equal(readGit(cap,caller,'status','--porcelain'),'');
+        const preserve = () => {
+            assert.deepEqual(files.map(file=>fs.readFileSync(file)),contents);
+            assert.deepEqual(refs(),preservedRefs);
+            assert.doesNotMatch(readGit(cap,caller,'config','--local','--name-only','--list'),/^core\.(autocrlf|eol)$/imu);
+        };
+        return {cap,preserve};
+    };
+    const [legacyProject,fixedProject] = projects;
+    const legacy = observe(legacyProject);
+    const fixed = observe(fixedProject);
+    let detachedSource;
+    await verifyPackage(current.output,current.manifest,({repository})=>{
+        detachedSource = repository;
+        const update = (project, entry, mode) => runOwner(project,caller,entry,'-ProjectRoot',project,'-Mode',mode,
+            '-UpdateSource',repository,'-ExpectedRevision',latest,'-TrustedRuntimeTree',targetApproval,'-Detailed');
+        assert.match(success(update(legacyProject,installedUpdate(legacyProject),'DryRun')),/offline-update-planned/u);
+        assert.equal(readGit(legacy.cap,caller,'rev-parse','HEAD'),prior);
+        const blocked = update(legacyProject,installedUpdate(legacyProject),'Write');
+        assert.ifError(blocked.error);
+        assert.equal(blocked.status,1,blocked.stderr || blocked.stdout);
+        assert.match(blocked.stderr+'\n'+blocked.stdout,/Cannot refresh a dirty capability checkout/u);
+        assert.equal(readGit(legacy.cap,caller,'rev-parse','HEAD'),latest);
+        assert.match(readGit(legacy.cap,caller,'status','--porcelain'),/docs\/guides\/capability-guide\.md/u);
+        assert.equal(readGit(legacy.cap,native,'status','--porcelain'),'');
+        legacy.preserve();
+        t.diagnostic('The installed historical owner advanced HEAD and then failed sparse refresh under the caller settings.');
+
+        const repairedOwner = path.join(ownerRoot,'scripts/update-agents.ps1');
+        assert.match(success(update(fixedProject,repairedOwner,'DryRun')),/offline-update-planned/u);
+        assert.equal(readGit(fixed.cap,caller,'rev-parse','HEAD'),prior);
+        fixed.preserve();
+        success(update(fixedProject,repairedOwner,'Write'));
+        assert.equal(readGit(fixed.cap,caller,'rev-parse','HEAD'),latest);
+        assert.equal(readGit(fixed.cap,caller,'status','--porcelain'),'');
+        fixed.preserve();
+    });
+    assert.equal(fs.existsSync(detachedSource),false);
+    success(runOwner(fixedProject,caller,installedUpdate(fixedProject),'-ProjectRoot',fixedProject,'-Mode','Check','-NoPull'));
+    assert.equal(readGit(fixed.cap,caller,'rev-parse','HEAD'),latest);
+    assert.equal(readGit(fixed.cap,caller,'rev-parse','--abbrev-ref','@{upstream}'),'origin/master');
+    assert.ok(Number(readGit(fixed.cap,caller,'cat-file','-s','HEAD:vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe'))>1024*1024);
+    fixed.preserve();
 });

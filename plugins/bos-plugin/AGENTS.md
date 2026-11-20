@@ -33,7 +33,7 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 - 已有需求号或正文，需要调查、实施、验证，以及提交后的日志衔接：[bos-demand-handle](skills/bos-demand-handle/SKILL.md)。
 - `$bos-demand-handle --night` 或明确自然语言夜跑：经同一技能进入共享夜跑 workflow，由 Agent 准备批次资料；参数仅选择流程，沿用既有授权。
 - 已有本地提交补录为 BOS 代码更新日志：[bos-code-update-log](skills/bos-code-update-log/SKILL.md)。
-- 按技能分段的共享私有配置、初始化与查询 CLI：[使用说明](references/usage.md)。
+- 按技能分段的共享私有配置、初始化、JSONC 兼容和旧版回退见[使用说明](references/usage.md)。
 - 后续用户级技能迁移：[接入与迁移](references/adoption.md)。
 
 ## 边界

@@ -1,8 +1,10 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict');
-const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
+const fs = require('node:fs'), path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
+const { createTempDirectory, ownsTempDirectory } = require('./fixtures/temp-directory');
+const profiles = require('../lib/project-plugin-profile');
 const repo = path.resolve(__dirname, '../..');
 const read = p => fs.readFileSync(path.join(repo, p), 'utf8');
 const shell = process.env.BOS_TEST_POWERSHELL || 'pwsh';
@@ -17,16 +19,25 @@ function run(cmd, args, cwd, env = process.env, expectedStatus = 0) {
   return r.stdout + (expectedStatus ? r.stderr : '');
 }
 function write(p, s) { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, s); }
+
+test('standalone BOS configuration runtime agrees with the shared implementation', () => {
+  run(process.execPath, ['maintenance/governance/sync-bos-config-runtime.js', '--check'], repo);
+});
+
 function fixture(t, overlay, singleShared = false) {
-  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'bos-discovery-'));
+  const root = createTempDirectory('bos-discovery-');
   const links = [];
-  t.after(() => { for (const l of links) if (fs.existsSync(l)) fs.unlinkSync(l); fs.rmSync(root, { recursive: true, force: true }); });
+  t.after(() => {
+    assert.ok(ownsTempDirectory(root));
+    for (const link of links) if (fs.existsSync(link)) fs.unlinkSync(link);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
   const project = path.join(root, 'project'), context = path.join(project, '.agents');
   const capability = overlay ? path.join(root, 'capability') : context;
   fs.mkdirSync(context, { recursive: true });
   fs.mkdirSync(capability, { recursive: true });
   run('git', ['init'], capability);
-  for (const name of ['scripts', 'hooks', 'agents', 'workflows', 'docs']) {
+  for (const name of ['scripts', 'hooks', 'agents', 'workflows', 'docs', 'vendor/jsonc-parser']) {
     fs.cpSync(path.join(repo, name), path.join(capability, name), { recursive: true, filter: p => !p.includes(path.join('scripts', 'tests')) });
   }
   for (const name of ['bos-plugin', 'demand-delivery-plugin']) fs.cpSync(path.join(repo, 'plugins', name), path.join(capability, 'plugins', name), { recursive: true });
@@ -47,7 +58,7 @@ function fixture(t, overlay, singleShared = false) {
       capabilityRoot: capability, sharedDirectories: shared, localDirectories: ['config','skills'],
       sourceRoots: [{ name: 'backend', path: 'backend', target: source, gitRoot: source }]
     }));
-    fs.mkdirSync(path.join(context, 'skills'));
+    for (const name of ['config', 'skills']) fs.mkdirSync(path.join(context, name));
   }
   return { root, project, context, capability };
 }
@@ -56,7 +67,9 @@ for (const mode of ['standard', 'overlay', 'overlay-single-shared']) test('plugi
   const queryEntry = path.join(f.context, 'skills/bos-demand-query/SKILL.md');
   const logEntry = path.join(f.context, 'skills/bos-code-update-log/SKILL.md');
   for (const status of ['available','disabled','enabled']) {
-    write(path.join(f.context, 'config/plugin_profile.md'), '# Plugin Profile\n\n| plugin | status | initSkill | dependsOn | notes |\n|---|---|---|---|---|\n| bos-plugin | '+status+' | bos-init | - | fixture |\n');
+    run(shell, ['-NoProfile','-File',path.join(f.capability,'scripts/update-plugin-profile.ps1'),
+      '-ProjectRoot',f.project,'-ContextRoot',f.context,'-CapabilityRoot',f.capability,
+      '-Plugin','bos-plugin','-Status',status], f.root);
     const updateOutput = run(shell, ['-NoProfile','-File',path.join(f.capability,'scripts/update-agents.ps1'),'-ProjectRoot',f.project,'-Plugin','bos-plugin','-Mode','Write','-NoPull','-Detailed'], f.root);
     assert.equal(fs.existsSync(queryEntry), status === 'enabled', updateOutput);
     assert.equal(fs.existsSync(logEntry), status === 'enabled', updateOutput);
@@ -95,10 +108,11 @@ for (const mode of ['standard', 'overlay', 'overlay-single-shared']) test('plugi
 });
 function writeConfig(root) {
   const file = path.join(root, 'private.json');
-  write(file, JSON.stringify({
+  const json = JSON.stringify({
     'bos-demand-query': { url: 'https://example.invalid/sse', headers: { 'X-Gateway-Upstream-BOS-MCP-TOKEN': randomBytes(24).toString('hex') }, cuser: 'synthetic-user', cgroup: 'synthetic-group' },
     'bos-code-update-log': { url: 'https://example.invalid/code-log', token: randomBytes(24).toString('hex'), linkProject: 'synthetic-project' }
-  }));
+  }, null, 2);
+  write(file, '\uFEFF// Private fixture\r\n' + json.replace('\n', '\n  /* Keep the sections independent. */\n').replace(/\n/g, '\r\n') + '\r\n');
   return file;
 }
 test('BOS workflow delegates lifecycle, domains and authorization without a second state store', () => {
@@ -159,7 +173,10 @@ for (const overlay of [false, true]) test('updater retires deployed demand names
   assert.match(output, /demand-migration-applied/);
   for (const name of ['demand-commit', 'bos-demand-entry']) assert.ok(fs.existsSync(path.join(f.context, 'skills', name, 'SKILL.md')));
   for (const name of ['iris-demand-commit', 'iris-demand-entry']) assert.equal(fs.existsSync(path.join(f.context, 'skills', name)), false);
-  assert.match(fs.readFileSync(path.join(f.context, 'config/plugin_profile.md'), 'utf8'), /demand-delivery-plugin\s*\|\s*enabled/);
+  const profile = profiles.read(f.context);
+  assert.equal(profile.canonical, true);
+  assert.equal(profile.entries['demand-delivery-plugin'].status, 'enabled');
+  assert.equal(fs.existsSync(profiles.locations(f.context).legacy), false);
   assert.doesNotMatch(fs.readFileSync(path.join(f.project, 'AGENTS.md'), 'utf8'), /iris-demand-/);
   assert.doesNotMatch(run(shell, [...args, '-Mode', 'Write'], f.root), /demand-migration-applied/);
   run(shell, [...args, '-Mode', 'Check'], f.root);
@@ -170,19 +187,19 @@ for (const overlay of [false, true]) test('updater retires deployed demand names
 
 for (const overlay of [false, true]) test('availability warning preserves BOS discovery without enabling Delivery: ' + overlay, t => {
   const f = fixture(t, overlay);
-  write(path.join(f.context, 'config/plugin_profile.md'), '| plugin | status | initSkill | dependsOn | notes |\n|---|---|---|---|---|\n| bos-plugin | enabled | bos-init | - | fixture |\n| demand-delivery-plugin | disabled | - | - | fixture |\n');
+  profiles.save(f.context, {'bos-plugin': {status: 'enabled'}, 'demand-delivery-plugin': {status: 'disabled'}});
   const output = run(shell, ['-NoProfile', '-File', path.join(f.capability, 'scripts/update-agents.ps1'), '-ProjectRoot', f.project, '-Plugin', 'bos-plugin', '-Mode', 'Write', '-NoPull', '-Detailed'], f.root);
   assert.match(output, /plugin-availability-warning/);
   assert.ok(fs.existsSync(path.join(f.context, 'skills/bos-demand-query/SKILL.md')));
   assert.equal(fs.existsSync(path.join(f.context, 'skills/demand-commit/SKILL.md')), false);
-  assert.match(fs.readFileSync(path.join(f.context, 'config/plugin_profile.md'), 'utf8'), /demand-delivery-plugin\s*\|\s*disabled/);
+  assert.equal(profiles.read(f.context).entries['demand-delivery-plugin'].status, 'disabled');
 });
 
 for (const overlay of [false, true]) test('generic demand skill is discoverable without IRIS: ' + overlay, t => {
   const f = fixture(t, overlay);
   const entry = path.join(f.context, 'skills/demand-commit/SKILL.md');
   for (const status of ['available', 'disabled', 'enabled']) {
-    write(path.join(f.context, 'config/plugin_profile.md'), '# Plugin Profile\n\n| plugin | status | initSkill | dependsOn | notes |\n|---|---|---|---|---|\n| demand-delivery-plugin | '+status+' | - | - | fixture |\n');
+    profiles.save(f.context, {'demand-delivery-plugin': {status}});
     const out = run(shell, ['-NoProfile', '-File', path.join(f.capability, 'scripts/update-agents.ps1'), '-ProjectRoot', f.project, '-Plugin', 'demand-delivery-plugin', '-Mode', 'Write', '-NoPull'], f.root);
     assert.equal(fs.existsSync(entry), status === 'enabled', out);
     if (status === 'enabled') {

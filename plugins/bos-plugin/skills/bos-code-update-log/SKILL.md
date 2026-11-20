@@ -17,7 +17,7 @@ description: 将标版需求已核验的实仓 commit 补录为 BOS 代码更新
 
 ## 前置条件
 
-读取 [接口与配置](../../references/code-update-log.md)。`BOS_MCP_CONFIG` 指向仓外共享私有 JSON，本技能只读取 `bos-code-update-log` 段；`token` 和 `linkProject` 必须填写，缺失或 TODO 时只阻塞本技能。配置初始化和旧格式迁移使用 [bos-init](../bos-init/SKILL.md)，两套凭据不互相替代。
+读取 [接口与配置](../../references/code-update-log.md)。`BOS_MCP_CONFIG` 指向仓外共享私有文件，本技能只读取 `bos-code-update-log` 段；`token` 和 `linkProject` 必须填写，缺失或 TODO 时只阻塞本技能。初始化使用 [bos-init](../bos-init/SKILL.md)，JSONC 与旧版回退见[共享私有配置](../../references/usage.md#共享私有配置)。
 
 提交信息须符合 `<type>(<代码所属需求号>):<菜单名称>` 与 `修改说明:` 格式。历史提交格式不符时报告缺口，由用户决定后续处理；本技能不改写 Git 历史。
 

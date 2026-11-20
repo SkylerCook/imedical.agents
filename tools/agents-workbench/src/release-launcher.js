@@ -199,7 +199,9 @@ async function launchImported(release, projectRoot, expected, { signal, startupT
     });
   } catch (error) { throw startupError(error, signal, timeout); }
 
+  const ended = new Promise(resolve => child.once('close', (...outcome) => resolve(outcome)));
   const startupFailed = once(child, 'exit').then(() => { throw new ReleaseLaunchError('startup-failed'); });
+  const disconnect = () => { if (child.connected) child.disconnect(); };
   let stopping;
   const close = () => stopping ??= (async () => {
     if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
@@ -220,7 +222,7 @@ async function launchImported(release, projectRoot, expected, { signal, startupT
     const address = await Promise.race([probe(), startupFailed]);
     checkCancelled(signal);
     if (timeout.aborted) throw new ReleaseLaunchError('startup-timeout');
-    return { state: 'ready', release, address, close, ended: new Promise(resolve => child.once('close', (...outcome) => resolve(outcome))) };
+    return { state: 'ready', release, address, close, ended, ...(owned ? { disconnect } : {}) };
   } catch (error) {
     try { await close(); }
     catch { throw new ReleaseLaunchError('cleanup-failed'); }

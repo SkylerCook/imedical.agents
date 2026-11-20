@@ -7,19 +7,56 @@ const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { withLock } = require('./plugin-deployment');
 
-const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^GIT_/i.test(name)));
-Object.assign(env, { GIT_ALLOW_PROTOCOL: '', GIT_NO_LAZY_FETCH: '1', GIT_NO_REPLACE_OBJECTS: '1', GIT_TERMINAL_PROMPT: '0' });
+const isGitVariable = name => /^GIT_/i.test(name);
+const inheritedGit = Object.entries(process.env).filter(([name]) => isGitVariable(name));
+const safetyEnv = { GIT_ALLOW_PROTOCOL: '', GIT_NO_LAZY_FETCH: '1', GIT_NO_REPLACE_OBJECTS: '1', GIT_TERMINAL_PROMPT: '0' };
+const env = { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !isGitVariable(name))), ...safetyEnv };
 
-function git(root, args, failure, raw = false) {
-    const result = spawnSync('git', ['--no-optional-locks', '-c', 'core.longpaths=true', '-c', 'core.fsmonitor=false',
-        '-c', 'core.hooksPath=/dev/null', '-c', 'maintenance.auto=false', '-C', root, ...args],
-    { env, maxBuffer: 4 * 1024 * 1024, windowsHide: true });
+function runGit(root, args, config = [], environment = env) {
+    return spawnSync('git', ['--no-optional-locks', '-c', 'core.longpaths=true', '-c', 'core.fsmonitor=false',
+        '-c', 'core.hooksPath=/dev/null', '-c', 'maintenance.auto=false', ...config, '-C', root, ...args],
+    { env: environment, maxBuffer: 4 * 1024 * 1024, windowsHide: true });
+}
+
+function git(root, args, failure, { raw = false, config } = {}) {
+    const result = runGit(root, args, config);
     if (result.status !== 0 || result.error) throw new Error(failure);
     return raw ? result.stdout : result.stdout.toString('utf8').trim();
 }
 
-function targetState(target) {
-    if (git(target, ['status', '--porcelain=v1'], 'Cannot read the capability checkout status.')) {
+function checkoutConfig(target) {
+    // Only these read-only queries see the caller's Git configuration sources.
+    const callerConfig = Object.fromEntries(inheritedGit.filter(([name]) =>
+        /^GIT_CONFIG_(?:NOSYSTEM|SYSTEM|GLOBAL|PARAMETERS|COUNT|KEY_\d+|VALUE_\d+)$/i.test(name)));
+    const queryEnv = { ...env, ...callerConfig };
+    const failure = 'Cannot read the capability checkout line-ending settings.';
+    const read = (key, type = []) => {
+        const result = runGit(target, ['config', '--null', ...type, '--get', key], [], queryEnv);
+        if (!result.error && result.status === 1) return null;
+        if (result.error || result.status !== 0 || result.stdout.at(-1) !== 0) throw new Error(failure);
+        return result.stdout.subarray(0, -1).toString('utf8').toLowerCase();
+    };
+    const autocrlf = read('core.autocrlf', ['--type=bool-or-str']) ?? 'false';
+    if (!['true', 'false', 'input'].includes(autocrlf)) throw new Error(failure);
+    const eol = read('core.eol');
+    // Explicit defaults prevent a different system/global config from taking over in the isolated commands.
+    return ['-c', `core.autocrlf=${autocrlf}`, '-c', `core.eol=${['lf', 'crlf'].includes(eol) ? eol : 'native'}`];
+}
+
+function withIsolatedLock(target, operation) {
+    // The shared lock resolves its Git path using the process environment.
+    for (const [name] of inheritedGit) delete process.env[name];
+    Object.assign(process.env, safetyEnv);
+    try {
+        return withLock(target, operation);
+    } finally {
+        for (const name of Object.keys(safetyEnv)) delete process.env[name];
+        for (const [name, value] of inheritedGit) process.env[name] = value;
+    }
+}
+
+function targetState(target, config) {
+    if (git(target, ['status', '--porcelain=v1'], 'Cannot read the capability checkout status.', { config })) {
         throw new Error('Offline update requires a clean capability checkout.');
     }
     const branch = git(target, ['symbolic-ref', '--quiet', 'HEAD'], 'Offline update requires a checked-out release branch.');
@@ -47,7 +84,7 @@ function verifySource(source, state, expected, approved) {
     const revision = git(source, ['rev-parse', '--verify', 'HEAD^{commit}'], 'Cannot resolve the offline capability revision.');
     if (revision !== expected) throw new Error('Offline capability revision does not match the approved revision.');
     const tree = git(source, ['ls-tree', '-r', '-z', revision, '--', 'scripts', 'plugins', 'vendor', 'hooks'],
-        'Cannot inspect the offline framework execution tree.', true);
+        'Cannot inspect the offline framework execution tree.', { raw: true });
     const deployed = tree.toString('latin1').split('\0').filter(row => row.slice(row.indexOf('\t') + 1) !== 'scripts/install-agents.ps1');
     const digest = crypto.createHash('sha256').update(deployed.join('\0'), 'latin1').digest('hex');
     if (!approved.split(',').includes(`${revision}:${digest}`)) throw new Error('Unrecognized offline framework execution tree.');
@@ -85,20 +122,22 @@ function main([target, source, mode, expected, approved]) {
     }
     target = path.resolve(target);
     source = path.resolve(source);
-    return withLock(target, () => {
-        const before = targetState(target);
+    return withIsolatedLock(target, () => {
+        const config = checkoutConfig(target);
+        const before = targetState(target, config);
         const ref = verifySource(source, before, expected, approved);
         const receipt = { oldHash: before.revision, newHash: before.revision, upstreamHash: before.upstream };
         if (mode === 'DryRun') return { ...receipt, status: 'offline-update-planned', reason: `Verified offline target ${expected}. HEAD remains unchanged.` };
 
         importObjects(source, target, ref, expected);
-        const current = targetState(target);
+        const current = targetState(target, config);
         if (current.branch !== before.branch || current.revision !== before.revision || current.upstream !== before.upstream ||
             current.remoteRef !== before.remoteRef) throw new Error('The capability checkout changed during offline import.');
         if (current.revision !== expected) {
-            git(target, ['merge', '--ff-only', '--no-edit', expected], 'Offline fast-forward failed. Inspect the current checkout before retrying.');
+            git(target, ['merge', '--ff-only', '--no-edit', expected], 'Offline fast-forward failed. Inspect the current checkout before retrying.',
+                { config });
         }
-        const after = targetState(target);
+        const after = targetState(target, config);
         if (after.revision !== expected || after.branch !== before.branch || after.upstream !== before.upstream ||
             after.remoteRef !== before.remoteRef) throw new Error('Cannot confirm the offline revision and preserved upstream after update.');
         return { ...receipt, newHash: after.revision, status: before.revision === after.revision ? 'agents-up-to-date' : 'agents-updated',

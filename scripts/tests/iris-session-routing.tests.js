@@ -18,6 +18,149 @@ test('a client opened on A refuses dispatch after the project selects B',async t
   await client.close();
 });
 
+test('profile activation keeps the original admission owner and routes new sessions to the selected instance', async t => {
+  const os = require('node:os'), crypto = require('node:crypto');
+  const {spawnSync} = require('node:child_process');
+  const remote = require('../lib/iris-remote-operations');
+  const configOwner = require('../../tools/ai-dev-offline/configure-project');
+  const root = createTempDirectory('iris-split-');
+  const project = path.join(root,'project'), contextRoot = path.join(project,'.agents');
+  const config = path.join(contextRoot,'config'), ipcRoot = path.join(root,'.imedical','iris-sessions');
+  const context = {workspaceRoot:project,contextRoot};
+  t.mock.method(os,'homedir',() => root);
+  let host, client, originalOwner;
+  t.after(async () => {
+    await client?.close();
+    await host?.stop();
+    originalOwner?.close();
+    if (ownsTempDirectory(root)) fs.rmSync(root,{recursive:true,force:true});
+  });
+  fs.mkdirSync(config,{recursive:true});
+  for (const directory of [project, contextRoot]) {
+    const result = spawnSync('git',['init','-q',directory],{encoding:'utf8',windowsHide:true});
+    assert.equal(result.status,0,result.stderr);
+  }
+  fs.writeFileSync(path.join(contextRoot,'.git/info/exclude'),'/config/\n');
+  const a = {host:'a.invalid',port:443,namespace:'TEST',scheme:'https',tlsVerify:true,alias:'devA'};
+  const http = require('node:http');
+  const endpoint = http.createServer((request,response)=>{
+    if (request.method === 'HEAD') { response.end(); return; }
+    response.setHeader('Set-Cookie','CSPSESSIONID=fixture-b; Path=/');
+    const document = 'Demo.Legacy.cls';
+    response.end(JSON.stringify(request.url.endsWith('/doc/'+document) ?
+      {result:{name:document,content:['fixture'],ts:'2026-01-01 00:00:00'}} : {path:request.url}));
+  });
+  await new Promise(resolve=>endpoint.listen(0,'127.0.0.1',resolve));
+  t.after(async()=>{endpoint.closeAllConnections();await new Promise(resolve=>endpoint.close(resolve));});
+  const b = {...a,host:'127.0.0.1',port:endpoint.address().port,scheme:'http',alias:'devB'};
+  const serverName = 'fixture-iris';
+  const password = crypto.randomBytes(20).toString('hex');
+  const adapter = {command:process.execPath,args:[path.resolve('scripts/iris-session-mcp.js'),'--project-root',project,'--server-name',serverName]};
+  const writeJson = (file,value) => fs.writeFileSync(file,JSON.stringify(value)+'\n');
+  writeJson(path.join(project,'.mcp.json'),{mcpServers:{[serverName]:{...adapter,env:{
+    IRIS_HOST:a.host,IRIS_WEB_PORT:String(a.port),IRIS_NAMESPACE:a.namespace,IRIS_SCHEME:a.scheme,
+    IRIS_TLS_VERIFY:'true',IRIS_USERNAME:'fixture-user',IRIS_PASSWORD:password
+  }}}});
+  writeJson(path.join(config,'project-env.json'),{iris:{...a,username:'fixture-user',password},mcp:{serverName}});
+  writeJson(path.join(config,'iris-session-backend.json'),{schema:'iris-session-backend/v1',serverName,
+    command:process.execPath,args:['mcp'],managedHash:crypto.createHash('sha256').update(JSON.stringify(adapter)).digest('hex')});
+  fs.writeFileSync(path.join(project,'mcp'),`const r=require('node:readline').createInterface({input:process.stdin});
+    r.on('close',()=>process.stderr.write('IMEDICAL_LOGOUT={"attempted":0,"acknowledged":0,"completed":true}\\n'));
+    r.on('line',line=>{const m=JSON.parse(line);if(m.id===undefined)return;
+      const {IRIS_HOST:host,IRIS_WEB_PORT:port,IRIS_NAMESPACE:namespace}=process.env;
+      const result=m.method==='tools/call'?{content:[{type:'text',text:JSON.stringify({connected:true,host,port,namespace})}]}:{};
+      process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result})+'\\n');});`);
+  const originalPolicy = {schema:'iris-remote-policy/v1',enabled:true,poolKey:remote.instanceIdentity(a),
+    coordinationRoot:path.join(root,'legacy-admission')};
+  const policyFile = path.join(config,'iris-remote-policy.json');
+  writeJson(policyFile,originalPolicy);
+  const originalPolicyBytes = fs.readFileSync(policyFile);
+  const initial = describe(project);
+  originalOwner = remote.createRemoteOperation({policy:initial.policy,connection:initial.connection});
+  originalOwner.markUnknown('synthetic-original-write');
+  const stateFile = policy => path.join(policy.coordinationRoot,
+    crypto.createHash('sha256').update(policy.poolKey).digest('hex'),'state.json');
+  const originalStateBytes = fs.readFileSync(stateFile(initial.policy));
+  const originalStatus = remote.localPoolStatus(context);
+  assert.equal(originalStatus.ownerPresent,true);
+  assert.equal(originalStatus.unresolvedWrites.length,1);
+
+  async function select(profile) {
+    const request = {projectRoot:project,profile,gitExe:'git'};
+    const after = await configOwner.apply({...request,fingerprint:configOwner.plan(request).fingerprint});
+    assert.equal(after.selected,profile.id);
+  }
+  await select({id:'alternate',connection:b,useCurrentCredentials:true});
+  const selected = describe(project);
+  assert.equal(selected.pool,remote.instanceIdentity(b));
+  const atelier = remote.loadRemotePolicy(context,{connection:selected.connection});
+  assert.equal(selected.policy.poolKey,selected.pool);
+  assert.equal(atelier.poolKey,selected.policy.poolKey);
+  assert.equal(remote.localPolicy(context).poolKey,selected.pool);
+  assert.equal(remote.loadRemotePolicy(context,{connection:selected.connection,recoveryRead:true}).poolKey,selected.pool);
+  assert.equal(remote.localPoolStatus(context).unresolvedWrites.length,0);
+  const legacy = remote.createRemoteOperation({policy:{...atelier,coordinationRoot:atelier.legacyCoordinationRoot,
+    legacyCoordinationRoot:undefined},connection:selected.connection});
+  legacy.markUnknown('synthetic-alternate-legacy-write');
+  legacy.close({processExited:true,localResourcesClosed:true});
+  const legacyToken = remote.localPoolStatus(context).legacy.reconciliationToken;
+  const atelierClient = require('../lib/atelier-client');
+  const directOwner = remote.createRemoteOperation({policy:atelier,connection:selected.connection});
+  const direct = atelierClient.createAtelierClient({connection:selected.connection,context,owner:directOwner});
+  try { assert.equal((await direct.request('GET','probe')).path,'/api/atelier/v1/TEST/probe'); }
+  finally { directOwner.close(await direct.close()); }
+  host = await serve({root:ipcRoot});
+  client = createClient({projectRoot:project,root:ipcRoot});
+  const result = await client.request('tools/call',{name:'iris_info',arguments:{}});
+  assert.equal(JSON.parse(result.result.content[0].text).host,b.host);
+  assert.equal(remote.localPoolStatus(context).ownerPresent,true);
+  const outputs = [];
+  t.mock.method(console,'log',value=>outputs.push(JSON.parse(value)));
+  const cli = require('../iris-remote').main;
+  await cli(['status','--project-root',project]);
+  assert.equal(outputs.at(-1).admission.ownerPresent,true);
+  assert.equal(outputs.at(-1).session.active,true);
+  assert.equal(outputs.at(-1).admission.legacy.reconciliationToken,legacyToken);
+  const document = 'Demo.Legacy.cls';
+  const inspectLegacy = () => atelierClient.createAtelierRecoveryReader({context,connection:selected.connection,
+    token:legacyToken,documents:[document],confirmRecovery:true});
+  const busyReader = inspectLegacy();
+  try { await assert.rejects(busyReader.readDocument(document),{code:'remote-inspection-peer-active'}); }
+  finally { await busyReader.close(); }
+  assert.equal(remote.localPoolStatus(context).legacy.reconciliationToken,legacyToken);
+  assert.equal(remote.poolStatus({policy:initial.policy}).reconciliationToken,originalStatus.reconciliationToken);
+  await client.close(); client = null;
+  await host.stop(); host = null;
+
+  const alternateToken = remote.localPoolStatus(context).reconciliationToken;
+  const alternateStateBytes = fs.readFileSync(stateFile(atelier));
+  const reader = inspectLegacy();
+  try { assert.equal((await reader.readDocument(document)).text,'fixture'); }
+  finally { await reader.close(); }
+  const inspected = remote.localPoolStatus(context);
+  assert.equal(inspected.legacy.unresolvedWrites.length,1);
+  assert.equal(inspected.reconciliationToken,alternateToken);
+  await assert.rejects(cli(['reconcile','--project-root',project,'--token',inspected.legacy.reconciliationToken,'--confirm']),
+    {code:'remote-write-reconciliation-required'});
+  await cli(['reconcile','--project-root',project,'--token',inspected.legacy.reconciliationToken,
+    '--write-outcome','verified-not-applied','--confirm']);
+  assert.equal(remote.localPoolStatus(context).legacy.unresolvedWrites.length,0);
+  assert.equal(remote.localPoolStatus(context).reconciliationToken,alternateToken);
+  assert.deepEqual(fs.readFileSync(stateFile(initial.policy)),originalStateBytes);
+  assert.deepEqual(fs.readFileSync(stateFile(atelier)),alternateStateBytes);
+
+  await select({id:'current'});
+  assert.equal(describe(project).policy.poolKey,originalPolicy.poolKey);
+  assert.equal(remote.localPoolStatus(context).reconciliationToken,originalStatus.reconciliationToken);
+  assert.deepEqual(fs.readFileSync(policyFile),originalPolicyBytes);
+  originalOwner.close({processExited:true,localResourcesClosed:true}); originalOwner = null;
+  const back = remote.localPoolStatus(context);
+  assert.equal(back.ownerPresent,false);
+  assert.equal(back.unresolvedWrites.length,1);
+  await assert.rejects(cli(['reconcile','--project-root',project,'--token',back.reconciliationToken,'--confirm']),
+    {code:'remote-write-reconciliation-required'});
+});
+
 test('read transport failure retains its cause through IPC without inventing HTTP status or write risk',async t=>{
   const root=createTempDirectory('iris-session-transport-'),project=path.join(root,'project');
   fs.mkdirSync(path.join(project,'.agents/config'),{recursive:true});

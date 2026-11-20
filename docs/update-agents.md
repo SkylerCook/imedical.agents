@@ -1,36 +1,44 @@
 # .agents 安装与更新 Runbook
 
-Windows standard 工程可从工作台首页运行原检查、取版预演及写入复查。工作台首装复用安装器的部分克隆；可选 `TrustedRuntimeTree` 由随包入口提供，以完整提交号和运行树摘要配对校验首装来源，确认通过再放入工程的 `.agents`。日常 CLI 安装参数沿用原方式。
+Windows standard 工程可从工作台首页首装或只读检查。已有工程从首页复制更新提示词，在当前工程的 Agent 会话中沿本手册更新。工作台在线首装复用安装器的部分克隆；可选 `TrustedRuntimeTree` 由随包入口提供，以完整提交号和运行树摘要配对校验首装来源，确认通过再放入工程的 `.agents`。日常 CLI 安装参数沿用原方式。
 
-部署策略位于当前 ContextRoot 的 `config/project.jsonc` 的 `deployment` 节。既有工程由原更新器 Write 迁移 `config/plugin-deployment.json`。Check 可读取旧来源，新旧策略同时存在时会报告冲突。需要恢复旧版 CLI 时，先按插件部署手册恢复兼容策略。 同一主文件的 `plugins.<插件 ID>.status` 保存插件启停；涉及独立说明、冲突来源或不可识别表格时保留原文件并报告。切回旧运行时前执行新版 `plugin-deploy.js rollback-project --project-root <工程目录>`，确认两份旧配置能按原入口读取。
+部署策略位于当前 ContextRoot 的 `config/project.jsonc` 的 `deployment` 节。既有工程由原更新器 Write 迁移 `config/plugin-deployment.json`。Check 可读取旧来源，新旧策略同时存在时会报告冲突。同一主文件的 `plugins.<插件 ID>.status` 保存插件启停，`irisDevelopment` 保存 IRIS 开发方式。涉及独立说明、冲突来源或不可识别表格时保留原文件并报告。
+
+切回只识别旧配置的运行时前，先执行新版 `plugin-deploy.js rollback-project --project-root <工程目录>`。确认部署策略、插件启停和 IRIS 开发方式分别恢复到适用的 `config/plugin-deployment.json`、`config/plugin_profile.md` 和 `config/iris-development.json`。随后用目标旧版工具读回。离线工程用旧版 `source-sync.js configure --project-root <工程目录> --mode Check` 确认 `developmentMode` 为 `offline`，让命令从恢复后的文件读取开发方式。重新升级时按本页的原更新流程迁移。
 
 ## 使用工作台安装与更新
 
-在 Windows x64 上按发行记录校验并解压 `agents-workbench-react.zip`，双击 `start-workbench.cmd` 并选择工程根目录，也可从解压目录启动并明确指定工程。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。在线首装和取版访问框架源，具备离线操作入口的版本可使用团队批准的完整能力包。
+在 Windows x64 上按发行记录校验并解压 `agents-workbench-react.zip`，双击 `start-workbench.cmd` 并选择工程根目录，也可从解压目录启动并明确指定工程。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。在线检测与首装访问框架源，离线操作使用团队批准的完整能力包。
 
 ```powershell
 & ./start-workbench.cmd --project "<工程根目录>"
 ```
 
-在工程首页的“框架安装与更新”按目的操作。
+工程首页「框架安装与更新」分为「在工作台完成」和「交给 Agent」。基础首装和落盘检查可以直接在工作台完成。已有工程的框架更新在原 Agent 会话里沿本手册接续。
 
 | 按钮 | 作用与范围 |
 |---|---|
-| **安装基础框架** | 在尚无 `.agents` 的工程调用原安装器，下载受验证的基础框架，再生成基础工程入口并复查。业务插件选配和上下文维护见[安装后的上下文维护](#安装后的上下文维护)。 |
+| **安装基础框架** | 在尚无 `.agents` 的工程调用原安装器，下载受验证的基础框架，再生成基础工程入口并复查。基础首装无需 Agent 会话。已有工程规则可以沿用，补齐项目专属规则可在首页准备工程检查请求。 |
 | **检查工程** | 调用 `Check -NoPull` 检查当前落盘框架和受管入口。 |
-| **本地预演** | 调用 `DryRun -NoPull`，基于落盘版本预演项目配置、thin-index 等生成层。 |
-| **获取新版并预演** | 查询框架源。目标版本变化时使用原更新器的取版流程，可能 fetch、快进 `.agents` 并刷新 sparse checkout。项目生成层在这一步只预演。 |
-| **应用更新并复查** | 取版预演通过后，基于同一工程和落盘 revision 执行 `Write -NoPull`，刷新受管配置和入口，再在同一部署锁内 `Check -NoPull`。 |
-| **选择并预演离线能力包** | 选择 `capability.bundle` 和批准的包外发行记录，预演目标版本，确认后首装或快进更新。首装落盘后生成工程配置、技能入口和文档链接，再用原更新器复查。 |
+| **复制更新提示词** | 已部署工程首页只读查询上游版本。发现上游候选提交时显示「发现框架新版」及提交号。将提示词粘贴到当前工程的 Agent 会话，由 Agent 读取项目规则和本手册，查阅变更、核对来源，再按授权预演、更新和复查。适用性以原更新器检查为准。 |
+| **复制恢复提示词** | 首页显示「框架部署不完整」「无法读取框架版本」或「框架来源待核对」时，复制到当前工程的 Agent 会话，按[更新中断与续接](#更新中断与续接)先核对现场，再按用户授权处理。 |
+| **选择并预演离线能力包** | 尚无 `.agents` 的标准工程可选择 `capability.bundle` 和批准的包外发行记录，核对目标后确认首装。首装落盘后生成工程配置、技能入口和文档链接，再用原更新器复查。 |
 | **重新读取** | 重新读取工程和当前 `.agents` revision，供原 CLI 或 Agent 执行后核对。 |
 
-如果已用工作台 0.3.0 离线首装，首页显示「插件配置待生成」或技能目录条目为 0，可再次选择同一份离线能力包，预演后点击「应用离线更新」。复查时确认插件配置已生成、技能目录可读，并核对 `AGENTS.md` 中的使用手册入口。
+使用旧版工作台时，也可在当前工程的 Agent 会话中直接引用 CapabilityRoot 的 `docs/update-agents.md` 发起更新。
+
+首页显示「Overlay 声明待核对」时，可点「复制恢复提示词」交给当前成员的 Agent。先按[共享工作区手册](workspace-overlay.md#manifest-与目录边界)核对该项目原有的 `.agents/capability.json` 和归属，修正后从启动器重新选择成员工程。
+
+如果已用工作台 0.3.0 离线首装，首页显示「插件配置待生成」或技能目录条目为 0，可请 Agent 按[更新中断与续接](#更新中断与续接)补齐已落盘版本的生成层。复查时确认插件配置已生成、技能目录可读，并核对 `AGENTS.md` 中的使用手册入口。
 
 ### 更新中断与续接
 
-- 查看页面上已执行的步骤、退出码和实际 revision，以此区分框架已取版、项目生成层已更新和复查结果。插件初始化、宿主实际加载与业务调用仍分别验收。
-- 部署锁被占用时，等持有者结束，再应用同一工程和版本上仍有效的预演。中断后如需恢复锁，沿[插件按需部署](guides/plugin-deployment.md)的部署锁处理，只对确认已退出的持有进程使用 `recover`。
-- 关闭本地服务后，重新使用启动器绑定工程并确认当前 revision。在页面继续应用时，先重新执行“获取新版并预演”。若目标版本已经落盘、只需继续生成层，或工作台提示需从原 CLI 接续，先按[输出判读](#输出判读)核对并解决阻塞，再从已验证工程的根目录用下列命令续接。第一步无停止条件后执行后两步，完成后回工作台“重新读取”。
+- 若 `.agents` 目录存在，但无法确认有效 Git 或 Overlay 来源，先按[状态判定](#状态判定)盘点已有文件及项目私有配置。首页可复制恢复提示词或打开离线恢复手册。保留现有目录，等确认来源、处理方案与授权后再改变现场。
+- 若框架已有提交，但当前 Git 来源与团队默认来源不同，先核对来源、跟踪分支和本地历史。按项目已确认的镜像或维护约定确定后续步骤，保留现有远端和引用。处理后回首页「重新读取」。
+- 查看 Agent 会话中的步骤回执和实际 revision，分清框架取版、项目生成层和复查进度。插件初始化、宿主实际加载与业务调用仍分别验收。
+- 离线更新出现 `sparse-refresh-failed` 时，先只读核对 `.agents` 的实际 HEAD、Git 状态和受管运行树。快进可能已经完成，仍需确认稀疏清单和生成层。只有目标版本和运行文件已就绪时，才能按下文仅续生成层。
+- 部署锁被占用时，等持有者结束，再核对同一工程和版本上的预演。中断后如需恢复锁，沿[插件按需部署](guides/plugin-deployment.md)处理，只对确认已退出的持有进程使用 `recover`。
+- 若目标版本已经落盘且只需继续生成层，按[输出判读](#输出判读)核对并解决阻塞，再从已确认工程的根目录用下列命令续接。预演无停止条件后执行后两步，完成后回工作台点「重新读取」。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun -NoPull -Detailed
@@ -38,9 +46,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Check -NoPull
 ```
 
-支持 Overlay 更新的工作台在标准根预演时显示登记成员。选择成员后应用更新，先更新共享 CapabilityRoot 一次，再分别刷新各成员的 ContextRoot。可在标准根续接失败成员，也可按[两阶段 CLI 流程](#workspace-overlay-两阶段更新)核对或接续。
+Overlay 提示词包含当前成员及所属标准根。Agent 按[两阶段流程](#workspace-overlay-两阶段更新)从标准根更新共享 CapabilityRoot 一次，再按授权刷新实际已登记的模块和医院成员，逐个复查。成员失败时按其回执单独接续。
 
-离线能力包继续走安装器的 `-RepositorySource` 或更新器的 `-UpdateSource`，二者使用已核验的本地 Git 裸仓和目标 revision。Windows PowerShell 5.1 隔离验收覆盖首装、预演、快进和落盘更新器重启，核对了业务文件、自定义 MCP、`origin` 和上游。
+断网更新已有工程时，把团队批准的离线物料和独立发行记录交给 Agent。保留 `capability.bundle` 和 `manifest.json` 在同一解压目录，独立发行记录放在该目录外。Agent 核对来源、目标 revision 和 bundle SHA-256，验证包完整后在临时目录准备本地 Git 裸仓。沿原更新器的 `-UpdateSource`、`-ExpectedRevision` 和 `-TrustedRuntimeTree` 预演及应用。最后执行 `Check -NoPull` 并读回实际版本。Windows PowerShell 5.1 的隔离验收覆盖离线首装、预演、快进和落盘更新器重启，核对了业务文件、自定义 MCP、`origin` 和上游。
+
+新版原更新器的离线快进沿用调用侧在目标检出中生效的 `core.autocrlf` 和 `core.eol`，与后续稀疏刷新使用同一换行规则。已有工程通过原更新方式取得新版运行时，项目 Git 配置无需迁移。离线快进先使用当前调用的更新器，取版成功并刷新稀疏检出后才切换到目标版本。使用旧更新器遇到换行差异时，可用已核验的新版完整更新入口对原工程重新预演，继续沿用上述参数与授权范围。
 
 ### 接续到 Agent
 
@@ -98,6 +108,10 @@ coding 0.27.3 删除普通查询、上传和编译的 License 登记门槛：公
 ## IRIS 统一会话（coding 0.25）
 
 已使用开发库档案的工程按原更新入口同步根脚本、coding 插件和随包 TOML 解析器。更新后可在工程根运行 `node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js --check-profile` 核对连接绑定。配置冲突按提示检查对应文件和字段，切换目标沿工程档案入口。无档案工程保留原初始化流程。
+
+从工作台的便携 Node 检查已迁移的 MCP 时，核对项目原登记的宿主 Node、适配器参数和实际 vendor。正常检查保留工程自己的 Node 路径。相关要求见[统一会话指南](guides/iris-managed-sessions.md#已有项目更新)。
+
+采用框架生成的非共享连接池时，多库档案切换沿所选实例使用对应的准入和恢复记录。沿正常框架更新同步根脚本，待旧会话到安全点后重开宿主 MCP。用现有「核验当前连接」确认所选档案，以 `iris-remote.js status` 核对活动实例的本地状态；旧实例的未知写及恢复记录继续保留。
 
 coding 0.27.2 收缩阻断：受管新增未知写仅由 SessionManager 记录，公共准入继续串行并检查历史风险；临时执行载体 PUT 的明确 405 不产生未知写。本地退出和写结果已核实时，注销未确认保留为警告；License 观测不作为普通业务门禁。完整更新根 scripts 和 coding owner，再按下述流程结束旧管理会话、重启宿主 MCP 并核对实际回执；不改私有配置。旧两层风险不自动消除，按[状态与恢复](guides/iris-managed-sessions.md#状态与恢复)分别核实。根运行时不支持混装或在活动会话中降级。
 
@@ -376,7 +390,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 ## 安装后的上下文维护
 
-安装或更新 `.agents` 成功后，不要直接启用领域插件。先引导用户或用户当前使用的大模型执行项目上下文维护：
+基础 `.agents` 安装和检查通过后即可使用通用能力。工程原有约定清楚时直接沿用。首次缺少项目约定，或初始化领域插件、更新框架时发现项目规则和路由确实需要调整，再按实际范围做项目上下文维护。需要从代码和业务约定推断时，在当前工程的 Agent 会话使用以下入口。
 
 ```text
 /project-context-maintenance
@@ -1024,6 +1038,10 @@ BOS 0.18.4 的初始化和报错增加[逐字段凭证指引](../plugins/bos-plu
 已有有效平铺文件由使用者明确执行新版查询脚本 migrate-config <原文件绝对路径>，原地保留查询对象并增加日志 TODO 段；包装结构或未知额外字段停止并提示人工核对。运行时不自动迁移，普通 Write 不修改私有文件。新初始化创建两段，Windows 默认位置为 LOCALAPPDATA/imedical-agents/bos/config.json，仅绑定 BOS_MCP_CONFIG。非 Windows 显式配置新结构，自动初始化/迁移明确停止。
 
 更新后以新进程分别调用需要使用的技能 defaults 离线核对。日志 token/linkProject 未填写只阻塞日志，不影响查询；真实查询、BOS 写入及宿主发现分别取证。历史业务副本在主动更新前仍使用旧实现，不能宣称源仓修改已生效。完整操作与失败恢复见 [配置说明](../plugins/bos-plugin/references/usage.md)与[日志协议](../plugins/bos-plugin/references/code-update-log.md)。
+
+### BOS 0.19.0 个人配置兼容 JSONC
+
+已部署工程沿用原更新器取得新版 BOS 插件。使用独立 BOS 副本的宿主应更新完整插件目录。旧严格 JSON 可继续使用，普通更新保留 `BOS_MCP_CONFIG` 绑定和私有文件字节。引用同一私有文件的查询、日志及工作台均更新并重启后，再添加注释。需要切回旧版解析器时，先按[配置说明](../plugins/bos-plugin/references/usage.md#共享私有配置)用新版入口恢复严格 JSON，再用目标旧版 `defaults` 读回。
 
 ### 2026-10-14 路由与工作区预检收敛
 

@@ -126,13 +126,41 @@ async function withVerifiedPackage(packageDirectory, expected, operation) {
             throw new Error('离线包内容与批准的 SHA-256 或清单大小不一致。');
         }
         const repository = unpackBundle(copy, manifest, scratch);
-        return operation({ manifest, repository });
+        return operation({ manifest, repository, packageDir });
     });
 }
 
 function inside(root, candidate) {
     const relative = path.relative(root, candidate);
     return !path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`);
+}
+
+function writeReleaseRecord(packageDir, output, manifest) {
+    const target = path.resolve(output);
+    const name = path.basename(target);
+    if (path.extname(name).toLowerCase() !== '.json' || (process.platform === 'win32' && name.includes(':'))) {
+        throw new Error('请指定新的发行记录 JSON 文件。');
+    }
+    const parent = directory(path.dirname(target), '发行记录父目录');
+    if (inside(packageDir, parent)) throw new Error('请将发行记录输出到离线包目录之外。');
+    const file = path.join(parent, name);
+    if (fs.lstatSync(file, { throwIfNoEntry: false })) throw new Error('发行记录输出已存在。请选择新文件。');
+    const fields = ['schema', 'bundle', 'ref', 'revision', 'objectFormat', 'bytes', 'sha256'];
+    const contents = `${JSON.stringify(manifest, fields, 2)}\n`;
+    const fd = fs.openSync(file, 'wx', 0o600);
+    let created;
+    try {
+        try {
+            created = fs.fstatSync(fd, { bigint: true });
+            fs.writeFileSync(fd, contents, { flush: true });
+        } finally {
+            fs.closeSync(fd);
+        }
+    } catch (error) {
+        const current = fs.lstatSync(file, { bigint: true, throwIfNoEntry: false });
+        if (created && current?.isFile() && created.dev === current.dev && created.ino === current.ino) fs.unlinkSync(file);
+        throw error;
+    }
 }
 
 function publish(output, scratch) {
@@ -196,13 +224,13 @@ async function buildPackage({ source, ref, revision, output }) {
 
 const usage = `用法
   node build-offline-package.js build --source <Git 源仓> --output <新目录> [--ref <分支引用>] [--revision <提交 SHA>]
-  node build-offline-package.js verify --package <离线包目录> --ref <已批准分支引用> --revision <已批准提交 SHA> --sha256 <已批准包摘要>`;
+  node build-offline-package.js verify --package <离线包目录> --ref <已批准分支引用> --revision <已批准提交 SHA> --sha256 <已批准包摘要> [--release-record <包外新 JSON 文件>]`;
 
 async function main(args) {
     const [action, ...flags] = args;
     if (action === '--help' && !flags.length) return console.log(usage);
     const names = action === 'build' ? ['source', 'output', 'ref', 'revision'] :
-        action === 'verify' ? ['package', 'ref', 'revision', 'sha256'] : [];
+        action === 'verify' ? ['package', 'ref', 'revision', 'sha256', 'release-record'] : [];
     if (!names.length || flags.length % 2) throw new Error(usage);
     const options = {};
     for (let i = 0; i < flags.length; i += 2) {
@@ -210,8 +238,14 @@ async function main(args) {
         if (!flags[i].startsWith('--') || !names.includes(name) || Object.hasOwn(options, name) || !flags[i + 1]) throw new Error(usage);
         options[name] = flags[i + 1];
     }
-    const manifest = action === 'build' ? await buildPackage(options) :
-        await withVerifiedPackage(options.package, options, result => result.manifest);
+    let manifest;
+    if (action === 'build') {
+        manifest = await buildPackage(options);
+    } else {
+        const verified = await withVerifiedPackage(options.package, options, ({ manifest, packageDir }) => ({ manifest, packageDir }));
+        manifest = verified.manifest;
+        if (options['release-record']) writeReleaseRecord(verified.packageDir, options['release-record'], manifest);
+    }
     console.log(JSON.stringify(manifest));
 }
 

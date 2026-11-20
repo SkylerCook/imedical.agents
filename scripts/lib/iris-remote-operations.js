@@ -104,19 +104,68 @@ function loadRemotePolicy(context = {}, { connection, policy, qualification, rec
   // Certificate verification follows the project's explicit connection setting.
   // Context mode must not silently override that setting; HTTPS is still required.
   if (required && connection && String(connection.protocol || connection.scheme || connection.IRIS_SCHEME || 'https').replace(/:$/, '') !== 'https') stop('remote-strict-tls-required');
-  return managedPolicy(context, result);
+  return managedPolicy(context, result, false, connection);
 }
-function managedPolicy(context, policy, force = false) {
-  if (!policy?.enabled || !force && !fs.existsSync(path.join(context.contextRoot || '', 'config', 'iris-session-backend.json'))) return policy;
-  const coordinationRoot = path.join(os.homedir(), '.imedical', 'iris-sessions', 'admission');
-  return {...policy, coordinationRoot,
-    ...(path.resolve(policy.coordinationRoot) !== path.resolve(coordinationRoot) ? {legacyCoordinationRoot:policy.coordinationRoot} : {})};
+function instancePoolPolicy(context, policy, connection) {
+  if (policy.allowSharedPool === true || !/^[a-f0-9]{64}$/.test(policy.poolKey)) return policy;
+  const selection = require('./iris-selected-target').selection(context);
+  if (!selection) return policy;
+  const instanceHash = instanceIdentity(selection.profiles[selection.active]);
+  if (instanceHash === policy.poolKey || connection && instanceIdentity(connection) !== instanceHash) return policy;
+  const original = Object.values(selection.profiles).some(profile =>
+    typeof profile?.host === 'string' && profile.host && Number.isInteger(profile.port) &&
+    profile.port >= 1 && profile.port <= 65535 && ['http','https'].includes(profile.scheme) &&
+    instanceIdentity(profile) === policy.poolKey);
+  if (!original) return policy;
+
+  // Reuse generated instance keys. Historical state stays in place, and an
+  // existing shared or unattributed record keeps using its original boundary.
+  const readExisting = file => {
+    try { return readJson(file); }
+    catch (error) {
+      if (error instanceof SyntaxError) return null;
+      if (error.code !== 'ENOENT') throw error;
+    }
+  };
+  const roots = [policy.coordinationRoot, policy.legacyCoordinationRoot].filter(Boolean);
+  for (const coordinationRoot of roots) {
+    const files = poolFiles({...policy, coordinationRoot});
+    const state = readExisting(files.state);
+    const owner = readExisting(files.owner);
+    if (state !== undefined) {
+      if (state?.schema !== 'iris-remote-pool/v1' || !Array.isArray(state.instances)) return policy;
+      if (!state.instances.length && (owner !== undefined || state.status !== 'ready' || state.inFlight ||
+        state.inspectionInFlight || state.localExitUnverified || state.reason || state.retryAfter > Date.now() ||
+        state.writeRiskFiles?.length || (state.unresolvedWrites !== undefined &&
+          (!Array.isArray(state.unresolvedWrites) || state.unresolvedWrites.length))))
+        stop('remote-pool-unattributed-state', {beforeSend:true});
+      if (state.instances.some(instance => instance !== policy.poolKey)) return policy;
+    } else if (owner !== undefined && owner?.instanceHash !== policy.poolKey) {
+      stop('remote-pool-unattributed-state', {beforeSend:true});
+    }
+    if (owner !== undefined && owner?.instanceHash !== policy.poolKey) return policy;
+  }
+  return {...policy, poolKey:instanceHash, instanceHash};
 }
-function localPolicy(context = {}) {
+function managedPolicy(context, policy, force = false, connection) {
+  if (!policy?.enabled) return policy;
+  const contextRoot = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
+  let effective = policy;
+  if (force || fs.existsSync(path.join(contextRoot, 'config', 'iris-session-backend.json'))) {
+    const coordinationRoot = path.join(os.homedir(), '.imedical', 'iris-sessions', 'admission');
+    effective = {...policy, coordinationRoot,
+      ...(path.resolve(policy.coordinationRoot) !== path.resolve(coordinationRoot) ? {legacyCoordinationRoot:policy.coordinationRoot} : {})};
+  }
+  return instancePoolPolicy({...context, contextRoot}, effective, connection);
+}
+function localPolicy(context = {}, allowMissing = false) {
   const root=context.contextRoot || path.join(context.workspaceRoot || process.cwd(),'.agents');
   let policy;
   try { policy=readJson(path.join(root,'config','iris-remote-policy.json')); }
-  catch (error) { if (error.code === 'ENOENT') stop('remote-policy-required'); throw error; }
+  catch (error) {
+    if (error.code === 'ENOENT' && allowMissing) return null;
+    stop(error.code === 'ENOENT' ? 'remote-policy-required' : 'remote-policy-invalid');
+  }
   if(policy?.schema!=='iris-remote-policy/v1' || !path.isAbsolute(policy.coordinationRoot || '') ||
     !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || ''))stop('remote-policy-invalid');
   return managedPolicy(context,{...policy,enabled:true});
@@ -142,14 +191,15 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
   let closed = false, active = false, acquired = false, state, directory, lock, token, activeScope;
   const defaultScope = risk.makeScope(connection);
   const evidence = { schema: 'iris-remote-operation/v1', channel, status: 'idle', cleanupVerified: false, licenseReleaseVerified: false };
+  function assertLegacyOwnerExited() {
+    if (policy.legacyCoordinationRoot && poolStatus({policy:{...policy,coordinationRoot:policy.legacyCoordinationRoot}}).ownerPresent)
+      stop('remote-legacy-pool-reconciliation-required', {beforeSend:true});
+  }
   function acquire() {
     if (policy.recoveryReadOnly) stop('remote-recovery-read-only', {beforeSend:true});
     if (closed) stop('remote-owner-closed');
     if (acquired || !policy.enabled) { acquired = true; return; }
-    if(policy.legacyCoordinationRoot) {
-      const previous=poolStatus({policy:{...policy,coordinationRoot:policy.legacyCoordinationRoot}});
-      if(previous.ownerPresent)stop('remote-legacy-pool-reconciliation-required');
-    }
+    assertLegacyOwnerExited();
     const instanceHash = policy.instanceHash || instanceIdentity(connection);
     assertNoLinks(policy.coordinationRoot);
     fs.mkdirSync(policy.coordinationRoot, { recursive: true, mode: 0o700 });
@@ -159,6 +209,8 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
     try { fs.writeFileSync(lock, JSON.stringify({ token, pid: process.pid, machine: digest(os.hostname()), instanceHash, channel, startedAt: new Date().toISOString() }), { flag: 'wx', mode: 0o600 }); }
     catch (error) { if (error.code === 'EEXIST') stop('remote-pool-busy-or-unresolved'); throw error; }
     try {
+      // A legacy inspection may acquire its own lock while we claim this one.
+      assertLegacyOwnerExited();
       const stateFile = path.join(directory, 'state.json');
       state = fs.existsSync(stateFile) ? readJson(stateFile) : { schema: 'iris-remote-pool/v1', instances: [], status: 'ready' };
       if (state.schema !== 'iris-remote-pool/v1' || !Array.isArray(state.instances)) stop('remote-pool-state-invalid');
@@ -323,23 +375,27 @@ function poolStatus({policy}) {
 }
 function localPoolStatus(context = {}) {
   const mode = developmentMode(context);
-  const root = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
-  let policy;
-  try { policy = readJson(path.join(root, 'config', 'iris-remote-policy.json')); }
-  catch (error) {
-    if (error.code === 'ENOENT') return {schema: 'iris-remote-status/v1', status: 'unconfigured', developmentMode: mode, ownerPresent: false};
-    stop('remote-policy-invalid');
-  }
-  if (!policy || policy.schema !== 'iris-remote-policy/v1' || !path.isAbsolute(policy.coordinationRoot || '') ||
-    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || '')) stop('remote-policy-invalid');
   // Status only reads existing coordination files; it cannot grant admission or release a lock.
-  const effective=managedPolicy(context,{...policy,enabled:true});
+  const effective = localPolicy(context, true);
+  if (!effective) return {schema: 'iris-remote-status/v1', status: 'unconfigured', developmentMode: mode, ownerPresent: false};
   return {...poolStatus({policy: effective}), developmentMode: mode,
-    ...(effective.legacyCoordinationRoot ? {legacy:poolStatus({policy:{...policy,enabled:true}})} : {})};
+    ...(effective.legacyCoordinationRoot ? {legacy:poolStatus({policy:{...effective,coordinationRoot:effective.legacyCoordinationRoot}})} : {})};
+}
+function recoveryPool(policy, token) {
+  const canonical = {policy, files:poolFiles(policy)};
+  if (!policy.legacyCoordinationRoot || path.resolve(policy.legacyCoordinationRoot) === path.resolve(policy.coordinationRoot)) return canonical;
+  const legacyPolicy = {...policy, coordinationRoot:policy.legacyCoordinationRoot};
+  const legacy = {policy:legacyPolicy, files:poolFiles(legacyPolicy)};
+  const matches = [canonical, legacy].filter(entry =>
+    (fs.existsSync(entry.files.state) || fs.existsSync(entry.files.owner)) &&
+    poolStatus({policy:entry.policy}).reconciliationToken === token);
+  if (matches.length > 1) stop('remote-recovery-token-ambiguous');
+  const selected = matches[0] || canonical;
+  return {...selected, peer:selected === canonical ? legacyPolicy : policy};
 }
 function createRecoveryReadOperation({policy, connection, token, confirmRecovery = false, documents} = {}) {
-  const files = poolFiles(policy);
   if (confirmRecovery !== true || !/^[a-f0-9]{64}$/.test(token || '')) stop('remote-inspection-confirmation-required');
+  const {files, policy:selected, peer} = recoveryPool(policy, token);
   if (!Array.isArray(documents) || documents.length < 1 || documents.length > 5 || new Set(documents).size !== documents.length ||
       documents.some(name => typeof name !== 'string' || !name || name.length > 1024 || /[\\%?#\x00-\x1f\x7f]/.test(name) || name.split('/').includes('..'))) stop('remote-inspection-documents-invalid');
   const allowed = new Map(documents.map(name => ['doc/' + encodeDocumentPath(name), name]));
@@ -356,7 +412,8 @@ function createRecoveryReadOperation({policy, connection, token, confirmRecovery
     try { descriptor = fs.openSync(admissionLock, 'wx', 0o600); }
     catch { stop('remote-reconcile-busy'); }
     try {
-      const status = poolStatus({policy});
+      if (recoveryPool(policy, token).files.directory !== files.directory) stop('remote-inspection-state-changed');
+      const status = poolStatus({policy:selected});
       if (status.reconciliationToken !== token) stop('remote-inspection-state-changed');
       if (status.ownerAlive !== false) stop('remote-owner-still-live-or-unverified');
       state = readJson(files.state);
@@ -369,6 +426,10 @@ function createRecoveryReadOperation({policy, connection, token, confirmRecovery
       if (previousOwner) fs.unlinkSync(files.owner);
       try {
         fs.writeFileSync(files.owner, JSON.stringify({token:ownerToken,pid:process.pid,machine:digest(os.hostname()),instanceHash,channel:'atelier-recovery-read',startedAt:new Date().toISOString()}), {flag:'wx',mode:0o600});
+        if (peer) {
+          const peerState = poolStatus({policy:peer});
+          if (peerState.ownerPresent || peerState.localExitUnverified) stop('remote-inspection-peer-active', {beforeSend:true});
+        }
         evidence.originalStatus = state.status;
         evidence.originalPendingEffects = state.inFlight?.effects || null;
         if (state.status === 'ready') { state.status = 'reconciliation-required'; state.reason = 'remote-owner-interrupted'; }
@@ -408,15 +469,15 @@ function createRecoveryReadOperation({policy, connection, token, confirmRecovery
       atomicJson(files.state, current);
       fs.unlinkSync(files.owner);
       evidence.poolStatus = current.status;
-      evidence.reconciliationToken = poolStatus({policy}).reconciliationToken;
+      evidence.reconciliationToken = poolStatus({policy:selected}).reconciliationToken;
     }
     return {...evidence};
   }
   return {acquire, run, markUnknown, close, snapshot:()=>({...evidence,pendingOperation:active})};
 }
 function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writeOutcome, writeIds}) {
-  const files = poolFiles(policy);
   if (confirm !== true || typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) stop('remote-reconcile-confirmation-required');
+  const {files, policy:selected} = recoveryPool(policy, token);
   let evidence, proof;
   if (evidenceFile !== undefined) {
     if (!path.isAbsolute(evidenceFile || '')) stop('remote-reconcile-evidence-required');
@@ -429,7 +490,8 @@ function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writ
   try { descriptor = fs.openSync(recoveryLock, 'wx', 0o600); }
   catch { stop('remote-reconcile-busy'); }
   try {
-    const status = poolStatus({policy});
+    if (recoveryPool(policy, token).files.directory !== files.directory) stop('remote-reconcile-state-changed');
+    const status = poolStatus({policy:selected});
     if (status.reconciliationToken !== token) stop('remote-reconcile-state-changed');
     if (status.ownerAlive !== false) stop('remote-owner-still-live-or-unverified');
     const state = fs.existsSync(files.state) ? readJson(files.state) : {schema:'iris-remote-pool/v1',instances:[],status:'ready'};

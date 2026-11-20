@@ -21,6 +21,9 @@ on:
       - 'scripts/lib/workspace-context.js'
       - 'scripts/lib/WorkspaceContext.psm1'
       - 'scripts/tests/bos-plugin.tests.js'
+      - 'scripts/lib/configuration-file-io.js'
+      - 'vendor/jsonc-parser/**'
+      - 'maintenance/governance/sync-bos-config-runtime.js'
       - 'workflows/bos-demand.workflow.md'
       - '.github/workflows/bos-demand.yml'
   pull_request:

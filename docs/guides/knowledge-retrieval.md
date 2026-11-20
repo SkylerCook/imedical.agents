@@ -83,6 +83,10 @@ node <CapabilityRoot>/scripts/knowledge-query.js --project-root <workspace> --ac
 
 公司缓存位于 `CapabilityRoot/.knowledge-cache/company.sqlite`，OpenAI 继续使用旧 `index.sqlite`。每套索引保存同源章节、词项和对应模型向量，原文及分块实现共用。构建按 16 个片段持久化并读回校验，中断后续建，完整后切换 generation。活跃构建锁阻止并发写入。过期来源不参与语义候选。
 
+重开工作台后可重新预演并确认续建，已落盘的向量会复用。新版构建进程异常退出时，下一次构建会自动接管自己的遗留标记。与旧版混用时，仍在运行的构建和无法确认归属的旧空锁会阻止接管。缓存所在本地文件系统需支持 SQLite 文件锁和硬链接，构建期间应保留 `.knowledge-cache` 及其中的文件。
+
+在工作台的「构建与续建」可点击「暂停构建」，也可在工作台终端按 Ctrl+C 请求退出。正在运行的构建完成当前批次的保存和核对后暂停。重新打开后从剩余资料预览，确认范围再续建，复用已保存的向量。若进程被强制结束，同样先预览现有缓存和待处理资料。
+
 export 生成 `vendor/knowledge-index/company.sqlite`，仅包含 chunks、vectors、state，向量采用 Float32 小端 BLOB。授权配置与 API 用量留在本机。导出前校验当前资料的全部向量，原子替换分发文件。显式导出 OpenAI 时使用旧 `index.sqlite` 文件名，复用历史模型索引。
 
 ## 验证

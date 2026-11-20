@@ -5,6 +5,7 @@ const { spawnSync } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
 const { loadConfig, initConfig, queryArguments } = require('../scripts/bos-demand-query');
 const personal = require('../scripts/personal-config');
+const configIO = require('../runtime/scripts/lib/configuration-file-io.js');
 const { loadConfig: loadLogConfig } = require('../scripts/bos-code-update-log');
 const query = { url: 'https://example.invalid/sse', headers: { 'X-Gateway-Upstream-BOS-MCP-TOKEN': randomBytes(24).toString('hex') }, cuser: 'fixture-user', cgroup: 'fixture-group' };
 const log = { url: 'https://example.invalid/log', token: randomBytes(24).toString('hex'), linkProject: 'fixture-project' };
@@ -44,11 +45,15 @@ test('source, deployed copy and Junction resolve one shared config in fresh proc
   fs.symlinkSync(copy, link, process.platform === 'win32' ? 'junction' : 'dir'); f.links.push(link);
   const file = path.join(f.root, 'private.json'); fs.writeFileSync(file, JSON.stringify(sections()));
   const clean = { ...process.env }; for (const key of Object.keys(clean)) if (key.startsWith('BOS_')) delete clean[key];
+  const annotated = '\uFEFF// Shared private configuration\r\n' + JSON.stringify(sections(), null, 2).replace(/\n/g, '\r\n') + '\r\n';
   for (const entry of [plugin, copy, link]) {
     const script = path.join(entry, 'scripts/bos-demand-query.js');
     const run = env => spawnSync(process.execPath, [script, 'defaults'], { cwd: f.root, env: { ...clean, ...env }, encoding: 'utf8' });
-    const result = run({ BOS_MCP_CONFIG: file }); assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), { cuser: 'fixture-user', cgroup: 'fixture-group' });
+    for (const raw of [JSON.stringify(sections()), annotated]) {
+      fs.writeFileSync(file, raw);
+      const result = run({ BOS_MCP_CONFIG: file }); assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(result.stdout), { cuser: 'fixture-user', cgroup: 'fixture-group' });
+    }
     const override = run({ BOS_MCP_CONFIG: file, BOS_CUSER: 'env-user', BOS_CGROUP: 'env-group' });
     assert.deepEqual(JSON.parse(override.stdout), { cuser: 'env-user', cgroup: 'env-group' });
     const absent = run({}); assert.equal(absent.status, 1);
@@ -83,6 +88,22 @@ test('missing sections are added while credentials and unrelated sections remain
   const result = initConfig(file, f.options), value = JSON.parse(fs.readFileSync(file));
   assert.equal(result.updated, true); assert.deepEqual(value['bos-demand-query'], query);
   assert.deepEqual(value.other, { enabled: false }); assert.equal(value['bos-code-update-log'].token, 'TODO');
+});
+test('initialization inserts only the missing section in an existing BOM and CRLF JSONC file', t => {
+  const f = fixture(t), file = path.join(f.root, 'existing.json');
+  const existing = `  // Query settings\r\n  "bos-demand-query": ${JSON.stringify(query)}, // Keep this note\r\n  "other": {"enabled":false}`;
+  fs.writeFileSync(file, '\uFEFF// Personal file\r\n{\r\n' + existing + '\r\n}\r\n');
+  const result = initConfig(file, f.options);
+  assert.equal(result.configPath, file);
+  assert.equal(result.updated, true);
+  const saved = fs.readFileSync(file, 'utf8');
+  assert.ok(saved.startsWith('\uFEFF// Personal file\r\n'));
+  assert.ok(saved.includes(existing));
+  assert.doesNotMatch(saved, /(?<!\r)\n/);
+  assert.deepEqual(personal.readSkillConfig(f.env, 'bos-demand-query'), query);
+  assert.equal(personal.readSkillConfig(f.env, 'bos-code-update-log').token, 'TODO');
+  assert.equal(initConfig(file, f.options).updated, false);
+  assert.equal(fs.readFileSync(file, 'utf8'), saved);
 });
 test('setup guidance explains each pending field without returning private values', t => {
   const f = fixture(t), result = initConfig(undefined, f.options);
@@ -139,10 +160,93 @@ test('explicit in-place migration preserves all query values and adds only log p
   const after = fs.readFileSync(file); assert.equal(personal.migrate(file, f.options).migrated, false);
   assert.deepEqual(fs.readFileSync(file), after); assert.deepEqual(fs.readdirSync(f.root), ['old.json']);
 });
+test('explicit migration wraps the original flat JSONC object without dropping comments or changing its path', t => {
+  const f = fixture(t), file = path.join(f.root, 'old.json');
+  const flat = '{\r\n  // Query account\r\n' + JSON.stringify(query, null, 2).replace(/^\{\n/, '').replace(/\n/g, '\r\n');
+  const source = '\uFEFF/* Personal configuration */\r\n' + flat + ' // Existing footer\r\n';
+  fs.writeFileSync(file, source);
+  assert.throws(() => initConfig(file, f.options), /migrate-config/);
+  assert.throws(() => personal.migrate(file, {...f.options,strictJson:true}), /按 skill 分段/);
+  assert.equal(fs.readFileSync(file, 'utf8'), source);
+  assert.equal(personal.migrate(file, f.options).configPath, file);
+  const saved = fs.readFileSync(file, 'utf8');
+  assert.ok(saved.startsWith('\uFEFF/* Personal configuration */\r\n'));
+  assert.ok(saved.includes(flat));
+  assert.ok(saved.endsWith(' // Existing footer\r\n'));
+  assert.doesNotMatch(saved, /(?<!\r)\n/);
+  assert.deepEqual(personal.readSkillConfig({BOS_MCP_CONFIG:file}, 'bos-demand-query'), query);
+  assert.equal(personal.readSkillConfig({BOS_MCP_CONFIG:file}, 'bos-code-update-log').token, 'TODO');
+  assert.equal(personal.migrate(file, f.options).migrated, false);
+  assert.equal(fs.readFileSync(file, 'utf8'), saved);
+});
+test('the explicit strict JSON fallback preserves section scope and old strict bytes', t => {
+  const f = fixture(t), file = path.join(f.root, 'existing.json');
+  const accessRules = protect => {
+    const script = [
+      "$ErrorActionPreference='Stop'",
+      '$target=$env:BOS_TEST_PRIVATE_FILE',
+      '$acl=[IO.File]::GetAccessControl($target)',
+      ...(protect ? ['$acl.SetAccessRuleProtection($true,$true)', '[IO.File]::SetAccessControl($target,$acl)'] : []),
+      '[IO.File]::GetAccessControl($target).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access)',
+    ].join('\n');
+    const result = spawnSync('powershell.exe', ['-NoProfile','-NonInteractive','-Command',script], {
+      env:{...process.env,BOS_TEST_PRIVATE_FILE:file}, encoding:'utf8', windowsHide:true,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const descriptor = result.stdout.trim();
+    const firstRule = descriptor.indexOf('(');
+    assert.ok(firstRule > 0);
+    return descriptor.slice(0, firstRule) + descriptor.slice(firstRule).split(')').sort().join(')');
+  };
+  const value = {'bos-code-update-log':log, other:{ marker:'keep // text' }};
+  const json = JSON.stringify(value, null, 2).replace(/\n/g, '\r\n') + '\r\n';
+  const strictRead = raw => JSON.parse(raw.replace(/^\uFEFF/, ''));
+  const options = {...f.options,strictJson:true};
+  fs.writeFileSync(file, '\uFEFF' + json);
+  const original = fs.readFileSync(file);
+  assert.equal(personal.migrate(file, options).migrated, false);
+  assert.deepEqual(fs.readFileSync(file), original);
+  const annotated = '\uFEFF// Comment for new readers\r\n' + json;
+  fs.writeFileSync(file, annotated);
+  const expectedAcl = process.platform === 'win32' ? accessRules(true) : null;
+  assert.throws(() => strictRead(annotated), SyntaxError);
+  assert.equal(loadLogConfig({BOS_MCP_CONFIG:file}).token, log.token);
+  const copyAccess = configIO.copyFileAccess;
+  t.mock.method(configIO, 'copyFileAccess', (source, temporary) => {
+    assert.equal(fs.statSync(temporary).size, 0, 'protect the temporary file before writing private values');
+    return copyAccess(source, temporary);
+  });
+  assert.equal(personal.migrate(file, options).migrated, true);
+  if (expectedAcl) assert.ok(accessRules(false) === expectedAcl, 'expected the original Windows access rules');
+  const saved = fs.readFileSync(file, 'utf8');
+  assert.deepEqual(strictRead(saved), value);
+  assert.ok(saved.startsWith('\uFEFF'));
+  assert.doesNotMatch(saved, /Comment for new readers|(?<!\r)\n/);
+  assert.equal(personal.migrate(file, options).migrated, false);
+  assert.equal(fs.readFileSync(file, 'utf8'), saved);
+  assert.deepEqual(fs.readdirSync(f.root), ['existing.json']);
+});
+test('the migration CLI accepts only the explicit strict fallback form and an absolute private path', {skip:process.platform!=='win32'}, t => {
+  const f = fixture(t), file = path.join(f.root, 'private.json');
+  const script = path.join(plugin, 'scripts/bos-demand-query.js');
+  const run = args => spawnSync(process.execPath, [script, ...args], {cwd:f.root, encoding:'utf8', windowsHide:true});
+  const content = '// Fixture\n' + JSON.stringify(sections());
+  fs.writeFileSync(file, content);
+  for (const args of [['--strict-json'], ['--strict-json', file, '--unexpected'], [file, '--strict-json'], ['--strict-json', 'private.json']]) {
+    const result = run(['migrate-config', ...args]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /原私有文件绝对路径/);
+    assert.equal(fs.readFileSync(file, 'utf8'), content);
+  }
+  const result = run(['migrate-config', '--strict-json', file]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).configPath, file);
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), sections());
+});
 test('migration refuses unrecognized wrappers without overwriting private data', t => {
   const f = fixture(t), file = path.join(f.root, 'private.json');
   for (const value of [{ mcpServers: { sample: query } }, { cuser: 'user' }, { ...query, unexpected: true }]) {
-    fs.writeFileSync(file, JSON.stringify(value)); const before = fs.readFileSync(file);
+    fs.writeFileSync(file, '// preserve\r\n' + JSON.stringify(value)); const before = fs.readFileSync(file);
     assert.throws(() => personal.migrate(file, f.options), /人工核对/); assert.deepEqual(fs.readFileSync(file), before);
   }
 });

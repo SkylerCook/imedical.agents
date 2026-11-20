@@ -147,7 +147,12 @@ function prepare(root,request,io) {
   const selected=publicProfile(known ? profiles[id] : {...s.live,...request.connection},selectedRef);
   if (!known && s.bindings.vscode) {
     if (!selected.alias || selected.alias===s.live.alias) selected.alias=id;
-    if (Object.hasOwn(s.servers,selected.alias)) reject('服务器名已被 VS Code 的现有连接占用，请为新档案选用独立名称。');
+    if (Object.values(profiles).some(profile=>profile.alias===selected.alias)) reject('该 VS Code 服务器名已被其他开发库档案使用。');
+  }
+  const reuseVscode = s.bindings.vscode && Object.hasOwn(s.servers,selected.alias);
+  const vscodeServer = reuseVscode ? s.servers[selected.alias] : null;
+  if (reuseVscode && ['host','port','scheme'].some(key=>String(vscodeServer?.webServer?.[key])!==String(selected[key]))) {
+    reject('已有 VS Code 服务器的主机、端口或协议与目标档案不一致，请核对服务器名称和目标。');
   }
   const legacyHost=s.bindings.mcp && publicKeys.some(key=>selected[key]!==s.live[key]) && checkSessionCompatibility(root,io);
   const privateFile=io.snapshot(path.join(root,s.bindings.central?'.agents/config/project-env.json':privatePath));
@@ -167,13 +172,16 @@ function prepare(root,request,io) {
     edits.push({path:[...prefix,activeKey],value:original});
     pair=selectedKey===activeKey ? original : known ? secrets[selectedKey] : request.credentials;
     if (!pair?.username || !pair?.password) reject('目标档案需要独立的私有凭据。');
+    if (reuseVscode && ['username','password'].some(key=>vscodeServer[key] && vscodeServer[key]!==pair[key])) {
+      reject('已有 VS Code 服务器的私有凭据与目标档案不一致，请核对凭据来源。');
+    }
     if (selectedKey!==activeKey) edits.push({path:[...prefix,selectedKey],value:{username:pair.username,password:pair.password}});
   }
   const mainEdits=[{path:['irisConnections','active'],value:id}];
   if (!s.stored) mainEdits.push({path:['irisConnections','bindings'],value:s.bindings},{path:['irisConnections','serverName'],value:s.name});
   if (!s.stored) mainEdits.push({path:['irisConnections','profiles',active],value:profiles[active]});
   if (!known) mainEdits.push({path:['irisConnections','profiles',id],value:selected});
-  return {bindings:s.bindings,connection:{...selected,...pair,writeCredentials:!!pair},id,legacyHost,
+  return {bindings:s.bindings,connection:{...selected,...pair,writeCredentials:!!pair},id,legacyHost,reuseVscode,
     main:s.main,mainEdits,privateFile,edits,from:s.live,to:selected};
 }
 module.exports={mainPath,privatePath,describe,prepare,awaitLegacyExit};

@@ -17,16 +17,22 @@ const { readSelection, saveSelection } = require('../src/release-selection');
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const versionDirectory = 'agents-workbench-react-0.2.1';
-const startScript = String.raw`
+const startScript = releaseService => String.raw`
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const project = process.argv[process.argv.indexOf('--project') + 1];
+${releaseService}
 const mode = fs.readFileSync(path.join(project, 'scenario'), 'utf8');
 const name = path.basename(project);
 const dist = path.join(process.cwd(), 'tools/agents-workbench/react/dist');
 if (process.cwd().endsWith('0.2.1') && fs.existsSync(path.join(project, 'fail-candidate'))) process.exit(7);
-if (process.env.WORKBENCH_STARTUP_PARENT === '1') process.once('disconnect', () => process.exit(0));
+if (process.env.WORKBENCH_STARTUP_PARENT === '1') process.once('disconnect', () => {
+  const gate = path.join(project, 'defer-owned-exit');
+  if (!fs.existsSync(gate)) process.exit(0);
+  fs.writeFileSync(gate + '.seen', '');
+  setInterval(() => { if (!fs.existsSync(gate)) process.exit(0); }, 25);
+});
 const server = http.createServer((req, res) => {
   if (req.url === '/framework.json') {
     const status = ['hold', 'cancel-at-probe'].includes(mode) ? 'observing' : 'no-framework';
@@ -50,7 +56,7 @@ server.listen(Number(process.env.PORT), '127.0.0.1', () => {
 });
 `;
 
-function sealFixture(root, name, validRuntime, version = '0.2.1') {
+function sealFixture(root, name, validRuntime, version = '0.2.1', rememberAnchor = false) {
   const source = path.join(root, name);
   fs.mkdirSync(source);
   const files = {
@@ -58,7 +64,8 @@ function sealFixture(root, name, validRuntime, version = '0.2.1') {
     'scripts/install-agents.ps1': '# fixture installer',
     'docs/guides/usage-manual.md': '# Guide', 'docs/update-agents.md': '# Update',
     'docs/workspace-overlay.md': '# Overlay',
-    'tools/agents-workbench/prototype/serve.js': startScript,
+    'tools/agents-workbench/prototype/serve.js': startScript(rememberAnchor ?
+      `require(${JSON.stringify(require.resolve('../src/release-update'))}).createReleaseUpdateService(project, { applicationRoot: process.cwd() });` : ''),
     'tools/agents-workbench/react/dist/index.html': `<!doctype html><title>${version}</title><script src="/react/assets/main.js"></script>`,
     'tools/agents-workbench/react/dist/assets/main.js': 'document.title = "Candidate loaded";',
   };
@@ -225,11 +232,22 @@ test('the bound Workbench release action opens a ready candidate without closing
     version: '0.2.0', platform: 'windows-x64', formal: true, localBuildChanges: false,
   }));
   const offered = sealFixture(root, 'newer', true);
+  const offeredRecord = JSON.parse(fs.readFileSync(offered.releaseRecord, 'utf8'));
+  const chooseRecord = (name, record) => {
+    const releaseRecord = path.join(root, `${name}.json`);
+    fs.writeFileSync(releaseRecord, JSON.stringify(record));
+    return { archive: offered.archive, releaseRecord };
+  };
+  const selections = [null, chooseRecord('capability-approval', {
+    schema: 'imedical-agents-offline-bundle/v1', bundle: 'capability.bundle', ref: 'refs/heads/master',
+    revision: 'b'.repeat(40), objectFormat: 'sha1', bytes: 512, sha256: 'c'.repeat(64),
+  }), chooseRecord('incomplete-workbench-record', { ...offeredRecord, version: '0.2.0', bytes: undefined }),
+  chooseRecord('same-version-record', { ...offeredRecord, version: '0.2.0' }), offered];
   let pickCount = 0;
   let candidate;
   const releaseUpdate = createReleaseUpdateService(project, {
     applicationRoot: previous,
-    choose: async () => ++pickCount === 1 ? null : offered,
+    choose: async () => selections[pickCount++],
     launch: async options => candidate = await importAndLaunchRelease(options),
   });
   const app = createFrameworkService(project, { releaseUpdate });
@@ -266,6 +284,13 @@ test('the bound Workbench release action opens a ready candidate without closing
   const cancelled = await post('release-update', request, auth);
   assert.deepEqual(await cancelled.json(), { cancelled: true });
   assert.equal(fs.existsSync(path.join(root, versionDirectory)), false);
+  for (const error of ['release-record-invalid', 'release-record-invalid', 'release-not-newer']) {
+    const rejected = await post('release-update', request, auth);
+    assert.equal(rejected.status, 409);
+    assert.equal((await rejected.json()).error, error);
+    assert.equal(candidate, undefined);
+    assert.equal(fs.existsSync(path.join(root, versionDirectory)), false);
+  }
   const selected = await post('release-update', request, auth);
   const result = await selected.json();
   assert.equal(selected.status, 200, JSON.stringify(result));
@@ -290,7 +315,7 @@ test('the launcher keeps a verified per-project default, retries the old version
     fs.rmSync(root, { recursive: true, force: true, maxRetries: 3 });
   });
 
-  const offered = sealFixture(root, 'team-offering', true);
+  const offered = sealFixture(root, 'team-offering', true, '0.2.1', true);
   const base = sealFixture(root, '基本安装 甲', true, '0.2.0').source;
   const launcherSource = path.resolve(__dirname, '../src');
   const launcherPath = 'tools/agents-workbench/src/start-release.js';
@@ -315,9 +340,9 @@ test('the launcher keeps a verified per-project default, retries the old version
     fs.writeFileSync(path.join(project, 'scenario'), 'ready');
     return project;
   }
-  async function boot(directory, project, expectedVersion) {
+  async function boot(directory, project, expectedVersion, execArgv = []) {
     const processHandle = fork(path.join(directory, launcherPath), ['--project', project], {
-      cwd: directory, execPath: path.join(directory, 'runtime/node.exe'), windowsHide: true,
+      cwd: directory, execPath: path.join(directory, 'runtime/node.exe'), execArgv, windowsHide: true,
       env: { ...process.env, PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
     const closed = once(processHandle, 'close');
@@ -332,7 +357,7 @@ test('the launcher keeps a verified per-project default, retries the old version
     assert.ok(response.includes(`<title>${expectedVersion}</title>`), response);
     const info = await (await fetch(origin + '/project.json')).json();
     assert.equal(info.name, path.basename(project));
-    return { origin, errors: () => errors, close };
+    return { origin, errors: () => errors, close, processHandle, closed };
   }
   function forProject(directory, project) {
     return createReleaseUpdateService(project, { applicationRoot: directory, choose: async () => offered,
@@ -350,6 +375,40 @@ test('the launcher keeps a verified per-project default, retries the old version
   const firstImport = await firstService.open({});
   assert.equal(firstImport.selectionSaved, true, JSON.stringify(firstImport));
   await (await boot(base, first, '0.2.1')).close();
+  await t.test('launcher signals disconnect the owned version and wait for its exit', async () => {
+    const preload = path.join(root, 'signal-probe.cjs');
+    // Windows process.kill does not deliver these Node events. Inject only the event;
+    // the saved selection, owned subprocess, IPC disconnection and process exit are real.
+    fs.writeFileSync(preload, String.raw`
+      process.on('message', signal => {
+        if (['SIGINT', 'SIGTERM', 'SIGBREAK'].includes(signal)) process.emit(signal);
+      });
+      process.channel.unref();
+    `);
+    const gate = path.join(first, 'defer-owned-exit');
+    const seen = gate + '.seen';
+    for (const signal of ['SIGINT', 'SIGTERM', 'SIGBREAK']) {
+      fs.writeFileSync(gate, '');
+      try {
+        const workbench = await boot(base, first, '0.2.1', ['--require', preload]);
+        workbench.processHandle.send(signal);
+        workbench.processHandle.send(signal);
+        for (let attempt = 0; attempt < 120 && !fs.existsSync(seen); attempt++) await wait(25);
+        assert.ok(fs.existsSync(seen), signal);
+        assert.equal(workbench.processHandle.exitCode, null, signal);
+        assert.equal(workbench.processHandle.signalCode, null, signal);
+        fs.unlinkSync(gate);
+        const [code] = await Promise.race([workbench.closed, wait(4000, null, { ref: false }).then(() => {
+          throw Error(`Launcher remained running after ${signal}`);
+        })]);
+        assert.equal(code, 0, signal);
+      } finally {
+        if (fs.existsSync(gate)) fs.unlinkSync(gate);
+        if (fs.existsSync(seen)) fs.unlinkSync(seen);
+      }
+    }
+    assert.equal((await fetch(new URL(firstImport.address).origin)).status, 200);
+  });
   await (await boot(base, second, '0.2.0')).close();
   await (await boot(other, first, '0.2.0')).close();
 
@@ -358,6 +417,30 @@ test('the launcher keeps a verified per-project default, retries the old version
   assert.equal(reused.selectionSaved, true, JSON.stringify(reused));
   assert.notEqual(new URL(reused.address).origin, new URL(firstImport.address).origin);
   await (await boot(base, second, '0.2.1')).close();
+
+  const stranger = createProject('待更新工程');
+  const standalone = (project, options = {}) => createReleaseUpdateService(project, { applicationRoot: target, inheritedAnchor: '', ...options });
+  assert.equal(standalone(second).canRollback, true);
+  assert.equal(standalone(stranger).canRollback, false);
+  const markerRoot = path.join(target, '.workbench-launch');
+  const markers = () => fs.readdirSync(markerRoot).map(name => [name, fs.readFileSync(path.join(markerRoot, name), 'utf8')]);
+  const savedMarkers = markers();
+  assert.equal(savedMarkers.length, 2);
+  assert.ok(savedMarkers.every(([file, text]) => file.startsWith('anchor-') && JSON.parse(text).directory === path.basename(base)));
+
+  const competingFailure = path.join(second, 'fail-candidate');
+  fs.writeFileSync(competingFailure, 'failed competing importer');
+  try {
+    assert.deepEqual(await forProject(other, second).open({}), { error: 'startup-failed' });
+    assert.deepEqual(markers(), savedMarkers);
+  } finally { fs.unlinkSync(competingFailure); }
+
+  const [marker, markerText] = savedMarkers[0];
+  const markerFile = path.join(markerRoot, marker);
+  fs.writeFileSync(markerFile, JSON.stringify({ ...JSON.parse(markerText), directory: '../out-of-root' }));
+  assert.equal([first, second].filter(project => standalone(project).canRollback).length, 1);
+  fs.writeFileSync(markerFile, markerText);
+  assert.ok([first, second].every(project => standalone(project).canRollback));
 
   fs.writeFileSync(path.join(first, 'fail-candidate'), 'real child exit on restart');
   const fallback = await boot(base, first, '0.2.0');
@@ -370,7 +453,7 @@ test('the launcher keeps a verified per-project default, retries the old version
   await (await boot(base, second, '0.2.1')).close();
 
   let browserAddress;
-  const candidate = createReleaseUpdateService(second, { applicationRoot: target, inheritedAnchor: base,
+  const candidate = standalone(second, {
     relaunch: async input => {
       const previous = await launchSelectedRelease(input);
       stop.push(previous.close);
@@ -383,10 +466,10 @@ test('the launcher keeps a verified per-project default, retries the old version
   assert.equal(restoring.version, '0.2.0', JSON.stringify(restoring));
   assert.equal(browserAddress, restoring.address);
   assert.equal(candidate.canRollback, false);
+  assert.equal(standalone(second).canRollback, false);
   assert.equal((await fetch(new URL(reused.address).origin)).status, 200);
   await (await boot(base, second, '0.2.0')).close();
 
-  const stranger = createProject('待更新工程');
   const asset = path.join(target, 'tools/agents-workbench/react/dist/assets/main.js');
   fs.appendFileSync(asset, '\n// local change');
   assert.deepEqual(await forProject(base, stranger).open({}), { error: 'release-directory-exists' });
@@ -402,6 +485,7 @@ test('the launcher keeps a verified per-project default, retries the old version
   assert.deepEqual(fs.readdirSync(linkedParent), [versionDirectory]);
   assert.deepEqual(fs.readdirSync(first), ['scenario']);
   assert.deepEqual(fs.readdirSync(second), ['scenario']);
+  assert.deepEqual(fs.readdirSync(stranger), ['scenario']);
 });
 
 test('parallel launchers compare and save under one Windows selection mutex', { skip: process.platform !== 'win32', timeout: 15000 }, async t => {

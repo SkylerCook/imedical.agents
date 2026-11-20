@@ -25,7 +25,7 @@ const messages: Record<string, string> = {
   "unknown-tree": "当前框架版本尚未通过工作台验证。",
 };
 
-export function VectorIndexControls() {
+export function VectorIndexControls({ onReadback }: { onReadback: () => void }) {
   const [state, setState] = useState<Observation>();
   const [pending, setPending] = useState<Action>();
   const [notice, setNotice] = useState<{ text: string; error?: boolean }>();
@@ -67,7 +67,10 @@ export function VectorIndexControls() {
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       setNotice({ text: messages[code] || "请求未完成，请从工作台启动器重新打开当前工程。", error: true });
-    } finally { setPending(undefined); }
+    } finally {
+      setPending(undefined);
+      onReadback();
+    }
   }
 
   const index = state?.companyIndex;

@@ -75,7 +75,7 @@ test('opaque body must be an object and detail lookup retains transport options 
 test('configuration requires a skill section, HTTPS and personal token, without leaking invalid input', t => {
   const env = { BOS_MCP_CONFIG: path.resolve('missing-private-config') };
   let selected = config;
-  t.mock.method(fs, 'readFileSync', () => JSON.stringify({ 'bos-demand-query': selected }));
+  t.mock.method(fs, 'readFileSync', () => Buffer.from(JSON.stringify({ 'bos-demand-query': selected })));
   assert.deepEqual(loadConfig(env), config);
   selected = { ...config, url: 'http://example.invalid' };
   assert.throws(() => loadConfig(env), /HTTPS/);
@@ -254,9 +254,9 @@ test('current group defaults, explicit override and cross-group queries preserve
 });
 
 test('local current group is validated without exposing connection values', (t) => {
-  t.mock.method(fs, 'readFileSync', () => JSON.stringify({ 'bos-demand-query': { ...config, cgroup: 'sample-group' } }));
+  t.mock.method(fs, 'readFileSync', () => Buffer.from(JSON.stringify({ 'bos-demand-query': { ...config, cgroup: 'sample-group' } })));
   assert.equal(loadConfig({ BOS_MCP_CONFIG: path.resolve('private-fixture') }).cgroup, 'sample-group');
-  fs.readFileSync.mock.mockImplementation(() => JSON.stringify({ 'bos-demand-query': { ...config, cgroup: 42 } }));
+  fs.readFileSync.mock.mockImplementation(() => Buffer.from(JSON.stringify({ 'bos-demand-query': { ...config, cgroup: 42 } })));
   assert.throws(() => loadConfig({ BOS_MCP_CONFIG: path.resolve('private-fixture') }), /cgroup/);
 });
 

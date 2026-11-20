@@ -55,15 +55,16 @@ async function openWorkbench(stage, root, env, stop) {
     const state = await read();
     const {projectId,revision} = state;
     assert.ok(projectId && Object.hasOwn(state,'revision'),JSON.stringify(state));
-    const result = await fetch(origin+'/framework/action',{
+    const note = action === 'update-note';
+    const result = await fetch(origin+'/framework/' + (note ? 'update-note' : 'action'),{
       method:'POST',headers:{...headers,Cookie:cookie,'X-Workbench-CSRF':csrf},
-      body:JSON.stringify({action,projectId,revision}),signal:AbortSignal.timeout(180000),
+      body:JSON.stringify({projectId,revision,...(note ? {} : {action})}),signal:AbortSignal.timeout(180000),
     });
     return {http:result.status,...await result.json()};
   };
 }
 
-test('staged online install and update use the reachable approved release when master has advanced', {
+test('staged online install uses the reachable approved release and hands off installed projects', {
   skip:process.platform!=='win32', timeout:240000,
 }, async t => {
   const root = createTempDirectory('workbench-pinned-owner-');
@@ -104,7 +105,7 @@ test('staged online install and update use the reachable approved release when m
   const env = {...process.env,PORT:'0',GIT_ALLOW_PROTOCOL:'file',GIT_CONFIG_COUNT:'2',
     GIT_CONFIG_KEY_0:'url.'+mirror.replaceAll('\\','/')+'.insteadOf',GIT_CONFIG_VALUE_0:sourceUrl,
     GIT_CONFIG_KEY_1:'protocol.allow',GIT_CONFIG_VALUE_1:'never'};
-  env.PSModulePath = path.join(env.SystemRoot,'System32/WindowsPowerShell/v1.0/Modules');
+  env.PSModulePath = path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/Modules');
   delete env.IMEDICAL_DEPLOYMENT_LOCK;
   function project(name) {
     const dir = path.join(root,name);
@@ -135,20 +136,22 @@ test('staged online install and update use the reachable approved release when m
   assertBinding(fresh,approved);
   assert.equal(content(path.join(fresh,'.agents'),'rev-parse','origin/master'),unapproved);
 
-  const update = await first('fetch-preview');
-  assert.equal(update.http,200,JSON.stringify(update));
-  assert.equal(update.exitCode,0,JSON.stringify(update));
-  assert.deepEqual(update.compatibility,{publishedRevision:unapproved,selectedRevision:approved});
-  assertBinding(existing,approved);
-  assert.equal((await first('apply')).exitCode,0);
   const existingRefs = content(path.join(existing,'.agents'),'show-ref');
-  const retained = await first('fetch-preview');
-  assert.equal(retained.exitCode,0,JSON.stringify(retained));
-  assert.deepEqual(retained.compatibility,{publishedRevision:unapproved,selectedRevision:approved});
+  for (const action of ['fetch-preview','apply']) {
+    const retired = await first(action);
+    assert.equal(retired.http,409,JSON.stringify(retired));
+    assert.equal(retired.error,'framework-update-use-agent');
+  }
+  const note = await first('update-note');
+  assert.equal(note.http,200,JSON.stringify(note));
+  assert.equal(note.status,'unavailable');
+  assert.equal(note.revision,original);
+  assert.match(note.prompt,/update-agents\.md/);
+  assertBinding(existing,original);
   assert.equal(content(path.join(existing,'.agents'),'show-ref'),existingRefs);
 
   git(mirror,'update-ref',master,original,unapproved);
-  assert.equal((await second('fetch-preview')).error,'published-history-mismatch');
+  assert.equal((await second('fetch-preview')).error,'framework-update-use-agent');
   assertBinding(fresh,approved);
 
   git(mirror,'update-ref',master,rewritten,original);
@@ -156,8 +159,8 @@ test('staged online install and update use the reachable approved release when m
   const third = await openWorkbench(stage,blocked,env,stop);
   assert.equal((await third('install')).error,'install-failed');
   assert.deepEqual(fs.readdirSync(blocked),['business.txt']);
-  assert.equal((await first('fetch-preview')).error,'unknown-tree');
-  assertBinding(existing,approved);
+  assert.equal((await first('fetch-preview')).error,'framework-update-use-agent');
+  assertBinding(existing,original);
 
   const direct = execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
     '-File',path.join(repo,'scripts/update-agents.ps1'),'-ProjectRoot',fresh,'-Mode','Check','-NoPull'],{

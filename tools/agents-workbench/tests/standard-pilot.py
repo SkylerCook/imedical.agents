@@ -58,7 +58,9 @@ def launch_project(node, app, project, env):
     # Pass the one-time fragment to Edge without printing it in the logs.
     launcher = """
       const {fork}=require('node:child_process');
-      const child=fork('tools/agents-workbench/prototype/serve.js',['--project',process.argv[1]],{silent:true});
+      const child=fork('tools/agents-workbench/prototype/serve.js',['--project',process.argv[1]],{
+        silent:true,execArgv:['--require',process.env.WORKBENCH_PILOT_PROBE]
+      });
       child.once('message',m=>console.log(JSON.stringify(m)));
       child.once('exit',code=>process.exit(code||0));
       process.stdin.resume(); process.stdin.once('end',()=>child.kill());
@@ -77,7 +79,8 @@ def launch_project(node, app, project, env):
             proc.wait()
 
 
-def exercise(archive, work, require_formal, require_runtime_pin=False, release_record=None, installed_revision=None):
+def exercise(archive, work, require_formal, require_runtime_pin=False, release_record=None, installed_revision=None,
+             target_revision=None):
     package = work / "独立 解压"
     with ZipFile(archive) as zip_file:
         release = json.loads(zip_file.read("workbench-release.json"))
@@ -122,8 +125,23 @@ def exercise(archive, work, require_formal, require_runtime_pin=False, release_r
         (project / name).write_bytes(content)
     system = Path(os.environ["SYSTEMROOT"]) / "System32"
     trace = work / "git-trace.jsonl"
+    probe = work / "fixture-upstream.cjs"
+    probe.write_text("""
+if (!require('node:worker_threads').isMainThread) return;
+const {execFileSync} = require('node:child_process');
+const path = require('node:path');
+const service = require(path.join(process.cwd(), 'tools/agents-workbench/src/framework-service.js'));
+const create = service.createFrameworkService;
+service.createFrameworkService = (root, options) => create(root, {
+  ...options,
+  readUpdateHead: () => execFileSync('git', [
+    '-C', process.env.WORKBENCH_PILOT_MIRROR, 'rev-parse', 'refs/heads/master'
+  ], {encoding:'utf8', windowsHide:true}).trim()
+});
+""", encoding="utf8")
     env = dict(os.environ, GIT_TRACE2_EVENT=str(trace), PORT="0", GIT_ALLOW_PROTOCOL="file", GIT_CONFIG_COUNT="1",
                GIT_CONFIG_KEY_0=f"url.{mirror.as_uri()}.insteadOf", GIT_CONFIG_VALUE_0=ORIGIN,
+               WORKBENCH_PILOT_PROBE=str(probe), WORKBENCH_PILOT_MIRROR=str(mirror),
                PATH=os.pathsep.join(map(str, [Path(shutil.which("git")).parent, system, system/"WindowsPowerShell/v1.0"])))
     assert not shutil.which("node", path=env["PATH"])
     with launch_project(node, package, project, env) as address:
@@ -143,8 +161,18 @@ def exercise(archive, work, require_formal, require_runtime_pin=False, release_r
             page.get_by_role("link", name="总览", exact=True).click()
 
             def click(label):
+                button = page.get_by_role("button", name=label, exact=True)
+                if label == "安装基础框架":
+                    try:
+                        button.wait_for(timeout=12000)
+                    except Exception:
+                        print(page.evaluate("""async () => ({
+                          framework: await fetch('/framework.json',{headers:{'X-Workbench-Request':'1'}}).then(r=>r.json()),
+                          buttons: [...document.querySelectorAll('button')].map(button=>button.textContent)
+                        })"""), flush=True)
+                        raise
                 with page.expect_response(lambda r: r.url.endswith("/framework/action"), timeout=180000) as response:
-                    page.get_by_role("button", name=label, exact=True).click()
+                    button.click()
                 result = response.value.json()
                 if result.get("error") and trace.exists():
                     for line in trace.read_text(encoding="utf8",errors="replace").splitlines():
@@ -157,10 +185,22 @@ def exercise(archive, work, require_formal, require_runtime_pin=False, release_r
                 return result
 
             cap = project / ".agents"
+            direct = page.get_by_role("region", name="在工作台完成", exact=True)
+            handoff = page.get_by_role("region", name="交给 Agent", exact=True)
+            direct.get_by_role("button", name="安装基础框架", exact=True).wait_for()
+            assert handoff.count() == 0
             installed = click("安装基础框架")
             assert installed["after"]["revision"] == previous and git(cap, "rev-parse", "HEAD") == previous
             assert installed["after"]["installed"]["profile"] and installed["after"]["installed"]["sparseRules"]
             assert installed["after"]["installed"]["skillEntries"] > 0
+            direct.get_by_text("基础框架已安装并通过检查。", exact=True).wait_for()
+            handoff.get_by_role("button", name="准备工程检查请求", exact=True).click()
+            dialog = page.get_by_role("dialog", name="接续到 Agent", exact=True)
+            inspection = dialog.get_by_role("textbox", name="接续请求", exact=True).input_value()
+            assert str(project) in inspection and "只读审计流程" in inspection
+            assert "用户明确要求补齐时" in inspection
+            page.keyboard.press("Escape")
+            assert original["AGENTS.md"].rstrip() in (project / "AGENTS.md").read_bytes()
             assert git(cap, "config", "--get", "remote.origin.url") == ORIGIN
             packs = list((cap / ".git/objects/pack").glob("*.pack"))
             assert git(cap, "config", "--get", "remote.origin.partialclonefilter") == "blob:none"
@@ -172,53 +212,39 @@ def exercise(archive, work, require_formal, require_runtime_pin=False, release_r
             cache.write_bytes(b"local cache fixture")
             with (cap / ".git/info/exclude").open("a",encoding="utf8") as ignore:
                 ignore.write("\n/vendor/sftp-server/src/__pycache__/\n")
+            page.get_by_text("当前框架已是上游版本", exact=True).wait_for()
+            click("检查工程")
             refs = git(cap, "show-ref")
             sparse = (cap / ".git/info/sparse-checkout").read_bytes()
-            click("检查工程")
-            unused = cap / "scripts/install-agents.ps1"
-            original_installer = unused.read_bytes()
-            try:
-                unused.write_bytes(b'throw "the deployed installer must never run"')
-                click("本地预演")
-            finally:
-                unused.write_bytes(original_installer)
-            assert refs == git(cap, "show-ref") and sparse == (cap / ".git/info/sparse-checkout").read_bytes()
-            target = approved or B
+            index = (cap / ".git/index").read_bytes()
+            fetch_head = cap / ".git/FETCH_HEAD"
+            saved_fetch_head = fetch_head.read_bytes() if fetch_head.exists() else None
+            target = approved or target_revision or B
             git(mirror, "merge-base", "--is-ancestor", previous, target)
             git(mirror, "update-ref", "refs/heads/master", target, previous)
-            other_refs = [row for row in git(cap, "for-each-ref", "--format=%(refname) %(objectname)", "refs/remotes/origin").splitlines() if row.split()[0] not in ("refs/remotes/origin/master","refs/remotes/origin/HEAD")]
-            assert other_refs
-            managed_doc = cap / "docs/README.md"
-            previous_doc = managed_doc.read_bytes()
-            try:
-                managed_doc.write_bytes(previous_doc + b"\ndirty fixture\n")
-                with page.expect_response(lambda r: r.url.endswith("/framework/action"), timeout=180000) as blocked:
-                    page.get_by_role("button",name="获取新版并预演",exact=True).click()
-                info = blocked.value.json()
-                assert info["steps"][-1]["diagnostic"] == "pull-blocked-dirty", info
-                assert git(cap,"rev-parse","HEAD") == previous and managed_doc.read_bytes().endswith(b"dirty fixture\n")
-            finally:
-                managed_doc.write_bytes(previous_doc)
-            preview = click("获取新版并预演")
-            assert preview["before"]["revision"] == previous and preview["after"]["revision"] == target
-            for row in other_refs:
-                ref, oid = row.split()
-                assert git(cap, "rev-parse", ref) == oid
-            page.reload()
-            apply_button = page.get_by_role("button", name="应用更新并复查", exact=True)
-            apply_button.wait_for()
-            lock_cli = [node, cap / "scripts/plugin-deploy.js"]
-            lock = json.loads(subprocess.check_output([*lock_cli, "acquire-lock", "--project-root", project, "--pid", str(os.getpid())], env=env, text=True))
-            try:
-                with page.expect_response(lambda r: r.url.endswith("/framework/action")) as conflict:
-                    apply_button.click()
-                assert conflict.value.status == 409 and conflict.value.json()["error"] == "deployment-busy"
-            finally:
-                subprocess.run([*lock_cli, "release-lock", "--project-root", project, "--token", lock["token"]], env=env, stdout=subprocess.DEVNULL, check=True)
-            written = click("应用更新并复查")
-            assert [s["step"] for s in written["steps"]] == ["apply", "check"]
-            assert written["after"]["revision"] == git(cap, "rev-parse", "HEAD") == target
-            page.get_by_text("检查工程 · 退出码 0", exact=False).wait_for()
+            page.get_by_role("button", name="重新读取", exact=True).click()
+            page.get_by_text("发现框架新版", exact=False).wait_for()
+            page.evaluate("Object.defineProperty(navigator.clipboard, 'writeText', {value: () => Promise.reject(new Error('fixture clipboard unavailable'))})")
+            handoff.get_by_role("button", name="复制更新提示词", exact=True).click()
+            prompt = page.get_by_role("textbox", name="更新提示词", exact=True).input_value()
+            assert str(project) in prompt.replace("\\\\", "\\")
+            assert previous in prompt and target in prompt and "update-agents.md" in prompt
+            for label in ("获取新版并预演", "应用更新并复查", "应用离线更新"):
+                assert page.get_by_role("button", name=label, exact=True).count() == 0
+            assert git(cap, "rev-parse", "HEAD") == previous and git(cap, "show-ref") == refs
+            assert (cap / ".git/info/sparse-checkout").read_bytes() == sparse and (cap / ".git/index").read_bytes() == index
+            assert (fetch_head.read_bytes() if fetch_head.exists() else None) == saved_fetch_head
+            owner_env = dict(env, PATH=os.pathsep.join([str(node.parent), env["PATH"]]),
+                             PSModulePath=str(system / "WindowsPowerShell/v1.0/Modules"))
+            owner = [system / "WindowsPowerShell/v1.0/powershell.exe", "-NoProfile", "-NonInteractive",
+                     "-ExecutionPolicy", "Bypass", "-File", cap / "scripts/update-agents.ps1", "-ProjectRoot", project]
+            for mode, args in (("DryRun", []), ("Write", ["-NoPull"]), ("Check", ["-NoPull"])):
+                result = subprocess.run([*owner, "-Mode", mode, *args], cwd=project, env=owner_env, capture_output=True)
+                assert result.returncode == 0, (mode, result.stdout, result.stderr)
+            assert git(cap, "rev-parse", "HEAD") == target
+            page.get_by_role("button", name="重新读取", exact=True).click()
+            page.get_by_text("当前框架已是上游版本", exact=True).wait_for()
+            print("verified read-only discovery, copied project prompt, original updater and workbench readback", flush=True)
             for name, content in original.items():
                 current = (project / name).read_bytes()
                 if name == "AGENTS.md":
@@ -240,11 +266,18 @@ def exercise(archive, work, require_formal, require_runtime_pin=False, release_r
                 return commit
             if approved:
                 published = change("scripts/install-agents.ps1", target)
-                retained = click("获取新版并预演")
-                assert retained["compatibility"]["publishedRevision"] == published
-                assert retained["compatibility"]["selectedRevision"] == approved
+                page.get_by_role("button", name="重新读取", exact=True).click()
+                page.get_by_text("发现框架新版", exact=False).wait_for()
+                page.get_by_text(published[:12], exact=True).wait_for()
                 assert git(cap,"rev-parse","HEAD") == approved
-                fresh = work / "新 工程"
+            fresh_cases = ["新 工程"] if approved or target_revision else []
+            if target_revision and not approved:
+                published = target
+                fresh_cases.append("上游前进 新工程")
+            for name in fresh_cases:
+                if name == "上游前进 新工程":
+                    published = change("scripts/update-agents.ps1", target)
+                fresh = work / name
                 fresh.mkdir()
                 git(fresh, "init", "-q")
                 with launch_project(node, package, fresh, env) as fresh_address:
@@ -252,18 +285,15 @@ def exercise(archive, work, require_formal, require_runtime_pin=False, release_r
                     page.on("pageerror", lambda e: errors.append(str(e)))
                     page.goto(fresh_address)
                     first = click("安装基础框架")
-                    assert first["after"]["revision"] == git(fresh / ".agents", "rev-parse", "HEAD") == approved
-                    assert first["compatibility"]["publishedRevision"] == published
-                    assert first["compatibility"]["selectedRevision"] == approved
+                    assert first["after"]["revision"] == git(fresh / ".agents", "rev-parse", "HEAD") == target
+                    assert first["after"]["installed"]["profile"] and first["after"]["installed"]["skillEntries"] > 0
+                    assert git(fresh / ".agents", "rev-parse", "refs/remotes/origin/master") == published
+                    if published != target:
+                        assert first["compatibility"]["publishedRevision"] == published
+                        assert first["compatibility"]["selectedRevision"] == target
+                        page.get_by_text("已安装核验版本", exact=False).wait_for()
                     assert git(fresh / ".agents", "config", "--get", "remote.origin.url") == ORIGIN
-                    print("verified exact released runtime for new and updated projects", approved[:8], flush=True)
-            else:
-                change("scripts/update-agents.ps1", target)
-                with page.expect_response(lambda r: r.url.endswith("/framework/action"),timeout=180000) as rejected:
-                    page.get_by_role("button",name="获取新版并预演",exact=True).click()
-                result = rejected.value.json()
-                assert rejected.value.status == 409 and result["error"] == "unknown-tree", result
-                assert git(cap,"rev-parse","HEAD") == target
+                    print("verified fresh install", target[:8], "published", published[:8], flush=True)
             assert not errors, errors
             browser.close()
 
@@ -275,11 +305,14 @@ if __name__ == "__main__":
     parser.add_argument("--require-runtime-pin", action="store_true")
     parser.add_argument("--release-record", type=Path)
     parser.add_argument("--installed-revision", help="initial framework revision in the isolated Git mirror")
+    parser.add_argument("--target-revision", help="published framework revision to verify with a trial ZIP")
     args = parser.parse_args()
     if args.require_runtime_pin and not args.release_record:
         parser.error("--require-runtime-pin requires the approved --release-record for this ZIP")
+    if args.require_formal and args.target_revision:
+        parser.error("--target-revision is only supported for trial ZIPs")
     parent = Path("D:/tmp/Codex") if Path("D:/tmp/Codex").is_dir() else Path(tempfile.gettempdir()) / "Codex"
     parent.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="workbench-pilot-", dir=parent) as temp:
         exercise(args.archive.resolve(), Path(temp), args.require_formal, args.require_runtime_pin, args.release_record,
-                 args.installed_revision)
+                 args.installed_revision, args.target_revision)

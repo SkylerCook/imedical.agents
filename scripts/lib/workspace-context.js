@@ -257,8 +257,7 @@ function sourcePathResult(context, source) {
   return result('source-directory-ok', source.path, source.target, source.path, 'physical SourceRoot matches manifest and GitRoot');
 }
 
-function validateWorkspaceContext(context) {
-  const results = [];
+function validateWorkspaceDeclaration(context) {
   if (context.manifestError) return [result('manifest-invalid', context.manifestPath, '', context.manifestError, 'capability manifest is not valid JSON')];
   if (context.manifestPath) {
     if (Object.prototype.hasOwnProperty.call(context.manifest, 'schemaVersion') && context.manifest.schemaVersion !== 1) {
@@ -268,7 +267,13 @@ function validateWorkspaceContext(context) {
     if (problems.length) return [result('manifest-invalid', context.manifestPath, '', problems.join('; '), 'capability manifest violates schemaVersion 1 contract')];
   }
 
-  results.push(result('workspace-context-resolved', context.workspaceRoot, context.mode, context.mode, 'workspace context resolved'));
+  return [];
+}
+
+function validateWorkspaceContext(context) {
+  const declarationProblems = validateWorkspaceDeclaration(context);
+  if (declarationProblems.length) return declarationProblems;
+  const results = [result('workspace-context-resolved', context.workspaceRoot, context.mode, context.mode, 'workspace context resolved')];
   if (!fs.existsSync(context.capabilityRoot) || !fs.statSync(context.capabilityRoot).isDirectory()) {
     results.push(result('capability-root-missing', context.capabilityRoot, '', '', 'CapabilityRoot directory is missing'));
   } else if (!fs.existsSync(path.join(context.capabilityRoot, '.git'))) {
@@ -381,6 +386,7 @@ module.exports = {
   workspaceContextBlockers,
   resolveSourceFilePath,
   resolveWorkspaceContext,
+  validateWorkspaceDeclaration,
   validateWorkspaceContext,
   resolveGitRootForPath,
 };

@@ -65,24 +65,34 @@ function localApplication(root) {
   return { version: record.version, directory, installRoot: path.dirname(directory) };
 }
 
-function launchAnchor(application, inherited = process.env.WORKBENCH_LAUNCH_ANCHOR) {
+function launchAnchor(application, inherited = process.env.WORKBENCH_LAUNCH_ANCHOR, projectRoot) {
   if (inherited) {
     try {
       const anchor = localApplication(inherited);
-      if (anchor?.installRoot === application.installRoot) return anchor;
+      if (anchor?.installRoot === application.installRoot) {
+        if (projectRoot && anchor.directory !== application.directory) {
+          try { rememberAnchor(application, anchor, projectRoot); }
+          catch { /* Failure to remember an anchor does not block startup. */ }
+        }
+        return anchor;
+      }
     } catch { /* A moved installation launches from its own directory. */ }
+  }
+  if (projectRoot) {
+    try { return rememberedAnchor(application, projectRoot).anchor ?? application; }
+    catch { /* An unavailable association does not block a standalone launch. */ }
   }
   return application;
 }
 
-function statePath(anchor, projectRoot) {
+function statePath(anchor, projectRoot, prefix = '') {
   const project = fs.realpathSync.native(projectRoot);
   const stat = fs.statSync(project, { bigint: true });
   if (!stat.isDirectory()) throw Error('project-unavailable');
   const directory = path.join(anchor.directory, stateDirectory);
   if (fs.existsSync(directory) && !fs.lstatSync(directory).isDirectory()) throw Error('selection-unavailable');
   const key = crypto.createHash('sha256').update(JSON.stringify([project, String(stat.dev), String(stat.ino)])).digest('hex');
-  return path.join(directory, key + '.json');
+  return path.join(directory, prefix + key + '.json');
 }
 
 function validEntry(entry) {
@@ -94,12 +104,16 @@ function validSelection(record) {
   return Boolean(record && validEntry(record.current) && (record.previous === null || validEntry(record.previous)));
 }
 
-function readStateFile(file) {
+function readStateText(file) {
   const stat = fs.lstatSync(file, { throwIfNoEntry: false });
-  if (!stat) return { text: null, selection: null };
+  if (!stat) return null;
   if (!stat.isFile() || stat.nlink > 1 || stat.size > 128 * 1024) throw Error('selection-unavailable');
-  const text = fs.readFileSync(file, 'utf8');
-  const selection = JSON.parse(text);
+  return fs.readFileSync(file, 'utf8');
+}
+
+function readStateFile(file) {
+  const text = readStateText(file);
+  const selection = text === null ? null : JSON.parse(text);
   if (selection !== null && !validSelection(selection)) throw Error('selection-unavailable');
   return { text, selection };
 }
@@ -113,6 +127,10 @@ function saveSelection(anchor, projectRoot, previous, next) {
   const file = statePath(anchor, projectRoot);
   const { text, selection } = readStateFile(file);
   if (JSON.stringify(selection) !== JSON.stringify(previous)) throw Error('selection-changed');
+  replaceStateFile(file, text, next);
+}
+
+function replaceStateFile(file, text, next) {
   const directory = path.dirname(file);
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   if (!fs.lstatSync(directory).isDirectory()) throw Error('selection-unavailable');
@@ -130,6 +148,47 @@ function saveSelection(anchor, projectRoot, previous, next) {
 
 function releaseDirectory(anchor, entry) {
   return entry.base ? anchor.directory : path.join(anchor.installRoot, `agents-workbench-react-${entry.version}`);
+}
+
+function readRollbackSelection(anchor, application, projectRoot) {
+  const selection = readSelection(anchor, projectRoot);
+  if (selection?.previous && !selection.current.base && selection.current.version === application.version &&
+      releaseDirectory(anchor, selection.current) === application.directory) return selection;
+  return null;
+}
+
+function directoryKey(directory) {
+  const stat = fs.lstatSync(directory, { bigint: true });
+  if (!stat.isDirectory()) throw Error('selection-unavailable');
+  return crypto.createHash('sha256').update(JSON.stringify([String(stat.dev), String(stat.ino)])).digest('hex');
+}
+
+function rememberedAnchor(application, projectRoot) {
+  const file = statePath(application, projectRoot, 'anchor-');
+  const text = readStateText(file);
+  let anchor;
+  try {
+    const marker = JSON.parse(text);
+    const name = marker?.directory;
+    if (marker?.schema === 1 && typeof name === 'string' && name.length > 0 && name.length <= 255 &&
+        name !== '.' && name !== '..' && !/[\\/:*?<>"|\p{Cc}]/u.test(name) && digestPattern.test(marker.identity)) {
+      const target = path.join(application.installRoot, name);
+      const candidate = localApplication(target);
+      if (candidate?.directory === target && candidate.directory !== application.directory &&
+          directoryKey(target) === marker.identity && readRollbackSelection(candidate, application, projectRoot)) anchor = candidate;
+    }
+  } catch { /* An invalid marker or missing installation has no associated rollback. */ }
+  return { file, text, anchor };
+}
+
+function rememberAnchor(application, anchor, projectRoot) {
+  const previous = rememberedAnchor(application, projectRoot);
+  if (previous.anchor) return;
+  const directory = path.basename(anchor.directory);
+  const identity = directoryKey(anchor.directory);
+  const next = { schema: 1, directory, identity };
+  if (previous.text === JSON.stringify(next) + '\n') return;
+  replaceStateFile(previous.file, previous.text, next);
 }
 
 async function fingerprint(directory) {
@@ -156,4 +215,4 @@ async function fingerprint(directory) {
   return envelope.digest('hex');
 }
 
-module.exports = { fingerprint, launchAnchor, localApplication, readRecord, readSelection, releaseDirectory, saveSelection, versionPattern };
+module.exports = { fingerprint, launchAnchor, localApplication, readRecord, readRollbackSelection, readSelection, releaseDirectory, saveSelection, versionPattern };

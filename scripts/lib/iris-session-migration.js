@@ -3,6 +3,17 @@ const fs = require('node:fs'), path = require('node:path'), {spawnSync} = requir
 const {failure, hash} = require('./iris-session-manager');
 const {managed} = require('./iris-session-client');
 function read(file) {return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));}
+function validNodeCommand(command) {
+  if (command === process.execPath) return true;
+  if (typeof command !== 'string' || !path.isAbsolute(command)) return false;
+  const name = path.basename(command);
+  if (process.platform === 'win32' ? !/^node\.exe$/i.test(name) : !/^node(?:js)?$/.test(name)) return false;
+  try {
+    if (!fs.statSync(command, {throwIfNoEntry:false})?.isFile()) return false;
+    fs.accessSync(command, fs.constants.X_OK);
+    return true;
+  } catch { return false; }
+}
 function physical(file) {
   let current = path.parse(file).root;
   for (const part of file.slice(current.length).split(path.sep).filter(Boolean)) {
@@ -31,15 +42,19 @@ function write(file, value, before) {
   if(fs.readFileSync(file,'utf8')!==bytes)throw failure('session-migration-readback-failed');
 }
 function assertInactive(context,server) {
+  const remote=require('./iris-remote-operations');
   const policyFile=path.join(context.contextRoot,'config','iris-remote-policy.json');
   const policy=fs.existsSync(policyFile)?read(policyFile):null;
-  const pool=policy?.allowSharedPool === true ? policy.poolKey : require('./iris-remote-operations').instanceIdentity(server.env || {});
+  const connection=server.env || {};
+  const pool=policy?.allowSharedPool === true ? policy.poolKey : remote.instanceIdentity(connection);
   const state=path.join(require('./iris-session-ipc').location().root,'pools',hash(pool)+'.json');
   if(fs.existsSync(state)) {const p=read(state);if(p.active || p.inFlight || p.blocked)throw failure('session-migration-runtime-unresolved');}
   if(policy?.coordinationRoot && policy?.poolKey) {
-    const remote=require('./iris-remote-operations');
-    for(const effective of [policy,remote.managedPolicy(context,{...policy,enabled:true},true)]) {
-      const p=remote.poolStatus({policy:{...effective,enabled:true}});
+    const effective=remote.managedPolicy(context,{...policy,enabled:true},true,connection);
+    const affectedPolicies=[policy,effective];
+    if(effective.legacyCoordinationRoot)affectedPolicies.push({...effective,coordinationRoot:effective.legacyCoordinationRoot});
+    for(const affected of affectedPolicies) {
+      const p=remote.poolStatus({policy:{...affected,enabled:true}});
       if(p.ownerPresent || p.status!=='ready')throw failure('session-legacy-pool-unresolved');
     }
   }
@@ -70,10 +85,11 @@ function migrate({projectRoot, mode='DryRun', serverName}={}) {
   }
   if(managed(server)) {
     if(!existing || existing.serverName!==serverName || hash({command:server.command,args:server.args})!==existing.managedHash)throw failure('session-managed-config-drift');
+    // The registered MCP host can use a different Node installation than the updater.
+    if(hash(server.args)!==hash(args) || !validNodeCommand(server.command))throw failure('session-managed-config-drift');
     if(!fs.existsSync(args[0]))throw failure('session-adapter-missing');
     if(!fs.existsSync(path.resolve(context.workspaceRoot,existing.command)))throw failure('session-backend-missing');
     if(mode==='Check')require('./iris-session-backends').verifyVendor(path.resolve(context.workspaceRoot,existing.command));
-    if(hash({command:server.command,args:server.args})!==hash(expected))throw failure('session-managed-config-drift');
     return {status:'unchanged',managed:true,restartRequired:true};
   }
   if(mode==='Check')throw failure('session-direct-entry-detected');

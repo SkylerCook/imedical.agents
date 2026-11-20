@@ -105,6 +105,7 @@ for (const file of [
   "vendor/jsonc-parser",
   "vendor/iarna-toml",
   "scripts/lib/configuration-file-io.js",
+  "plugins/bos-plugin/scripts/bos-connection.js",
   "scripts/lib/iris-development-settings.js",
   "scripts/lib/iris-profile-verification.js",
   "scripts/lib/project-deployment-policy.js",
@@ -126,6 +127,7 @@ for (const file of [
   "scripts/lib/knowledge-sources.js",
   "tools/agents-workbench/src/project-context.js",
   "tools/agents-workbench/src/knowledge-search.js",
+  "tools/agents-workbench/src/manual-search.js",
   "tools/agents-workbench/src/knowledge-build.js",
   "tools/agents-workbench/src/release-launcher.js",
   "tools/agents-workbench/src/release-selection.js",
@@ -141,6 +143,9 @@ for (const file of [
   "tools/agents-workbench/src/agent-handoff.js",
   "tools/agents-workbench/build/build-offline-package.js",
   "tools/agents-workbench/src/project-owner-actions.js",
+  "tools/agents-workbench/src/task-owner-observations.js",
+  "tools/agents-workbench/src/state-export.js",
+  "tools/agents-workbench/src/settings-drafts.js",
   "scripts/lib/plugin-groups.json",
   `${dist}/index.html`,
   `${dist}/workbench-mark.svg`,
@@ -184,16 +189,29 @@ writeFileSync(join(destination, "README.md"), `# .agents 工作台离线运行�
 
 ${startup}
 
-页面、手册、Maple Mono NF CN 7.9 中文字体和本地依赖已随包交付。启动无需联网、安装系统字体、npm 安装或构建。字体来源和许可在 licenses/。
+工作台 ${version}${formal ? " 正式包" : " 试用包"}。页面、手册、Maple Mono NF CN 7.9 中文字体和本地依赖已随包交付。启动无需联网、安装系统字体、npm 安装或构建。字体来源和许可在 licenses/。
 
-首次安装和取版需 Git 及框架源访问权限。工程首页提供安装、检查、本地预演、取版预演及写入复查；运行回执会显示各阶段退出码和实际 HEAD。Windows standard 试点版本 ${version}。
+## 接入工程
+
+- **首次部署。** 在首页「在工作台完成」点「安装基础框架」。Windows 首装需要 PATH 中的 Git 和 Windows PowerShell 5.1。在线首装还需能访问团队的框架 Git 来源。断网时，另外取得团队批准的完整 \`capability.bundle\` 和对应的包外离线发行记录，在首页点「选择并预演离线能力包」，核对工程和版本后确认。
+- **已有工程。** 在首页「交给 Agent」点「复制更新提示词」，粘贴到绑定工程的 Agent 会话，按原手册更新。完成后回到首页点「重新读取」核对实际版本。共享工作区先处理标准根，再按获授权的范围刷新成员。
+${runtime ? "\n已有工程断网更新时，把另行核验的框架物料一并交给 Agent。若旧更新器已推进版本但遇到 Git 换行导致的稀疏刷新失败，可由 Agent 核对现场与本 ZIP 后，按更新手册使用本解压目录内的完整更新入口重新预演。\n" : ""}
+
+工作台可独立完成基础安装和检查。需要阅读业务代码、补项目规则或验证宿主实际加载时，根据首页的 Agent 接续入口处理。可在工作台打开「使用手册」，也可直接阅读包内的[安装与更新手册](docs/update-agents.md)和[共享工作区手册](docs/workspace-overlay.md)。
+
+## 更换工作台版本
+
+${formal
+    ? "在工程首页导入团队发放的新版 ZIP 和包外发行记录后，原启动器会为该工程优先打开已核验的版本。新版启动失败时自动使用旧版，也可在新版首页点击「恢复旧版工作台」。"
+    : "将试用 ZIP 完整解压到独立的新目录，双击新目录的 `start-workbench.cmd`，选择同一工程即可。继续用旧版本时，打开原目录的启动器。正式版界面里的「导入工作台新版」只接受带包外发行记录的正式 ZIP。"}
+
+## 启动与退出
 
 通过浏览器或启动终端显示的地址打开工作台。配置从启动时绑定的工程和已有个人配置来源读取。对 Git 工程保存私有配置时，现有配置工具会调用 Git 检查跟踪状态。插件目录和手册使用本包的快照。
 
 使用 --demo 可查看虚构工程。
 
-打包启动器为每次启动自动分配端口，可并行打开多个工程。服务仅监听 127.0.0.1，在对应终端按 Ctrl+C 停止。直接运行 serve.js 默认使用 4179，可用 PORT 指定端口。
-${formal ? "\n在工程首页导入团队发放的新版 ZIP 和包外发行记录后，原启动器会为该工程优先打开已核验的版本。新版启动失败时自动使用旧版，也可在新版首页点击「恢复旧版工作台」。\n" : ""}
+打包启动器为每次启动自动分配端口，可并行打开多个工程。服务仅监听 127.0.0.1。关闭浏览器标签后服务继续运行。在对应终端按 Ctrl+C 请求退出，工作台等待已接受的操作完成，向量构建在当前批次保存并读回后暂停。直接运行 serve.js 默认使用 4179，可用 PORT 指定端口。
 `, "utf8");
 
 const sha256 = relative => createHash("sha256").update(readFileSync(join(destination, relative))).digest("hex");

@@ -1,4 +1,4 @@
-"""Exercise both directions of Overlay navigation from a real staged app."""
+"""Verify staged Overlay navigation and copying the correctly scoped update prompt."""
 import json
 from pathlib import Path
 import sys
@@ -28,6 +28,12 @@ def session(page):
     return response["result"]["csrf"]
 
 
+def copy_update_prompt(page):
+    page.get_by_role("button", name="复制更新提示词", exact=True).click(timeout=30000)
+    page.get_by_text("已复制。请粘贴到当前工程的 Agent 会话，完成后重新读取。", exact=True).wait_for()
+    return page.evaluate("navigator.clipboard.readText()")
+
+
 def main():
     app = Path(sys.argv[1]).resolve(strict=True)
     launcher = app / "tools/agents-workbench/src/start-release.js"
@@ -37,16 +43,23 @@ def main():
     url = startup["address"].partition("#")[0] + "#bootstrap=" + startup["bootstrap"]
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="msedge", headless=True)
-        context = browser.new_context()
+        context = browser.new_context(permissions=["clipboard-read", "clipboard-write"])
         failures = []
         context.on("page", lambda page: page.on("pageerror", lambda error: failures.append(str(error))))
         root = context.new_page()
         root.goto(url)
         launch_member = root.get_by_role("button", name="打开成员工作台 模块 一", exact=True)
         launch_member.wait_for(timeout=20000)
-        assert root.get_by_text("缺席模块 · 缺席，保留所需能力", exact=True).is_visible()
+        assert root.get_by_text("缺席模块 · 暂不可用", exact=True).is_visible()
         assert root.get_by_role("button", name="打开成员工作台 缺席模块").count() == 0
         original = snapshot(root)
+        assert root.get_by_role("button", name="获取新版并预演", exact=True).count() == 0
+        assert root.get_by_role("button", name="应用更新并复查", exact=True).count() == 0
+        root_prompt = copy_update_prompt(root)
+        assert original["revision"] in root_prompt and "框架更新手册" in root_prompt
+        assert "已登记的 Overlay 成员如下" in root_prompt
+        assert "模块 一" in root_prompt and "模块 二" in root_prompt
+        assert "DryRun -NoPull" in root_prompt and "Check -NoPull" in root_prompt
 
         launcher.rename(unavailable_launcher)
         try:
@@ -68,6 +81,13 @@ def main():
         assert own["name"] == "模块 一" and own["status"] == "overlay-declared"
         assert own["projectId"] != original["projectId"]
         assert origin(member) != origin(root)
+        assert member.get_by_role("button", name="刷新本工程", exact=True).count() == 0
+        member_prompt = copy_update_prompt(member)
+        owner = json.dumps(own["overlay"]["standardRoot"], ensure_ascii=False)
+        assert f"所属标准根：{owner}" in member_prompt
+        assert "当前成员 ContextRoot" in member_prompt and "模块 一" in member_prompt
+        assert "模块 二" not in member_prompt and original["revision"] in member_prompt
+        assert "Write -NoPull" in member_prompt and "Check -NoPull" in member_prompt
 
         root_csrf, member_csrf = session(root), session(member)
         assert root_csrf != member_csrf
@@ -89,11 +109,16 @@ def main():
         assert returned_state["binding"] == original["binding"]
         assert returned_state["projectId"] != original["projectId"]
         assert len({origin(root), origin(member), origin(returned)}) == 3
-        with member.expect_response(lambda response: response.url.endswith("/framework/overlay/refresh"), timeout=45000) as response:
-            member.get_by_role("button", name="刷新本工程", exact=True).click()
-        assert response.value.status == 200, response.value.json()
-        member.get_by_text("已在标准根登记。", exact=True).wait_for()
+        returned.evaluate("""() => Object.defineProperty(navigator.clipboard, "writeText", {
+          value: async () => { throw new Error("fixture denied clipboard"); }
+        })""")
+        returned.get_by_role("button", name="复制更新提示词", exact=True).click(timeout=30000)
+        manual = returned.get_by_role("textbox", name="更新提示词", exact=True)
+        manual_prompt = manual.input_value()
+        # The Windows clipboard can normalize text to CRLF.
+        assert manual_prompt.replace("\r\n", "\n") == root_prompt.replace("\r\n", "\n")
         assert snapshot(root)["revision"] == original["revision"]
+        assert snapshot(member)["revision"] == own["revision"]
         assert not failures, failures
         context.close()
         browser.close()

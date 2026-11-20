@@ -146,6 +146,47 @@ test('multi-batch interrupted build resumes only unfinished embeddings',async t=
     assert.equal(resumed.warnings.length,0);
     assert.ok(calls.every(call=>JSON.stringify(call.input)!==completed));
 });
+test('requested pause commits the current batch and leaves the next batch for a new preview', async t => {
+    const context = fixture(t);
+    policy(context);
+    fs.writeFileSync(path.join(context.capabilityRoot, 'plugins/imedical-ui/references/forms.md'),
+        '# 表单\n' + Array.from({length: 40}, (_, index) => `\n## 字段${index}\n\n字段${index}单独说明。\n`).join(''));
+    const calls = [];
+    const options = {provider:'openai', settings:{}, apiKey:'test'};
+    const preview = () => rag.previewTransfer(context, options);
+    const initial = preview();
+    assert.ok(initial.pendingVectors > 16);
+    const skipped = await rag.build(context, {...options, approveTransfer:initial.transferSnapshot,
+        fetch:mockApi(calls), shouldStop:() => true});
+    assert.equal(skipped.stopped, true);
+    assert.equal(skipped.remainingVectors, initial.pendingVectors);
+    assert.equal(calls.length, 0);
+
+    let stop = false;
+    let saved;
+    const paused = await rag.build(context, {...options, approveTransfer:initial.transferSnapshot, shouldStop:() => stop,
+        onProgress:progress => { saved = progress.saved; }, fetch:async (...args) => {
+            const response = await mockApi(calls)(...args);
+            stop = true;
+            return response;
+        }});
+    assert.equal(paused.stopped, true);
+    assert.equal(paused.complete, false);
+    assert.deepEqual(paused.warnings, []);
+    assert.equal(saved, 16);
+    assert.equal(calls.length, 1);
+    assert.equal(paused.remainingVectors, initial.pendingVectors - saved);
+    assert.equal(fs.existsSync(rag.databasePath(context, options) + '.lock'), false);
+
+    const next = preview();
+    assert.equal(next.pendingVectors, paused.remainingVectors);
+    assert.notEqual(next.transferSnapshot, initial.transferSnapshot);
+    const completed = new Set(calls[0].input);
+    calls.length = 0;
+    const resumed = await rag.build(context, {...options, approveTransfer:next.transferSnapshot, fetch:mockApi(calls)});
+    assert.equal(resumed.complete, true);
+    assert.ok(calls.flatMap(call => call.input).every(text => !completed.has(text)));
+});
 test('project documents stay scoped and win matching shared references',async t=>{
     const context=fixture(t);
     const result=await rag.search(context,'标签',{projectDocuments:[{path:'work/menu-sync/a/group-a.md',content:'# 标签\n\n当前项目标签入口',scope:'project',sourceId:'a'}]});

@@ -4,9 +4,27 @@ const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { importAndLaunchRelease, launchSelectedRelease, openBrowser, ReleaseLaunchError } = require('./release-launcher');
-const { fingerprint, launchAnchor, localApplication, readRecord, readSelection, releaseDirectory, saveSelection, versionPattern } = require('./release-selection');
+const { fingerprint, launchAnchor, localApplication, readRecord, readRollbackSelection, readSelection, saveSelection, versionPattern } = require('./release-selection');
 
 const run = promisify(execFile);
+const sha256Pattern = /^[a-f0-9]{64}$/iu;
+
+function selectedReleaseRecord(file) {
+  try {
+    const record = readRecord(file);
+    // Check the outer record before comparing versions. The importer still verifies the full record and ZIP.
+    if (record?.file === 'agents-workbench-react.zip' && record.platform === 'windows-x64' &&
+        record.formal === true && record.localBuildChanges === false &&
+        typeof record.version === 'string' && versionPattern.test(record.version) &&
+        typeof record.node === 'string' && versionPattern.test(record.node) &&
+        typeof record.sourceBaseRevision === 'string' && /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/iu.test(record.sourceBaseRevision) &&
+        typeof record.installerSha256 === 'string' && sha256Pattern.test(record.installerSha256) &&
+        record.documentationSha256 && typeof record.documentationSha256 === 'object' && !Array.isArray(record.documentationSha256) &&
+        Number.isSafeInteger(record.bytes) && record.bytes > 0 &&
+        typeof record.sha256 === 'string' && sha256Pattern.test(record.sha256)) return record;
+  } catch { /* An unreadable or malformed selection can be replaced. */ }
+  return null;
+}
 
 function newerVersion(currentVersion, nextVersion) {
   if (typeof nextVersion !== 'string' || !versionPattern.test(nextVersion)) return false;
@@ -16,7 +34,7 @@ function newerVersion(currentVersion, nextVersion) {
   return changed !== -1 && next[changed] > current[changed];
 }
 
-async function pickRelease() {
+async function pickRelease({ signal } = {}) {
   const powershell = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe');
   const script = `
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
@@ -33,13 +51,13 @@ function Select-ReleaseFile($title, $filter) {
 }
 $archive = Select-ReleaseFile '选择团队发放的工作台 ZIP' '工作台压缩包 (*.zip)|*.zip'
 if ($archive) {
-  $record = Select-ReleaseFile '选择可信渠道提供的包外发行记录' '发行记录 (*.json)|*.json'
+  $record = Select-ReleaseFile '选择工作台 ZIP 对应的包外发行记录' '工作台发行记录 (*.json)|*.json'
   if ($record) { @{archive=$archive;releaseRecord=$record} | ConvertTo-Json -Compress }
 }
 `;
   const encoded = Buffer.from(script, 'utf16le').toString('base64');
   const { stdout } = await run(powershell, ['-NoProfile', '-STA', '-EncodedCommand', encoded], {
-    windowsHide: true, encoding: 'utf8', maxBuffer: 64 * 1024,
+    windowsHide: true, encoding: 'utf8', maxBuffer: 64 * 1024, signal,
   });
   return stdout.trim() ? JSON.parse(stdout) : null;
 }
@@ -57,14 +75,11 @@ function createReleaseUpdateService(projectRoot, {
   let anchor;
   try {
     if (platform === 'win32' && projectRoot) application = localApplication(applicationRoot);
-    if (application) anchor = launchAnchor(application, inheritedAnchor);
+    if (application) anchor = launchAnchor(application, inheritedAnchor, projectRoot);
   }
   catch { /* A source checkout or an incomplete package keeps its existing launch path. */ }
   function rollbackSelection() {
-    const selection = readSelection(anchor, projectRoot);
-    if (selection?.previous && !selection.current.base && selection.current.version === application.version &&
-        releaseDirectory(anchor, selection.current) === application.directory) return selection;
-    return null;
+    return readRollbackSelection(anchor, application, projectRoot);
   }
 
   return {
@@ -73,16 +88,17 @@ function createReleaseUpdateService(projectRoot, {
       try { return Boolean(application && rollbackSelection()); }
       catch { return false; }
     },
-    async open(observation) {
+    async open(observation, { signal } = {}) {
       if (!application) return { error: 'release-update-unavailable' };
+      if (signal?.aborted) return { cancelled: true };
       let files;
-      try { files = await choose(); }
-      catch { return { error: 'release-picker-unavailable' }; }
-      if (!files) return { cancelled: true };
+      try { files = await choose({ signal }); }
+      catch { return signal?.aborted ? { cancelled: true } : { error: 'release-picker-unavailable' }; }
+      if (!files || signal?.aborted) return { cancelled: true };
+      const record = selectedReleaseRecord(files.releaseRecord);
+      if (!record) return { error: 'release-record-invalid' };
 
       try {
-        const record = readRecord(files.releaseRecord);
-        if (typeof record?.sha256 !== 'string' || !/^[a-f0-9]{64}$/iu.test(record.sha256)) return { error: 'import-failed' };
         if (!newerVersion(application.version, record.version)) return { error: 'release-not-newer' };
         let selection;
         try { selection = readSelection(anchor, projectRoot); }

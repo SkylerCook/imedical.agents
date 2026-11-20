@@ -3,7 +3,7 @@ export const domains = [
  ['identity','工程身份与接管','工程','工程名称|开发方式:连接开发,离线开发|接入方式:只读识别,按域接管|配置域:工程信息,IRIS,BOS,知识提供方','AGENTS.md / .agents/config/','识别已有文件 → 查看来源 → 按域接管 → 回读；首次导入不改写等价文件'],
  ['iris','IRIS 开发连接','当前工程','环境别名|协议:http,https|主机|端口|命名空间|用户名|密码!|TLS 验证:开启,关闭|开发方式:connected,offline','project-env.json / .mcp.json / 受管 backend','核对多来源 → 修改 → 预览消费者 → 应用 → CLI 回读；来源冲突先解决'],
  ['web','Web 与 SFTP','当前工程','Web basePath|CSP basePath|Broker path|Cookie!|SFTP:停用,启用|主机|端口|用户名|密码!|本地目录|远端目录|忽略规则','project-env.json → .mcp.json','复用连接 → 核对传输范围 → 保存配置；保存不触发上传'],
- ['bos','BOS 个人连接','共享个人配置','查询 connection|access_key!|X-Gateway-Upstream-BOS-MCP-TOKEN!|cuser|cgroup|日志 connection|日志 token!|linkProject|timeout','BOS_MCP_CONFIG → personal-config.js','查询与日志凭据分开；保存影响引用同一个人配置的所有工程，返回工程后重新检查'],
+ ['bos','BOS 个人连接','共享个人配置','连接方式（只读）|已有自定义 url!|access_key!|X-Gateway-Upstream-BOS-MCP-TOKEN!|cuser|cgroup|日志 token!|linkProject|timeout','BOS_MCP_CONFIG → personal-config.js','查询与日志地址和凭据分别保存；保存影响引用同一个人配置的所有工程'],
  ['embedding','知识提供方与 Key','共享个人配置','默认提供方:company,openai|模型|维度|baseUrl|method:POST,GET|appId|appKey!|apiKey!','KNOWLEDGE_RAG_CONFIG → knowledge-embedding.js','保留现有 Key → 修改提供方 → 预览索引兼容性；模型或维度变化保留旧库并标记不匹配'],
  ['profiles','领域插件配置','当前工程','配置域:工程上下文,治疗表单,需求交付,i18n,远端策略,目录治理|处理方式:保留自定义内容,交给 Agent 补全','各 owner profile / schema','无可靠 schema 的字段保持只读；生成带来源的定向请求，不整体重写 Markdown'],
  ['mcp','MCP 注册与迁移','工程／宿主','服务名称|传输:stdio,HTTP|程序路径|参数|环境变量引用|服务状态:启用,禁用|管理方式:保留现有,受管 IRIS','工程 .mcp.json / owner migration','配置存在 → 程序存在 → 单独确认工具发现 → 正常关闭；认证与业务能力分别验证'],

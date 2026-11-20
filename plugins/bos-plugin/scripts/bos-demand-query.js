@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
 const personal = require('./personal-config');
+const { parseConnectionUrl } = require('./bos-connection');
 const fields = 'id title content source status type sgroup tgroup cgroup suser tuser cuser datetype date date2 product mod'.split(' ');
 const upstreamTool = 'post_imedway_ylxt_bosdata';
 const scopeFields = ['suser', 'tuser', 'cuser', 'sgroup', 'tgroup', 'cgroup'];
@@ -295,9 +296,7 @@ function loadConfig(env = process.env) {
     endpoint.searchParams.set('access_key', config.access_key);
     config = { ...config, url: endpoint.href };
   } else if (config.connection !== undefined) throw new Error('BOS connection 无效');
-  let url;
-  try { url = new URL(config.url); } catch { throw new Error('BOS URL 无效'); }
-  if (url.protocol !== 'https:' || url.username || url.password) throw new Error('BOS URL 必须使用 HTTPS 且不含用户信息');
+  const url = parseConnectionUrl('bos-demand-query', config.url);
   const headers = config.headers || {};
   if (!headers['X-Gateway-Upstream-BOS-MCP-TOKEN'] || headers['X-Gateway-Upstream-BOS-MCP-TOKEN'] === 'xxxxx' || /^TODO$/i.test(String(headers['X-Gateway-Upstream-BOS-MCP-TOKEN']).trim())) throw new Error('缺少 BOS 个人 Token。' + personal.fieldHelp('bos-demand-query.headers.X-Gateway-Upstream-BOS-MCP-TOKEN'));
   if (config.cuser !== undefined && typeof config.cuser !== 'string') throw new Error('本机 cuser 必须为字符串');
@@ -448,12 +447,16 @@ function initConfig(filePath, options) { return personal.initialize(filePath, op
 async function main() {
   const argv = process.argv.slice(2);
   const [command = 'serve', json] = argv;
-  if (argv.includes('--help')) { console.log('node bos-demand-query.js --todo [YYYY-MM-DD [YYYY-MM-DD] | YYYY-MM-DD~YYYY-MM-DD] [--proj|--dev]\nnode bos-demand-query.js --workload YYYY-MM-DD [YYYY-MM-DD] [--proj|--dev]\n--sort <创建时间|预计完成时间|分配时间|执行时间|操作时间> --order asc|desc; todo defaults to creation date.\n--proj / --dev: project / non-project sources; default to todo without --workload.\n--todo: personal development todos, optional due dates; --workload: personal workload, required execution dates. Both ends inclusive.\nnode bos-demand-query.js serve|check|defaults|query <JSON>|init-config [absolute-private-path]|migrate-config <existing-private-path>\nBOS_MCP_CONFIG: shared private JSON with bos-demand-query and bos-code-update-log sections. Only the selected skill section is read. migrate-config converts the old flat query file in place. Node >=22.5.0.'); return; }
+  if (argv.includes('--help')) { console.log('node bos-demand-query.js --todo [YYYY-MM-DD [YYYY-MM-DD] | YYYY-MM-DD~YYYY-MM-DD] [--proj|--dev]\nnode bos-demand-query.js --workload YYYY-MM-DD [YYYY-MM-DD] [--proj|--dev]\n--sort <创建时间|预计完成时间|分配时间|执行时间|操作时间> --order asc|desc; todo defaults to creation date.\n--proj / --dev: project / non-project sources; default to todo without --workload.\n--todo: personal development todos, optional due dates; --workload: personal workload, required execution dates. Both ends inclusive.\nnode bos-demand-query.js serve|check|defaults|query <JSON>|init-config [absolute-private-path]\nnode bos-demand-query.js migrate-config [--strict-json] <existing-private-path>\nBOS_MCP_CONFIG: shared private JSON or JSONC with separate bos-demand-query and bos-code-update-log sections. migrate-config explicitly wraps an old flat query file in place. --strict-json removes comments from an already sectioned file for older readers. Node >=22.5.0.'); return; }
   const personalInput = ['--todo', '--workload', '--proj', '--dev', '--sort', '--order'].includes(command) ? parsePersonalCli(argv) : null;
   const [major, minor] = process.versions.node.split('.').map(Number);
   if (major < 22 || (major === 22 && minor < 5)) throw new Error('需要 Node.js >=22.5.0（Agent 工具链运行时）');
   if (command === 'init-config') { console.log(JSON.stringify(initConfig(json))); return; }
-  if (command === 'migrate-config') { console.log(JSON.stringify(personal.migrate(json))); return; }
+  if (command === 'migrate-config') {
+    const strictJson = json === '--strict-json';
+    if (argv.length !== (strictJson ? 3 : 2)) throw new Error('用法：migrate-config [--strict-json] <原私有文件绝对路径>');
+    console.log(JSON.stringify(personal.migrate(strictJson ? argv[2] : json, {strictJson}))); return;
+  }
   const config = loadConfig();
   if (command === 'defaults') {
     console.log(JSON.stringify({ cuser: process.env.BOS_CUSER || config.cuser || '', cgroup: process.env.BOS_CGROUP ?? config.cgroup ?? '' }));

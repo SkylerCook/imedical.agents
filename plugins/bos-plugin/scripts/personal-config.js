@@ -2,6 +2,8 @@
 const fs = require('node:fs'), path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
+const configIO = require('../runtime/scripts/lib/configuration-file-io.js');
+const jsonc = require('../runtime/vendor/jsonc-parser/main.js');
 const QUERY_SKILL = 'bos-demand-query', LOG_SKILL = 'bos-code-update-log';
 const FIELD_HELP = {
   'bos-demand-query.access_key': '公司接入当前使用统一 access_key，无需个人申请；请向框架维护者通过内部安全渠道获取，填入仓外私有配置。自定义连接按服务提供方说明获取凭证。',
@@ -20,9 +22,12 @@ function setupGuidance(fill) {
   };
 }
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
-function readPrivate(file) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); }
-  catch { throw new Error('无法读取 BOS 私有 JSON 配置，原文件保留'); }
+function readPrivate(file, expected) {
+  try {
+    const bytes = expected ?? fs.readFileSync(file);
+    const raw = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+    return { raw, value: structuredClone(configIO.parse(raw)) };
+  } catch { throw new Error('无法读取 BOS 私有 JSON/JSONC 配置，原文件保留'); }
 }
 function companyUrl(key = 'url') {
   const value = JSON.parse(fs.readFileSync(path.join(__dirname, '../references/company-defaults.json'), 'utf8'))[key];
@@ -64,7 +69,7 @@ function outsideRepo(target) {
 function readSkillConfig(env, skill) {
   const file = env.BOS_MCP_CONFIG;
   if (typeof file !== 'string' || !file.trim() || !path.isAbsolute(file)) throw new Error('BOS_MCP_CONFIG 必须为仓外私有配置文件的绝对路径');
-  const root = readPrivate(file);
+  const { value: root } = readPrivate(file);
   if (!isObject(root)) throw new Error('BOS 私有配置必须为按 skill 分段的对象');
   if (!Object.hasOwn(root, skill)) throw new Error(`缺少 ${skill} 配置段；旧平铺格式不再支持，请显式运行 migrate-config`);
   const selected = root[skill];
@@ -76,28 +81,63 @@ function queryPlaceholder() {
   return { connection: 'company', access_key: 'TODO', headers: { 'X-Gateway-Upstream-BOS-MCP-TOKEN': 'TODO' }, cuser: 'TODO', cgroup: 'TODO' };
 }
 function logPlaceholder() { return { connection: 'company', token: 'TODO', linkProject: 'TODO', timeout: 30000 }; }
-function completeSections(root) {
+function assertSectioned(root) {
   if (!isObject(root) || (!Object.hasOwn(root, QUERY_SKILL) && !Object.hasOwn(root, LOG_SKILL))) throw new Error('已有配置不是按 skill 分段的格式；请显式运行 migrate-config，原文件保留');
   for (const name of [QUERY_SKILL, LOG_SKILL]) {
     if (Object.hasOwn(root, name) && !isObject(root[name])) throw new Error(`${name} 配置段必须为对象，原文件保留`);
   }
+}
+function completeSections(root) {
+  assertSectioned(root);
   return { ...root, [QUERY_SKILL]: root[QUERY_SKILL] || queryPlaceholder(), [LOG_SKILL]: root[LOG_SKILL] || logPlaceholder() };
+}
+function editSections(raw, original, next) {
+  const changes = [QUERY_SKILL, LOG_SKILL].filter(name => !Object.hasOwn(original, name))
+    .map(name => ({path: [name], value: next[name]}));
+  return changes.length ? configIO.edit(raw, changes) : raw;
+}
+function wrapFlatQuery(raw, log) {
+  const bom = raw.startsWith('\uFEFF') ? 1 : 0;
+  const body = raw.slice(bom);
+  const tree = jsonc.parseTree(body);
+  const start = bom + tree.offset;
+  const end = start + tree.length;
+  const eol = raw.match(/\r\n|\r|\n/)?.[0] || '\n';
+  const indent = raw.match(/(?:\r\n|\r|\n)([ \t]+)"/)?.[1] || '  ';
+  const logText = JSON.stringify(log, null, indent).replace(/\n/g, eol + indent);
+  const wrapped = '{' + eol + indent + JSON.stringify(QUERY_SKILL) + ': ' + raw.slice(start, end) + ',' +
+    eol + indent + JSON.stringify(LOG_SKILL) + ': ' + logText + eol + '}';
+  const next = raw.slice(0, start) + wrapped + raw.slice(end);
+  configIO.parse(next);
+  return next;
+}
+function strictJsonText(raw) {
+  const bom = raw.startsWith('\uFEFF') ? '\uFEFF' : '';
+  const body = raw.slice(bom.length);
+  try { JSON.parse(body); return raw; }
+  catch {
+    const strict = jsonc.stripComments(body, ' ');
+    JSON.parse(strict);
+    return bom + strict;
+  }
 }
 // Replacement is guarded by the original bytes; temporary credentials stay beside
 // the private file, never in the framework or a repository, and are always removed.
-function writePrivate(target, value, expected = null) {
+function writePrivate(target, bytes, expected = null) {
   assertHostConfigPath(target); outsideRepo(target);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   assertHostConfigPath(target); outsideRepo(target);
-  const bytes = Buffer.from(JSON.stringify(value, null, 2) + '\n');
   const temp = path.join(path.dirname(target), `.${path.basename(target)}.${randomBytes(12).toString('hex')}.tmp`);
-  let owned = false;
+  const descriptor = fs.openSync(temp, 'wx', 0o600);
+  let owned = true;
   try {
-    fs.writeFileSync(temp, bytes, { flag: 'wx', mode: expected ? fs.statSync(target).mode & 0o777 : 0o600 });
-    owned = true;
-    // MSIX can redirect a newly created file even when the existing target was
-    // read from the host filesystem. Verify the actual temporary file before use.
-    assertHostConfigPath(temp); outsideRepo(temp);
+    try {
+      // Check the actual file before writing any private values to it.
+      assertHostConfigPath(temp); outsideRepo(temp);
+      assertHostConfigPath(target); outsideRepo(target);
+      if (expected !== null) configIO.copyFileAccess(target, temp);
+      fs.writeFileSync(descriptor, bytes);
+    } finally { fs.closeSync(descriptor); }
     if (expected === null) {
       // Exclusive creation also guards the race between existence check and write.
       fs.copyFileSync(temp, target, fs.constants.COPYFILE_EXCL);
@@ -110,6 +150,12 @@ function writePrivate(target, value, expected = null) {
     if (!fs.readFileSync(target).equals(bytes)) throw new Error('个人配置写后回读不一致，请检查文件状态');
   } finally { if (owned) fs.unlinkSync(temp); }
 }
+function saveIfChanged(file, raw, expected) {
+  const bytes = Buffer.from(raw);
+  if (expected?.equals(bytes)) return false;
+  writePrivate(file, bytes, expected);
+  return true;
+}
 function initialize(filePath, { env = process.env, platform = process.platform, binding = windowsBinding } = {}) {
   if (platform !== 'win32') throw new Error('自动配置仅支持 Windows；其它平台显式配置 BOS_MCP_CONFIG，初始化未写入');
   const saved = binding();
@@ -119,10 +165,10 @@ function initialize(filePath, { env = process.env, platform = process.platform, 
   const existed = fs.existsSync(target);
   outsideRepo(target);
   const expected = existed ? fs.readFileSync(target) : null;
-  const original = existed ? readPrivate(target) : null;
-  const value = existed ? completeSections(original) : { [QUERY_SKILL]: queryPlaceholder(), [LOG_SKILL]: logPlaceholder() };
-  const changed = !existed || JSON.stringify(original) !== JSON.stringify(value);
-  if (changed) writePrivate(target, value, expected);
+  const original = existed ? readPrivate(target, expected) : null;
+  const value = original ? completeSections(original.value) : { [QUERY_SKILL]: queryPlaceholder(), [LOG_SKILL]: logPlaceholder() };
+  const raw = original ? editSections(original.raw, original.value, value) : JSON.stringify(value, null, 2) + '\n';
+  const changed = saveIfChanged(target, raw, expected);
   const values = { BOS_MCP_CONFIG: target };
   const result = binding(values);
   for (const [key, value] of Object.entries(values)) {
@@ -137,21 +183,28 @@ function initialize(filePath, { env = process.env, platform = process.platform, 
   }
   return { created: !existed, updated: changed && existed, configPath: target, bindingVerified: true, fill, guidance: setupGuidance(fill), restartClient: true };
 }
-function migrate(filePath, { platform = process.platform } = {}) {
+function migrate(filePath, { platform = process.platform, strictJson = false } = {}) {
   if (platform !== 'win32') throw new Error('自动迁移仅支持 Windows；其它平台请显式整理按 skill 分段的私有配置，未写入');
   if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) throw new Error('migrate-config 需要原私有文件绝对路径');
   assertHostConfigPath(filePath); outsideRepo(filePath);
   const expected = fs.readFileSync(filePath);
-  const root = readPrivate(filePath);
-  let next;
-  if (isObject(root) && (Object.hasOwn(root, QUERY_SKILL) || Object.hasOwn(root, LOG_SKILL))) next = completeSections(root);
-  else {
+  const { raw, value: root } = readPrivate(filePath, expected);
+  let next, content;
+  if (strictJson) {
+    assertSectioned(root);
+    next = root;
+    content = strictJsonText(raw);
+  } else if (Object.hasOwn(root, QUERY_SKILL) || Object.hasOwn(root, LOG_SKILL)) {
+    next = completeSections(root);
+    content = editSections(raw, root, next);
+  } else {
     const allowed = ['connection', 'access_key', 'url', 'headers', 'cuser', 'cgroup', 'enabled'];
     if (!isObject(root) || Object.keys(root).some(key => !allowed.includes(key)) || (!root.connection && !root.url)) throw new Error('原配置不是可迁移的平铺查询配置；原文件保留，请按迁移说明人工核对');
     next = { [QUERY_SKILL]: root, [LOG_SKILL]: logPlaceholder() };
+    content = wrapFlatQuery(raw, next[LOG_SKILL]);
   }
-  const changed = JSON.stringify(root) !== JSON.stringify(next);
-  if (changed) writePrivate(filePath, next, expected);
-  return { migrated: changed, configPath: filePath, queryPreserved: true, logConfigured: !/^TODO$/i.test(String(next[LOG_SKILL].token || 'TODO')) && !/^TODO$/i.test(String(next[LOG_SKILL].linkProject || 'TODO')) };
+  const changed = saveIfChanged(filePath, content, expected);
+  const log = next[LOG_SKILL];
+  return { migrated: changed, configPath: filePath, queryPreserved: true, logConfigured: !/^TODO$/i.test(String(log?.token || 'TODO')) && !/^TODO$/i.test(String(log?.linkProject || 'TODO')) };
 }
 module.exports = { initialize, migrate, readSkillConfig, standardPath, companyUrl, windowsBinding, fieldHelp };

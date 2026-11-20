@@ -1,13 +1,81 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { spawn } = require('node:child_process');
+const { fork, spawn, spawnSync } = require('node:child_process');
 const { once } = require('node:events');
 const fs = require('node:fs');
+const http = require('node:http');
 const path = require('node:path');
 const { createInterface } = require('node:readline');
 const { test } = require('node:test');
+const { setTimeout: delay } = require('node:timers/promises');
 const { createTempDirectory, ownsTempDirectory } = require('../../../scripts/tests/fixtures/temp-directory');
+
+test('Windows default launcher keeps startup diagnostics and handles picker cancellation', {
+  skip: process.platform !== 'win32', timeout: 30000,
+}, async t => {
+  const root = createTempDirectory('workbench-default-launch-');
+  t.after(() => {
+    assert.ok(ownsTempDirectory(root));
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 3 });
+  });
+  fs.copyFileSync(path.resolve(__dirname, '../react/start-workbench.cmd'), path.join(root, 'start-workbench.cmd'));
+  const selector = path.join(root, 'powershell.exe');
+  const powershell = path.join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe');
+  const compile = `
+$ErrorActionPreference = 'Stop'
+$source = @'
+using System;
+public static class WorkbenchPickerFixture {
+    public static int Main(string[] args) {
+        if (args.Length != 4 || args[2] != "-Command") return 99;
+        switch (Environment.GetEnvironmentVariable("WORKBENCH_TEST_PICKER_RESULT")) {
+            case "cancelled": return 0;
+            case "failed": Console.Error.WriteLine("fixture startup failed"); return 37;
+            default: return 99;
+        }
+    }
+}
+'@
+Add-Type -TypeDefinition $source -Language CSharp -OutputAssembly $env:WORKBENCH_TEST_PICKER_EXE -OutputType ConsoleApplication
+`;
+  const compiled = spawnSync(powershell, ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(compile, 'utf16le').toString('base64')], {
+    cwd: root, env: { ...process.env, WORKBENCH_TEST_PICKER_EXE: selector }, encoding: 'utf8', windowsHide: true, timeout: 15000,
+  });
+  assert.ifError(compiled.error);
+  assert.equal(compiled.status, 0, compiled.stderr);
+  assert.ok(fs.statSync(selector).isFile());
+
+  // Exercise the actual batch file and PAUSE; the fixture returns the selector outcome without a native dialog.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(PATH|ERRORLEVEL|WORKBENCH_TEST_PICKER_RESULT)$/i.test(key)));
+  env.Path = [root, process.env.Path].join(path.delimiter);
+  function invoke(command, outcome) {
+    const result = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/c', command], {
+      cwd: root, env: { ...env, WORKBENCH_TEST_PICKER_RESULT: outcome }, input: '\n', encoding: 'utf8', windowsHide: true, timeout: 5000,
+    });
+    assert.ifError(result.error);
+    return result;
+  }
+  const pause = invoke('pause', 'cancelled');
+  assert.equal(pause.status, 0, pause.stderr);
+  const prompt = pause.stdout.trim();
+  assert.ok(prompt, 'CMD returned no localized pause prompt');
+
+  await t.test('startup failure retains stderr, pauses, and preserves the exit code', () => {
+    const result = invoke('start-workbench.cmd', 'failed');
+    assert.equal(result.status, 37);
+    assert.match(result.stderr, /fixture startup failed/);
+    assert.match(result.stdout, /Workbench could not start\. Check the message above\./);
+    assert.ok(result.stdout.includes(prompt));
+  });
+  await t.test('picker cancellation exits successfully without a failure prompt', () => {
+    const result = invoke('start-workbench.cmd', 'cancelled');
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, '');
+    assert.doesNotMatch(result.stdout, /Workbench could not start/);
+    assert.ok(!result.stdout.includes(prompt));
+  });
+});
 
 test('Windows package launcher keeps two project sessions independent', { skip: process.platform !== 'win32' }, async t => {
   const root = createTempDirectory('workbench-parallel-launch-');
@@ -131,4 +199,136 @@ test('Windows package launcher keeps two project sessions independent', { skip: 
   fs.writeFileSync(first.stop, '');
   assert.equal((await first.stopped)[0], 0);
   assert.equal((await refresh(second, secondSession)).projectId, secondState.projectId);
+});
+
+test('disconnecting from the launcher drains an admitted settings write after its HTTP client leaves', {
+  timeout: 20000,
+}, async t => {
+  const root = createTempDirectory('workbench-settings-drain-');
+  const project = path.join(root, '工程');
+  const capability = path.join(project, '.agents');
+  const config = path.join(capability, 'config/project.jsonc');
+  const preload = path.join(root, 'owner-gate.cjs');
+  const marker = name => path.join(root, name);
+  const initial = { deployment: { schema: 'plugin-deployment/v1', mode: 'on-demand', autoInstall: false } };
+  const env = { ...process.env, PORT: '0', WORKBENCH_STARTUP_PARENT: '1', WORKBENCH_TEST_GATE: root,
+    BOS_MCP_CONFIG: '', KNOWLEDGE_RAG_CONFIG: '', GIT_ALLOW_PROTOCOL: '', GIT_NO_LAZY_FETCH: '1' };
+  let server, stopped;
+  t.after(async () => {
+    if (server && server.exitCode === null && server.signalCode === null) {
+      fs.writeFileSync(marker('release'), '');
+      if (server.connected) server.disconnect();
+      const timedOut = await Promise.race([stopped.then(() => false), delay(4000, true, { ref: false })]);
+      if (timedOut) { server.kill('SIGKILL'); await stopped; }
+    }
+    assert.ok(ownsTempDirectory(root));
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 3 });
+  });
+  fs.mkdirSync(path.dirname(config), { recursive: true });
+  const initialized = spawnSync('git', ['init', '-q', capability], { env, encoding: 'utf8', windowsHide: true });
+  assert.equal(initialized.status, 0, initialized.stderr);
+  fs.writeFileSync(config, JSON.stringify(initial));
+  fs.writeFileSync(preload, `
+    const fs = require('node:fs');
+    const http = require('node:http');
+    const path = require('node:path');
+    const { setTimeout: delay } = require('node:timers/promises');
+    const mark = name => path.join(process.env.WORKBENCH_TEST_GATE, name);
+    const createServer = http.createServer;
+    http.createServer = (...args) => {
+      const server = createServer(...args);
+      server.on('request', (request, response) => {
+        if (request.url !== '/framework/settings/apply') return;
+        response.once('close', () => {
+          if (!response.writableFinished) fs.writeFileSync(mark('client-closed'), '');
+        });
+      });
+      return server;
+    };
+    const settings = require(${JSON.stringify(path.join(__dirname, '../prototype/project-settings.js'))});
+    const createSettings = settings.createProjectSettings;
+    settings.createProjectSettings = (...args) => {
+      const owner = createSettings(...args);
+      return { ...owner, async apply(...applyArgs) {
+        fs.writeFileSync(mark('owner-entered'), '');
+        for (let attempt = 0; !fs.existsSync(mark('release')); attempt++) {
+          if (attempt === 300) throw Error('test did not release settings owner');
+          await delay(25);
+        }
+        const result = await owner.apply(...applyArgs);
+        fs.writeFileSync(mark('owner-completed'), result.status);
+        return result;
+      } };
+    };
+  `);
+  server = fork(path.join(__dirname, '../prototype/serve.js'), ['--project', project], {
+    env, execArgv: ['--require', preload], silent: true,
+  });
+  stopped = once(server, 'exit');
+  const [hello] = await Promise.race([once(server, 'message', { signal: AbortSignal.timeout(6000) }),
+    stopped.then(([code]) => { throw Error(`Workbench exited before it started (${code})`); })]);
+  const origin = new URL(hello.address).origin;
+  const headers = { 'x-workbench-request': '1', connection: 'close' };
+  const postHeaders = { ...headers, origin, 'content-type': 'application/json' };
+  const post = (route, body, auth = {}) => fetch(origin + route, {
+    method: 'POST', headers: { ...postHeaders, ...auth }, body: JSON.stringify(body), signal: AbortSignal.timeout(4000),
+  });
+  const session = await post('/framework/session', { token: hello.bootstrap });
+  assert.equal(session.status, 200);
+  const auth = { cookie: session.headers.get('set-cookie').split(';')[0], 'x-workbench-csrf': (await session.json()).csrf };
+  const settings = await fetch(origin + '/settings/project', { headers, signal: AbortSignal.timeout(4000) });
+  assert.equal(settings.status, 200);
+  const { revision } = await settings.json();
+  const preview = await post('/framework/settings/plan/project', {
+    revision, changes: { 'deployment.autoInstall': { value: true } },
+  }, auth);
+  assert.equal(preview.status, 200);
+  const { planId } = await preview.json();
+  const requestBody = JSON.stringify({ planId });
+  const request = http.request(origin + '/framework/settings/apply', {
+    method: 'POST', headers: { ...postHeaders, ...auth, 'content-length': Buffer.byteLength(requestBody) },
+  });
+  request.on('error', () => {}); // The test intentionally destroys this socket.
+  const clientClosed = new Promise(resolve => request.once('close', resolve));
+  request.end(requestBody);
+  async function waitForMarker(name) {
+    for (let attempt = 0; attempt < 120; attempt++) {
+      if (fs.existsSync(marker(name))) return;
+      await delay(25);
+    }
+    assert.fail(`the workbench did not reach ${name}`);
+  }
+  await waitForMarker('owner-entered');
+  request.destroy();
+  await clientClosed;
+  await waitForMarker('client-closed');
+  server.disconnect();
+
+  let closed = false;
+  for (let attempt = 0; attempt < 30 && !closed; attempt++) {
+    try {
+      const probe = await fetch(origin + '/framework.json', { headers, signal: AbortSignal.timeout(400) });
+      if (probe.status === 503) {
+        assert.deepEqual(await probe.json(), { error: 'workbench-shutting-down' });
+        closed = true;
+      } else {
+        assert.equal(probe.status, 200);
+        await probe.text();
+      }
+    } catch (error) {
+      if (!['ECONNREFUSED', 'ECONNRESET', 'UND_ERR_SOCKET'].includes(error.cause?.code)) throw error;
+      closed = true;
+    }
+    if (!closed) await delay(25);
+  }
+  assert.ok(closed, 'the workbench still accepted new HTTP requests during shutdown');
+  assert.equal(server.exitCode, null);
+  assert.equal(server.signalCode, null);
+  assert.equal(fs.existsSync(marker('owner-completed')), false);
+  assert.deepEqual(JSON.parse(fs.readFileSync(config, 'utf8')), initial);
+  fs.writeFileSync(marker('release'), '');
+
+  assert.deepEqual(await stopped, [0, null]);
+  assert.equal(fs.readFileSync(marker('owner-completed'), 'utf8'), 'saved');
+  assert.equal(JSON.parse(fs.readFileSync(config, 'utf8')).deployment.autoInstall, true);
 });

@@ -5,6 +5,7 @@ import { Notice } from "./ui";
 
 const reasons: Record<string, string> = {
   "release-not-newer": "请选择高于当前工作台版本的发布包。",
+  "release-record-invalid": "请选择随工作台 ZIP 发放的工作台发行记录（JSON）。",
   "release-selection-changed": "发行记录在导入期间发生变化，请重新选择。",
   "release-picker-unavailable": "无法打开 Windows 文件选择窗口。请从工作台启动器重新打开当前工程。",
   "import-failed": "校验或导入失败。请核对可信渠道提供的 ZIP 和包外发行记录。",
@@ -52,7 +53,8 @@ export function ReleaseUpdateControls({ projectId, revision, disabled, canRollba
     }
   }
 
-  return <section className="space-y-2 border-t pt-3" aria-label="工作台版本更新">
+  return <section className="space-y-2 border-t pt-3" aria-labelledby="workbench-release-update">
+    <h5 id="workbench-release-update" className="font-medium">更新工作台</h5>
     <div className="flex flex-wrap gap-2">
       <Button type="button" variant="outline" disabled={disabled || !!pending} onClick={() => void choose("open")}>
         {pending === "open" ? "正在选择或核验发布包…" : "导入工作台新版"}

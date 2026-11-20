@@ -16,11 +16,11 @@ const browserApp = process.env.WORKBENCH_OVERLAY_PILOT_APP;
 const serverEntry = path.join(browserApp || repo,'tools/agents-workbench/prototype/serve.js');
 const a = 'b65675b656519b2a2bda02fd2b26e1a19fdbdd62';
 const b = '5520bdf7854561bd80e04fcc9330b6bb921bfe80';
-const released = 'e943fc299efe658e1a2da90602a50d85cf2a3c7b';
+const released = 'afb19d0e980a48ce2c49d945aff11c2120861d3a';
 const digest = '30b13b1d4a6e499cbc56e7da2355ff345ac269f74d8222a07b8d523e03ce9427';
 const origin = 'https://gitee.com/skyler-cook/imedical.agents.git';
 
-test('Workbench updates a stock root once, refreshes two stock Overlay projects, and resumes selected members', {
+test('Workbench hands off a stock root and two Overlay projects to the existing two-phase updater', {
   skip:process.platform !== 'win32',
 }, async t => {
   const directory = createTempDirectory('workbench-overlay-stock-');
@@ -48,7 +48,10 @@ test('Workbench updates a stock root once, refreshes two stock Overlay projects,
   const cap = path.join(root,'.agents');
   const registry = path.join(cap,'.git/plugin-deployment.json');
   const psDir = path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0');
-  const env = {...process.env, PORT:'0', GIT_ALLOW_PROTOCOL:'file', GIT_TERMINAL_PROMPT:'0',
+  const inherited = Object.fromEntries(Object.entries(process.env).filter(([name])=>!/^(path|psmodulepath)$/iu.test(name)));
+  const env = {...inherited, PATH:[path.dirname(process.execPath),process.env.PATH || ''].join(path.delimiter),
+    PORT:'0', GIT_ALLOW_PROTOCOL:'file', GIT_TERMINAL_PROMPT:'0',
+    https_proxy:'http://127.0.0.1:1', no_proxy:'',
     GIT_CONFIG_COUNT:'1',GIT_CONFIG_KEY_0:'url.' + pathToFileURL(mirror).href + '.insteadOf',GIT_CONFIG_VALUE_0:origin,
     PSModulePath:path.join(psDir,'Modules')};
   delete env.IMEDICAL_DEPLOYMENT_LOCK;
@@ -59,10 +62,26 @@ test('Workbench updates a stock root once, refreshes two stock Overlay projects,
     return result.stdout.trim();
   }
   const git = (cwd,...args) => run(cwd,'git',args);
-  function ps(cwd,entry,parameters) {
+  function ps(cwd,entry,parameters,blocker) {
     const result = runOwnerPowerShell(path.join(psDir,'powershell.exe'),entry,parameters,{cwd,env,timeout:150000});
     assert.ifError(result.error);
-    assert.equal(result.status,0,result.stderr || result.stdout || entry);
+    if (blocker) {
+      assert.equal(result.status,1,result.stderr || result.stdout || entry);
+      assert.match(result.stdout,blocker);
+    } else assert.equal(result.status,0,result.stderr || result.stdout || entry);
+    return result.stdout;
+  }
+  const ownerCalls = [];
+  function runUpdate(workspace,mode,noPull=false,blocker) {
+    ownerCalls.push([workspace,mode,noPull]);
+    return ps(workspace,path.join(cap,'scripts/update-agents.ps1'),{
+      ProjectRoot:workspace, Mode:mode, Detailed:true, ...(noPull ? {NoPull:true} : {})
+    },blocker);
+  }
+  function refreshMember(workspace) {
+    for (const mode of ['DryRun','Write','Check']) {
+      assert.match(runUpdate(workspace,mode,true),/capability-pull-skipped-overlay/);
+    }
   }
   const readRegistry = () => JSON.parse(fs.readFileSync(registry));
 
@@ -207,70 +226,136 @@ test('Workbench updates a stock root once, refreshes two stock Overlay projects,
     const sourceUnready = current.overlay.members.find(member=>member.status === 'owner-blocked');
     assert.equal(sourceUnready.issue,'member-sources-unready');
     assert.equal((await primary.act('refresh-overlay',current,{overlayPlanId:current.overlay.planId,
-      memberIds:[sourceUnready.id]})).body.error,'overlay-selection-unverified');
+      memberIds:[sourceUnready.id]})).body.error,'framework-update-use-agent');
     const opened = await connectOpened(await open(primary,current,sourceUnready.id));
     const blocked = await opened.read();
     assert.equal(blocked.overlay.standardRoot,root);
     assert.equal(blocked.overlay.issue,'member-sources-unready');
     assert.equal(blocked.overlay.canRefresh,false);
     assert.equal((await opened.post('overlay/refresh',{projectId:blocked.projectId,revision:blocked.revision,
-      overlayPlanId:blocked.overlay.planId})).body.error,'overlay-member-unready');
+      overlayPlanId:blocked.overlay.planId})).body.error,'framework-update-use-agent');
     const standard = await connectOpened(await open(opened,blocked));
     assert.equal((await standard.read()).binding,before.binding);
   } finally { fs.renameSync(disabledGit,backendGit); }
   before = (await primary.act('refresh',before)).body;
   t.diagnostic('Verified navigation stays available for a module with an unready GitRoot');
 
+  function updateNote(client,state) {
+    return client.post('update-note',{projectId:state.projectId,revision:state.revision});
+  }
+  const refsBefore = git(cap,'for-each-ref','--format=%(refname) %(objectname)');
+  const registryBefore = fs.readFileSync(registry);
+  const rootNote = await updateNote(primary,before);
+  assert.equal(rootNote.res.status,200,JSON.stringify(rootNote.body));
+  assert.equal(rootNote.body.revision,a);
+  assert.match(rootNote.body.prompt,/已登记的 Overlay 成员如下/u);
+  assert.ok(rootNote.body.prompt.includes(path.basename(left.workspace)));
+  assert.ok(rootNote.body.prompt.includes(path.basename(right.workspace)));
+  const memberNote = await updateNote(local,await local.read());
+  assert.equal(memberNote.res.status,200,JSON.stringify(memberNote.body));
+  assert.equal(memberNote.body.revision,a);
+  assert.ok(memberNote.body.prompt.includes(JSON.stringify(root)));
+  assert.ok(memberNote.body.prompt.includes(JSON.stringify(left.context)));
+  assert.ok(!memberNote.body.prompt.includes(right.workspace));
+
   if (browserApp) {
     const hello = await start(root);
     const result = spawnSync('python',['-B',path.join(__dirname,'overlay-browser-pilot.py'),browserApp],{
-      cwd:repo,input:JSON.stringify(hello),encoding:'utf8',windowsHide:true,timeout:90000});
+      cwd:repo,env:{...process.env,PYTHONIOENCODING:'utf8'},input:JSON.stringify(hello),
+      encoding:'utf8',windowsHide:true,timeout:90000});
     assert.ifError(result.error);
     assert.equal(result.status,0,result.stderr || result.stdout);
-    t.diagnostic('Verified real Edge navigation, failed child launch and module refresh');
+    t.diagnostic('Verified real Edge navigation, failed child launch, scoped clipboard prompts and manual copy');
+  }
+
+  async function readMemberInEdge(expected) {
+    if (!browserApp) return;
+    const hello = await start(root);
+    const check = `
+import json, sys
+from playwright.sync_api import sync_playwright
+hello = json.load(sys.stdin)
+with sync_playwright() as playwright:
+    browser = playwright.chromium.launch(channel="msedge", headless=True)
+    page = browser.new_page()
+    page.goto(hello["address"].partition("#")[0] + "#bootstrap=" + hello["bootstrap"])
+    page.get_by_role("button", name="重新读取", exact=True).click(timeout=20000)
+    page.get_by_text(hello["expected"], exact=True).wait_for(timeout=20000)
+    browser.close()
+`;
+    const result = spawnSync('python',['-B','-c',check],{cwd:repo,env:{...process.env,PYTHONIOENCODING:'utf8'},
+      input:JSON.stringify({...hello,expected}),encoding:'utf8',windowsHide:true,timeout:45000});
+    assert.ifError(result.error);
+    assert.equal(result.status,0,result.stderr || result.stdout);
   }
 
   git(mirror,'update-ref','refs/heads/master',b,a);
-  const preview = await primary.act('fetch-preview',before);
-  assert.equal(preview.res.status,200,JSON.stringify(preview.body));
-  assert.equal(preview.body.after.revision,b);
-  assert.equal(preview.body.canApply,true);
-  assert.ok(!Object.hasOwn(preview.body,'overlayPlan'));
-  const planned = await primary.read();
-  const [first,second,offline] = planned.overlay.members.map(member=>member.id);
-  const selection = ids=>({overlayPlanId:planned.overlay.planId,memberIds:ids});
-  const unauthorized = await primary.post('action',{action:'apply',projectId:planned.projectId,revision:b,...selection([first])},false);
-  assert.equal(unauthorized.res.status,403);
-  assert.equal((await primary.act('apply',planned,selection([offline]))).body.error,'overlay-selection-unverified');
-  assert.equal((await primary.act('apply',planned,{...selection([first]),overlayPlanId:'0'.repeat(64)})).body.error,'overlay-plan-changed');
-
-  const updated = await primary.act('apply',planned,selection([first,second]));
-  assert.equal(updated.res.status,200,JSON.stringify(updated.body));
-  assert.equal(updated.body.exitCode,0,JSON.stringify(updated.body));
-  assert.deepEqual(updated.body.steps.map(step=>step.step),['apply','check']);
-  assert.equal(updated.body.overlayUpdate.rootStatus,'updated');
-  assert.equal(updated.body.overlayUpdate.status,'complete',JSON.stringify(updated.body));
-  for (const member of updated.body.overlayUpdate.members) {
-    assert.deepEqual(member.steps.map(step=>[step.mode,step.exitCode,step.noPull]),
-      [['DryRun',0,true],['Write',0,true],['Check',0,true]]);
+  for (const action of ['fetch-preview','apply','refresh-overlay']) {
+    const result = await primary.act(action,before);
+    assert.equal(result.res.status,409,JSON.stringify(result.body));
+    assert.equal(result.body.error,'framework-update-use-agent');
   }
-  assert.equal(updated.body.canApply,false);
+  assert.equal(git(cap,'rev-parse','HEAD'),a);
+  assert.equal(git(cap,'for-each-ref','--format=%(refname) %(objectname)'),refsBefore);
+  assert.deepEqual(fs.readFileSync(registry),registryBefore);
 
-  const state = await primary.read();
-  git(left.workspace,'config','--local','core.attributesFile','fixture-custom-attributes');
-  const partial = await primary.act('refresh-overlay',state,{overlayPlanId:state.overlay.planId,memberIds:[first,second]});
-  assert.equal(partial.res.status,200,JSON.stringify(partial.body));
-  assert.deepEqual(partial.body.steps,[]);
-  assert.equal(partial.body.overlayUpdate.rootStatus,'current');
-  assert.equal(partial.body.overlayUpdate.status,'partial');
-  assert.deepEqual(partial.body.overlayUpdate.members.map(member=>member.status),['failed','complete']);
-  git(left.workspace,'config','--local','--unset','core.attributesFile');
-  const resume = await primary.read();
-  const retried = await primary.act('refresh-overlay',resume,{overlayPlanId:resume.overlay.planId,memberIds:[first]});
-  assert.equal(retried.res.status,200,JSON.stringify(retried.body));
-  assert.deepEqual(retried.body.steps,[]);
-  assert.equal(retried.body.overlayUpdate.status,'complete',JSON.stringify(retried.body));
-  assert.deepEqual(retried.body.overlayUpdate.members.map(member=>member.id),[first]);
+  // Exercise the exact owner commands named by the handoff, outside the Workbench HTTP service.
+  runUpdate(root,'DryRun');
+  runUpdate(root,'Write',true);
+  runUpdate(root,'Check',true);
+  assert.equal(git(cap,'rev-parse','HEAD'),b);
+  refreshMember(left.workspace);
+
+  const rightWindow = await connect(right.workspace);
+  const rightState = await rightWindow.read();
+  const sharedGitState = () => ({
+    refs:git(cap,'for-each-ref','--format=%(refname) %(objectname)'),
+    headReflog:git(cap,'reflog','show','--format=%H %gs','HEAD'),
+    sparse:fs.readFileSync(path.join(cap,'.git/info/sparse-checkout')),
+  });
+  const sharedAfterUpdate = sharedGitState();
+  const leftFiles = [...left.localFiles.keys(), ...['config','scripts','skills'].flatMap(name =>
+    fs.readdirSync(path.join(left.context,name),{recursive:true,withFileTypes:true})
+      .filter(file=>file.isFile()).map(file=>path.join(file.parentPath,file.name)))];
+  const readLeft = () => leftFiles.map(file=>[fs.readFileSync(file),fs.statSync(file,{bigint:true}).mtimeNs]);
+  const leftAfterRefresh = readLeft();
+  fs.renameSync(backendGit,disabledGit);
+  try {
+    // Let the checked-out owner reject the unavailable SourceRoot, without mocking the process.
+    const failed = runUpdate(right.workspace,'DryRun',true,/workspace-overlay-blocked/u);
+    assert.match(failed,/git-root-missing|source-directory-invalid/u);
+    const blockedRoot = (await primary.act('refresh',before)).body;
+    assert.equal(blockedRoot.revision,b);
+    assert.deepEqual(blockedRoot.overlay.members.map(member=>member.status),['ready','owner-blocked','offline']);
+    const blocked = (await rightWindow.act('refresh',rightState)).body;
+    assert.equal(blocked.binding,rightState.binding);
+    assert.equal(blocked.overlay.issue,'member-sources-unready');
+    const resumeNote = await updateNote(rightWindow,blocked);
+    assert.equal(resumeNote.res.status,200,JSON.stringify(resumeNote.body));
+    assert.equal(resumeNote.body.revision,b);
+    assert.match(resumeNote.body.prompt,/模块 二/u);
+    assert.doesNotMatch(resumeNote.body.prompt,/模块 一/u);
+    await readMemberInEdge('模块 二 · 源码目录或 GitRoot 尚未就绪');
+  } finally { fs.renameSync(disabledGit,backendGit); }
+
+  refreshMember(right.workspace);
+  const continued = (await rightWindow.act('refresh',rightState)).body;
+  assert.equal(continued.binding,rightState.binding);
+  assert.equal(continued.projectId,rightState.projectId);
+  assert.equal(continued.overlay.issue,undefined);
+  const refreshedRoot = (await primary.act('refresh',before)).body;
+  assert.equal(refreshedRoot.revision,b);
+  assert.deepEqual(refreshedRoot.overlay.members.map(member=>member.status),['ready','ready','offline']);
+  assert.deepEqual(ownerCalls,[
+    [root,'DryRun',false], [root,'Write',true], [root,'Check',true],
+    [left.workspace,'DryRun',true], [left.workspace,'Write',true], [left.workspace,'Check',true],
+    [right.workspace,'DryRun',true],
+    [right.workspace,'DryRun',true], [right.workspace,'Write',true], [right.workspace,'Check',true],
+  ]);
+  assert.deepEqual(sharedGitState(),sharedAfterUpdate);
+  assert.deepEqual(readLeft(),leftAfterRefresh);
+  await readMemberInEdge('模块 二 · 已核验');
+  t.diagnostic('Verified a real member owner stops, resuming only that member, and reading the shared root and member in Workbench');
   assert.equal(git(cap,'rev-parse','HEAD'),b);
   assert.deepEqual(readRegistry().members.find(member=>member.contextRoot === absent.contextRoot),absent);
   assert.equal(fs.existsSync(absent.contextRoot),false);
@@ -278,12 +363,11 @@ test('Workbench updates a stock root once, refreshes two stock Overlay projects,
     for (const [file,content] of localFiles) assert.equal(fs.readFileSync(file,'utf8'),content,file);
   }
 
-  // The published legacy owner did not register Overlay members in full deployments.
+  // Simulate a legacy full deployment whose member registry is still empty after updating the shared root.
   git(mirror,'update-ref','refs/heads/master',released,b);
-  const online = await primary.act('fetch-preview',await primary.read());
-  assert.equal(online.body.after?.revision,released,JSON.stringify(online.body));
-  const currentRoot = await primary.act('apply',await primary.read());
-  assert.equal(currentRoot.body.exitCode,0,JSON.stringify(currentRoot.body));
+  runUpdate(root,'DryRun');
+  runUpdate(root,'Write',true);
+  runUpdate(root,'Check',true);
   fs.unlinkSync(registry);
   const patterns = ['/agents/**','/docs/**','/workflows/**','/rules/**','/skills/**','/plugins/**','/vendor/**','/feedback/**',
     '/hooks/**','/scripts/*.ps1','/scripts/*.js','/scripts/lib/**','/scripts/iris-mcp.js'];
@@ -292,17 +376,20 @@ test('Workbench updates a stock root once, refreshes two stock Overlay projects,
   const empty = (await primary.act('refresh',await primary.read())).body;
   assert.equal(empty.overlay.members.length,0);
   const known = (await local.act('refresh',memberState)).body;
-  assert.equal(known.overlay.canRefresh,true);
+  assert.equal(known.overlay.standardRoot,root);
   assert.equal(fs.existsSync(registry),false);
   const sparse = path.join(cap,'.git/info/sparse-checkout');
   const originalSparse = fs.readFileSync(sparse);
-  const coldRequest = {projectId:known.projectId,revision:known.revision,overlayPlanId:known.overlay.planId};
-  assert.equal((await local.post('overlay/refresh',{...coldRequest,path:right.workspace})).res.status,400);
-  const standalone = await local.post('overlay/refresh',coldRequest);
-  assert.equal(standalone.res.status,200,JSON.stringify(standalone.body));
-  assert.equal(standalone.body.registered,true);
-  assert.deepEqual(standalone.body.memberUpdate.steps.map(step=>[step.mode,step.exitCode,step.noPull]),
-    [['DryRun',0,true],['Write',0,true],['Check',0,true]]);
+  const coldNote = await updateNote(local,known);
+  assert.equal(coldNote.res.status,200,JSON.stringify(coldNote.body));
+  assert.match(coldNote.body.prompt,/plugin-deploy\.js register/u);
+  refreshMember(left.workspace);
+  if (!fs.existsSync(registry)) {
+    const registered = JSON.parse(run(left.workspace,process.execPath,[
+      path.join(cap,'scripts/plugin-deploy.js'),'register','--project-root',left.workspace
+    ]));
+    assert.equal(registered.registered,true);
+  }
   const enrolled = readRegistry();
   assert.equal(enrolled.mode,'full');
   assert.equal(enrolled.members.length,1);

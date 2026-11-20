@@ -55,17 +55,21 @@ function localFile(value) {
     return file;
 }
 
-async function pickOfflinePackage() {
+async function pickOfflinePackage({ signal } = {}) {
+    if (signal?.aborted) return null;
     if (process.platform !== 'win32') throw Error('unsupported-platform');
     const systemRoot = process.env[Object.keys(process.env).find(name => /^systemroot$/i.test(name))];
     const shell = path.join(systemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe');
     const encoded = Buffer.from(picker, 'utf16le').toString('base64');
     try {
         const { stdout } = await runPicker(shell, ['-NoProfile', '-NonInteractive', '-STA', '-EncodedCommand', encoded], {
-            cwd: path.dirname(shell), windowsHide: true, maxBuffer: 32 * 1024
+            cwd: path.dirname(shell), windowsHide: true, maxBuffer: 32 * 1024, signal
         });
         return stdout.trim() ? JSON.parse(Buffer.from(stdout.trim(), 'base64').toString('utf8')) : null;
-    } catch { throw Error('offline-picker-unavailable'); }
+    } catch {
+        if (signal?.aborted) return null;
+        throw Error('offline-picker-unavailable');
+    }
 }
 
 function readSelection({ releaseRecord, bundle }) {

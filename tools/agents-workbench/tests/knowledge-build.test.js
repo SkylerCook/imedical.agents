@@ -9,7 +9,7 @@ const { once } = require('node:events');
 const { fork, spawnSync } = require('node:child_process');
 const { setTimeout: delay } = require('node:timers/promises');
 const { createTempDirectory, ownsTempDirectory } = require('../../../scripts/tests/fixtures/temp-directory');
-const { execute } = require('../src/knowledge-build');
+const { createKnowledgeBuildService, execute } = require('../src/knowledge-build');
 const { build, previewTransfer } = require('../../../scripts/lib/knowledge-retrieval');
 
 function fixture(t) {
@@ -36,7 +36,7 @@ function fixture(t) {
     appId:'fixture-' + path.basename(directory),appKey:key,
   }}}));
   configured('fixture-credential');
-  return {root,cap,cache,authorized,excluded,policy,configured,env:{KNOWLEDGE_RAG_CONFIG:config}};
+  return {directory,root,cap,cache,authorized,excluded,policy,configured,env:{KNOWLEDGE_RAG_CONFIG:config}};
 }
 
 test('build previews pending authorized data, rejects stale approval, and resumes persisted vectors', async t => {
@@ -108,9 +108,7 @@ test('build previews pending authorized data, rejects stale approval, and resume
   assert.deepEqual(readback.preview.transferDirectories,[]);
 });
 
-test('authenticated workbench preview and confirmation build a local index and expose status', async t => {
-  const f = fixture(t);
-  f.policy([]);
+async function withWorkbench(f, options, exercise) {
   const gitEnv = {...process.env,GIT_ALLOW_PROTOCOL:'',GIT_NO_LAZY_FETCH:'1'};
   const git = (args,input) => {
     const r = spawnSync('git',['-C',f.cap,...args],{input,env:gitEnv,encoding:'utf8',windowsHide:true});
@@ -123,7 +121,8 @@ test('authenticated workbench preview and confirmation build a local index and e
   fs.mkdirSync(path.join(f.cap,'scripts'));
   fs.writeFileSync(path.join(f.cap,'scripts/update-agents.ps1'),'throw "Fixture script must not execute"');
   const server = fork(path.join(__dirname,'../prototype/serve.js'),['--project',f.root],{
-    env:{...gitEnv,KNOWLEDGE_RAG_CONFIG:'',BOS_MCP_CONFIG:'',PORT:'0'},silent:true,
+    env:{...gitEnv,KNOWLEDGE_RAG_CONFIG:'',BOS_MCP_CONFIG:'',PORT:'0',...options.env},
+    execArgv:options.execArgv,silent:true,
   });
   const stopped = once(server,'exit');
   try {
@@ -136,7 +135,7 @@ test('authenticated workbench preview and confirmation build a local index and e
     const auth = {cookie:session.headers.get('set-cookie').split(';')[0],'x-workbench-csrf':(await session.json()).csrf};
     const initial = await (await fetch(base+'/framework.json',{headers})).json();
     const request = {projectId:initial.projectId,revision:git(['rev-parse','HEAD'])};
-    const operation = (action,fields={}) => post('knowledge-build',{...request,...fields,action},auth);
+    const operation = (action,fields={},credentials=auth) => post('knowledge-build',{...request,...fields,action},credentials);
     async function result() {
       for (let i = 0; i < 40; i++) {
         const {run} = await (await operation('status')).json();
@@ -145,7 +144,52 @@ test('authenticated workbench preview and confirmation build a local index and e
       }
       assert.fail('knowledge worker did not publish a completion result');
     }
-    assert.equal((await post('knowledge-build',{...request,action:'preview'})).status,403);
+    await exercise({operation,result,auth});
+  } finally { server.kill(); await stopped; }
+}
+
+test('shutdown rejects new knowledge work and waits for the current worker to release the index', async t => {
+  const f = fixture(t);
+  f.policy([]);
+  const previous = process.env.KNOWLEDGE_RAG_CONFIG;
+  process.env.KNOWLEDGE_RAG_CONFIG = f.env.KNOWLEDGE_RAG_CONFIG;
+  t.after(() => {
+    if (previous === undefined) delete process.env.KNOWLEDGE_RAG_CONFIG;
+    else process.env.KNOWLEDGE_RAG_CONFIG = previous;
+  });
+  const observation = {status:'standard',revision:'fixture-revision',binding:'fixture-binding'};
+  const closed = {error:'knowledge-shutting-down'};
+
+  const previewing = createKnowledgeBuildService(f.root);
+  const pendingPreview = previewing.handle({action:'preview'},observation);
+  const previewShutdown = previewing.shutdown();
+  assert.equal(previewing.shutdown(),previewShutdown);
+  assert.deepEqual(await previewing.handle({action:'preview'},observation),closed);
+  await previewShutdown;
+  assert.deepEqual(await pendingPreview,closed);
+
+  const service = createKnowledgeBuildService(f.root);
+  const {planId} = await service.handle({action:'preview'},observation);
+  const {run:{runId}} = await service.handle({action:'start',planId},observation);
+  const shutdown = service.shutdown();
+  assert.equal(service.shutdown(),shutdown);
+  assert.deepEqual(await service.handle({action:'status'},observation),{run:{status:'running',runId,stopRequested:true}});
+  assert.deepEqual(await service.handle({action:'start',planId},observation),closed);
+  await shutdown;
+  const {run} = await service.handle({action:'status'},observation);
+  assert.equal(run.status,'complete');
+  assert.equal(run.embeddingTokens,0);
+  assert.ok(fs.existsSync(path.join(f.cache,'company.sqlite')));
+  assert.equal(fs.existsSync(path.join(f.cache,'company.sqlite.lock')),false);
+  assert.deepEqual(await service.handle({action:'preview'},observation),closed);
+  await createKnowledgeBuildService(f.root).shutdown();
+});
+
+test('authenticated workbench preview and confirmation build a local index and expose status', async t => {
+  const f = fixture(t);
+  f.policy([]);
+  await withWorkbench(f,{},async ({operation,result}) => {
+    assert.equal((await operation('preview',{},{})).status,403);
     assert.equal((await operation('preview',{configurationFile:'forbidden'})).status,400);
     const response = await operation('preview');
     const prepared = await response.json();
@@ -166,5 +210,100 @@ test('authenticated workbench preview and confirmation build a local index and e
     assert.equal(run.embeddingTokens,0);
     assert.ok(fs.existsSync(path.join(f.cache,'company.sqlite')));
     assert.equal((await operation('start',{planId:latest.planId})).status,409);
-  } finally { server.kill(); await stopped; }
+  });
+});
+
+test('pausing a bound knowledge build waits for its active batch and resumes without resending it', async t => {
+  const f = fixture(t);
+  const stub = path.join(f.directory,'local-embedding-fixture.cjs');
+  const attempts = path.join(f.directory,'attempts.jsonl');
+  fs.writeFileSync(stub,`'use strict';
+const {isMainThread,workerData}=require('node:worker_threads');
+const fs=require('node:fs');
+const path=require('node:path');
+const {setTimeout:delay}=require('node:timers/promises');
+if (!isMainThread && workerData?.action==='start') {
+  globalThis.fetch=async (url,request)=>{
+    const endpoint=new URL(url);
+    if (endpoint.origin!=='https://fixture.invalid') throw Error('unexpected fixture endpoint');
+    if (endpoint.pathname==='/dhccam/token/generate') {
+      return {ok:true,json:async ()=>({access_token:'fixture',remain_time:0})};
+    }
+    if (endpoint.pathname!=='/dhccam/gateway/index') throw Error('unexpected fixture endpoint');
+    const input=JSON.parse(request.body).biz_content.body.input;
+    const attempts=path.join(__dirname,'attempts.jsonl');
+    fs.appendFileSync(attempts,JSON.stringify(input)+'\\n');
+    const sequence=fs.readFileSync(attempts,'utf8').trim().split('\\n').length;
+    const release=path.join(__dirname,'release-'+sequence);
+    for (let i=0;!fs.existsSync(release);i++) {
+      if (i===200) throw Error('fixture batch was not released');
+      await delay(50);
+    }
+    return {ok:true,json:async ()=>({code:'10000',data:{data:input.map((_,index)=>({index,embedding:[1,0,0]})),usage:{total_tokens:input.length}}})};
+  };
+}
+`,'utf8');
+  const readAttempts = () => fs.existsSync(attempts)
+    ? fs.readFileSync(attempts,'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
+  async function waitForAttempt(count) {
+    for (let i=0;i<100;i++) {
+      if (readAttempts().length >= count) return;
+      await delay(50);
+    }
+    assert.fail('knowledge worker did not start the expected fixture batch');
+  }
+  await withWorkbench(f,{env:f.env,execArgv:['--require',stub]},async ({operation,result,auth}) => {
+    const preview = await operation('preview');
+    assert.equal(preview.status,200);
+    const prepared = await preview.json();
+    assert.equal(prepared.preview.pendingVectors,20);
+    const started = await operation('start',{planId:prepared.planId});
+    assert.equal(started.status,202);
+    const {run:{runId}} = await started.json();
+    assert.match(runId,/^[0-9a-f-]{36}$/u);
+    await waitForAttempt(1);
+
+    assert.equal((await operation('stop',{runId},{})).status,403);
+    assert.equal((await operation('stop',{runId},{cookie:auth.cookie})).status,403);
+    assert.equal((await operation('stop',{runId:null})).status,400);
+    assert.equal((await operation('stop',{runId,projectId:'another-project'})).status,409);
+    const unrelated = await operation('stop',{runId:crypto.randomUUID()});
+    assert.equal(unrelated.status,409);
+    assert.equal((await unrelated.json()).error,'knowledge-run-changed');
+    assert.equal((await (await operation('status')).json()).run.stopRequested,undefined);
+    for (let attempt=0;attempt<2;attempt++) {
+      const response = await operation('stop',{runId,revision:'superseded-revision'});
+      assert.equal(response.status,200);
+      assert.deepEqual((await response.json()).run,{status:'running',runId,stopRequested:true});
+    }
+    assert.equal((await operation('preview')).status,409);
+    assert.equal(fs.existsSync(path.join(f.cache,'company.sqlite.lock')),true);
+    fs.writeFileSync(path.join(f.directory,'release-1'),'');
+    const paused = await result();
+    assert.equal(paused.status,'paused',JSON.stringify(paused));
+    assert.equal(paused.remainingVectors,4);
+    assert.equal(paused.embeddingTokens,16);
+    assert.equal(fs.existsSync(path.join(f.cache,'company.sqlite.lock')),false);
+    assert.deepEqual(readAttempts().map(batch=>batch.length),[16]);
+
+    const followup = await (await operation('preview')).json();
+    assert.equal(followup.preview.pendingVectors,4);
+    const resumed = await operation('start',{planId:followup.planId});
+    assert.equal(resumed.status,202);
+    assert.notEqual((await resumed.json()).run.runId,runId);
+    await waitForAttempt(2);
+    const stale = await operation('stop',{runId});
+    assert.equal(stale.status,409);
+    assert.equal((await stale.json()).error,'knowledge-run-changed');
+    assert.equal((await (await operation('status')).json()).run.stopRequested,undefined);
+    fs.writeFileSync(path.join(f.directory,'release-2'),'');
+    const complete = await result();
+    assert.equal(complete.status,'complete',JSON.stringify(complete));
+    assert.equal(complete.remainingVectors,0);
+    assert.equal(complete.embeddingTokens,4);
+    const batches = readAttempts();
+    assert.deepEqual(batches.map(batch=>batch.length),[16,4]);
+    assert.equal(new Set(batches.flat()).size,20);
+    assert.ok(batches.flat().every(text=>text.includes('Authorized text')));
+  });
 });

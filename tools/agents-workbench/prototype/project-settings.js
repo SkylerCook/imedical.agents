@@ -3,7 +3,8 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const owner=require('../../ai-dev-offline/configure-project');
 const policy = require('../../../scripts/lib/project-deployment-policy');
 const deployment = require('../../../scripts/lib/plugin-deployment');
-const {resolveWorkspaceContext,workspaceContextBlockers} = require('../../../scripts/lib/workspace-context');
+const {workspaceContextBlockers} = require('../../../scripts/lib/workspace-context');
+const {inspectProjectContext} = require('../src/project-context');
 const developmentOwner = require('../../../scripts/lib/iris-development-settings');
 const {checkProjectConfig,readDevelopment} = require('./inspect-project');
 const developmentFields = ['developmentMode','environmentAlias','environmentType'];
@@ -12,8 +13,13 @@ const policyField = 'deployment.autoInstall';
 const keys=['host','port','scheme','namespace','alias','description','tlsVerify'];
 const sourceKeys=['web.basePath','web.cspBasePath','web.brokerPath','web.cookie','sftp.host','sftp.port','sftp.username','sftp.password','sftp.localPath','sftp.remotePath'];
 const files=['.vscode/settings.json','.mcp.json','.iris-agentic-dev.toml','.agents/config/project-env.json','.agents/config/iris-session-backend.json','.agents/config/iris-development.json','.agents/config/project.jsonc'];
+function settingsContext(root) {
+ const context=inspectProjectContext(root);
+ if (!context) fail('工程声明无法安全读取，请先核对当前工程 .agents/capability.json。');
+ return context;
+}
 const digest=root=>{
- const ctx=resolveWorkspaceContext(root);
+ const ctx=settingsContext(root);
  const sources=files.map(f=>path.join(root,f));
  const main=path.join(ctx.contextRoot,'config/project.jsonc');
  if(!sources.includes(main)) sources.push(main);
@@ -25,10 +31,25 @@ const digest=root=>{
  return crypto.createHash('sha256').update(hashes.join('|')).digest('hex');
 };
 const fail=message=>{const e=new Error(message);e.name='SettingsError';throw e};
+function independentNode() {
+ const executable=process.platform==='win32'?'node.exe':'node';
+ const fromPath=(process.env.PATH || '').split(path.delimiter).map(folder=>folder.trim().replace(/^"(.*)"$/u,'$1'))
+   .filter(folder=>path.isAbsolute(folder) && !folder.startsWith('\\\\'));
+ for (const candidate of new Set([...fromPath.map(folder=>path.join(folder,executable)),process.execPath])) {
+   try {
+     const actual=fs.realpathSync.native(candidate);
+     if ([candidate,actual].some(file=>path.basename(path.dirname(file)).toLowerCase()==='runtime' &&
+         fs.existsSync(path.join(path.dirname(file),'..','workbench-release.json')))) continue;
+     if (owner.supportsManagedNode(actual)) return actual;
+   } catch { /* Continue past missing or inaccessible installations. */ }
+ }
+ fail('受管 MCP 需要可独立使用的 Node.js 22.5.0 或以上。请使用 AI 开发环境离线安装助手准备 Node，再打开工作台。');
+}
 function createProjectSettings(root){
  const plans=new Map();
+ const runtime={resolveNodeExe:independentNode};
  function readPolicy() {
-   const ctx = resolveWorkspaceContext(root);
+   const ctx = settingsContext(root);
    if (ctx.mode === 'invalid' || (ctx.mode !== 'standard' && workspaceContextBlockers(ctx).length)) return null;
    if (!fs.existsSync(path.join(ctx.capabilityRoot,'.git'))) return null;
    let current;
@@ -43,8 +64,7 @@ function createProjectSettings(root){
      source:current.hasOld?'ContextRoot/config/plugin-deployment.json · 通过原更新器 Write 迁移':'ContextRoot/config/project.jsonc · deployment'};
 
  }
- function inspect(){if(!root)fail('尚未绑定工程');const data=owner.inspect({projectRoot:root});const central=owner.object(owner.snapshot(path.join(root,files[3])).text);const c=data.active ? {...central.iris,...Object.fromEntries(keys.map(key=>[key,data[key]]))} : central.iris||{};
- const ctx=resolveWorkspaceContext(root);
+ function inspect(){if(!root)fail('尚未绑定工程');const ctx=settingsContext(root);const data=owner.inspect({projectRoot:root});const central=owner.object(owner.snapshot(path.join(root,files[3])).text);const c=data.active ? {...central.iris,...Object.fromEntries(keys.map(key=>[key,data[key]]))} : central.iris||{};
  const configIssue=checkProjectConfig(ctx.contextRoot);
  let currentPolicy,policyIssue=configIssue;
  if (!policyIssue) {
@@ -119,7 +139,7 @@ function createProjectSettings(root){
    }
    const req={projectRoot:root,profile};
    let planned;
-   try { planned=owner.plan(req); }
+   try { planned=owner.plan(req,runtime); }
    catch(error) { fail(/^[\u3400-\u9fff]/.test(error.message)?error.message:'开发库档案或绑定配置无法解析，请检查来源'); }
    for(const [id,value] of plans) if(value.expires<Date.now()) plans.delete(id);
    if(plans.size>=20) fail('预览数量过多');
@@ -155,14 +175,14 @@ function createProjectSettings(root){
  const connection=Object.fromEntries(model.fields.filter(f=>!f.secret&&!f.id.includes('.')).map(f=>[f.id,f.value]));let replace=false;const sourceChanges={};
  for(const [k,v]of Object.entries(request.changes||{})){const f=model.fields.find(f=>f.id===k);if(!f)fail('未知工程字段');if(f.readOnly)fail('此字段待核对，暂不可写入。');if(k.includes('.')){if(f.secret&&(v.action!=='replace'||!v.value))fail('Web/SFTP 凭据只支持保留或替换');if(typeof v.value!==f.type)fail('字段类型不匹配');sourceChanges[k]=v.value;continue}if(f.secret){if(v.action!=='replace'||typeof v.value!=='string'||!v.value)fail('工程凭据只支持保留或成对替换');replace=true;connection[k]=v.value}else{if(typeof v.value!==f.type)fail('工程字段类型不匹配');connection[k]=v.value}}
  if(replace&&(!connection.username||!connection.password))fail('请同时替换账号和密码');connection.writeCredentials=replace;
- const development=require('../../../scripts/lib/iris-development-settings').inspect(resolveWorkspaceContext(root).contextRoot).value;if(development?.developmentMode==='offline')fail('当前为离线开发模式，先通过开发方式入口切换后配置连接');
+ const development=require('../../../scripts/lib/iris-development-settings').inspect(settingsContext(root).contextRoot).value;if(development?.developmentMode==='offline')fail('当前为离线开发模式，先通过开发方式入口切换后配置连接');
  const central=fs.existsSync(path.join(root,files[3]));
- const req={projectRoot:root,connection,configureMcp:true,syncProjectEnv:central,nodeExe:process.execPath,sourceChanges};
- let p;try{p=owner.plan(req)}catch(e){fail(/^[\u3400-\u9fff]/.test(e.message)?e.message:'工程配置解析或安全检查失败；请核对配置格式和文件边界')}
+ const req={projectRoot:root,connection,configureMcp:true,syncProjectEnv:central,sourceChanges};
+ let p;try{p=owner.plan(req,runtime)}catch(e){fail(/^[\u3400-\u9fff]/.test(e.message)?e.message:'工程配置解析或安全检查失败；请核对配置格式和文件边界')}
  for(const [k,v]of plans)if(v.expires<Date.now())plans.delete(k);if(plans.size>=20)fail('预览数量过多，请稍后重试');const id=crypto.randomUUID();plans.set(id,{request:{...req,fingerprint:p.fingerprint},revision:model.revision,expires:Date.now()+300000});
  return {planId:id,scope:'仅当前工程：VS Code、MCP、TOML、集中 IRIS 配置及受管 backend（存在时）',warning:'不连接远端；仅同步选定的 Web/SFTP 字段，不创建或启动 SFTP 服务。原配置恢复回执可能包含凭据，仅保存在工程忽略目录。',changes:p.changes.map(c=>({field:path.relative(root,c.file),action:c.before.exists?'更新':'新增'})),warnings:p.warnings};}
  async function apply(id,dependencies){const p=plans.get(id);plans.delete(id);if(!p||p.expires<Date.now())fail('预览已过期');if(digest(root)!==p.revision)fail('工程配置已变化，保存已停止');if (p.plugin) {
-   const ctx=resolveWorkspaceContext(root);
+   const ctx=settingsContext(root);
    if(ctx.mode==='invalid'||!fs.existsSync(path.join(ctx.capabilityRoot,'plugins',p.plugin,'.agents-plugin/plugin.json'))) fail('工程插件来源发生变化');
    return deployment.withLock(ctx.capabilityRoot,()=>{
      if(digest(root)!==p.revision || !pluginSettings.inspect(ctx,p.plugin).canonical) fail('插件配置已变化');
@@ -170,7 +190,7 @@ function createProjectSettings(root){
      return {status:'saved',message:'插件参数已保存并读回。'};
    });
  }if (p.development) {
-   const ctx=resolveWorkspaceContext(root);
+   const ctx=settingsContext(root);
    if(ctx.mode!=='standard'||!developmentOwner.inspect(ctx.contextRoot).canonical) fail('开发声明来源已变化');
    return deployment.withLock(ctx.capabilityRoot,()=>{
      if(digest(root)!==p.revision) fail('工程配置已变化');
@@ -186,7 +206,13 @@ function createProjectSettings(root){
      if (deployment.policy(current.ctx.contextRoot).autoInstall!==p.policyValue) fail('部署策略读回不一致');
      return {status:'saved',message:'工程部署策略已保存并读回，下次插件补装时生效。'};
    });
- }try{await owner.apply(p.request,dependencies)}catch(e){fail(/^[\u3400-\u9fff]/.test(e.message)?e.message:'保存失败，已尝试原入口恢复；请检查本工程配置回执')};return {status:'saved',message:p.request.profile?'开发库配置已保存并读回，客户端待重连，服务器身份待核验。':'工程配置已同步保存并逐文件读回；未测试远端连接。'};}
+ }
+ try { await owner.apply(p.request,{...dependencies,...runtime,requireRecoveryConfirmation:true}); }
+ catch (error) {
+   if (error.code === 'project-recovery-required') throw error;
+   fail(/^[\u3400-\u9fff]/.test(error.message) ? error.message : '保存失败，已尝试原入口恢复；请检查本工程配置回执');
+ }
+ return {status:'saved',message:p.request.profile?'开发库配置已保存并读回，客户端待重连，服务器身份待核验。':'工程配置已同步保存并逐文件读回；未测试远端连接。'};}
  return {inspect,plan,apply};
 }
 module.exports={createProjectSettings};

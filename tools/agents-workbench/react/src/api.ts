@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { frameworkPost } from "./framework-api";
 
 export type Catalog = Omit<import("../../prototype/plugin-directory.mjs").Catalog, "plugins"> & {
   groups: { id: string; name: string; plugins: string[] }[];
@@ -10,6 +11,15 @@ export type Domain = {
   issue?: string;
   fields: { key: string; status: string; sensitive: boolean }[];
 };
+export type ProjectReceipt = {
+  id: string;
+  state: string;
+  files: number;
+  updated: string;
+  recovery?: "available" | "conflict" | "review-required" | "unchanged" | "unsupported" | "undo-available";
+  recoveryToken?: string;
+  restoreFiles?: number;
+};
 export type ProjectSummary = {
   name: string;
   checkedAt: string;
@@ -19,9 +29,11 @@ export type ProjectSummary = {
   configIssue?: string;
   pluginIssue?: string;
   profiles: { name: string; exists: boolean }[];
-  clients: { id: string; name: string; entries: string[]; status: string }[];
-  indexes: { name: string; exists: boolean; bytes?: number; updated?: string }[];
-  receipts: { id: string; state: string; files: number; updated: string }[];
+  clients: { id: string; name: string; entries: { path: string; kind: "rules" | "skills" | "agents" | "config"; detail?: string }[]; status: string }[];
+  indexes: { name: string; status: "present" | "missing" | "unverified"; shared: boolean; bytes?: number; updated?: string }[];
+  receipts: ProjectReceipt[];
+  receiptIssue?: true;
+  pluginDeployment?: { phase: "materializing" | "interrupted"; revision?: string; shared: boolean };
 };
 
 async function json<T>(response: Response, unavailable: string): Promise<T> {
@@ -38,6 +50,16 @@ export const readCatalog = (signal: AbortSignal) =>
 export const readGuides = (signal: AbortSignal) =>
   fetch("/manuals.json", { signal }).then(r => json<Guide[]>(r, "手册目录暂时无法读取。"));
 
+export const guideSearchMaxLength = 120;
+export type GuideSearchResult = {
+  matches: { file: string; title: string; section: string | null; line: number; excerpt: string }[];
+  truncated: boolean;
+};
+
+export const readGuideSearch = (query: string, signal: AbortSignal) =>
+  fetch("/manuals/search?" + new URLSearchParams({ q: query }), { headers: { "X-Workbench-Request": "1" }, signal })
+    .then(r => json<GuideSearchResult>(r, "暂时无法搜索手册。"));
+
 export async function readGuide(file: string, signal: AbortSignal) {
   const response = await fetch("/manual/" + encodeURIComponent(file), { signal });
   if (!response.ok) throw new Error("无法读取本地手册。");
@@ -48,6 +70,7 @@ export function useResource<T>(load: (signal: AbortSignal) => Promise<T>, enable
   const [result, setResult] = useState<{ data?: T; error?: string }>({});
   const [revision, setRevision] = useState(0);
   const retry = () => { setResult({}); setRevision(current => current + 1); };
+  const refresh = useCallback(() => setRevision(current => current + 1), []);
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
@@ -57,29 +80,32 @@ export function useResource<T>(load: (signal: AbortSignal) => Promise<T>, enable
     );
     return () => controller.abort();
   }, [load, enabled, revision]);
-  return { ...result, retry, refresh: () => setRevision(current => current + 1), loading: enabled && !result.data && !result.error };
+  return { ...result, retry, refresh, loading: enabled && !result.data && !result.error };
 }
 
 export type SettingsId = "project" | "bos" | "knowledge";
 export type SettingsField = {
-  id: string; label: string; type: string; secret?: boolean; configured?: boolean; options?: string[]; readOnly?: boolean; source?: string;
+  id: string; label: string; type: string; secret?: boolean; configured?: boolean; clearable?: boolean;
+  options?: string[]; readOnly?: boolean; draftable?: boolean; source?: string;
   value?: string | number | boolean | null;
 };
 export type SettingsModel = { id: SettingsId; revision: string; scope: string; fields: SettingsField[] };
 export type SettingsChange = { action?: "replace" | "clear"; value?: string | number | boolean };
+export type SettingsDraftSecretActions = Record<string, "replace" | "clear">;
+export type SettingsDraftResult = {
+  status: "missing" | "ready" | "unreadable" | "source-changed";
+  tag: string | null;
+  draft?: { fields: SettingsField[]; values: Record<string, string>; secretActions: SettingsDraftSecretActions };
+};
 export type SettingsPlan = {
   planId: string; scope: string; warning: string; warnings?: string[];
   changes: { field: string; action: string }[];
 };
 
 export async function settingsRequest<T>(path: string, signal: AbortSignal, body?: object): Promise<T> {
-  const headers: Record<string, string> = { "X-Workbench-Request": "1" };
-  if (body) headers["Content-Type"] = "application/json";
-  const response = await fetch("/settings/" + path, {
-    method: body ? "POST" : "GET", headers, signal, cache: "no-store",
-    body: body && JSON.stringify(body),
-  });
-  const value: T & { error?: string } = await response.json();
-  if (!response.ok) throw new Error(value.error || "无法完成配置请求。");
+  const response = body ? await frameworkPost("settings/" + path, body, signal)
+    : await fetch("/settings/" + path, { headers: { "X-Workbench-Request": "1" }, signal, cache: "no-store" });
+  const value: T & { error?: string; code?: string } = await response.json();
+  if (!response.ok) throw Object.assign(new Error(value.error || "无法完成配置请求。"), { code: value.code });
   return value;
 }
