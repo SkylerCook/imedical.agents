@@ -105,14 +105,14 @@ async function verifiedRelease(request) {
   }
 }
 
-function readStartupAddress(message) {
+function readStartupAddress(message, demo = false) {
   if (typeof message?.address !== 'string' || typeof message.bootstrap !== 'string' ||
       !/^[a-f0-9]{64}$/u.test(message.bootstrap)) throw new ReleaseLaunchError('startup-failed');
   let url;
   try { url = new URL(message.address); }
   catch { throw new ReleaseLaunchError('startup-failed'); }
   if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || !url.port ||
-      url.username || url.password || url.pathname !== '/' || url.search || url.hash !== '#home') {
+      url.username || url.password || url.pathname !== '/' || url.search || url.hash !== (demo ? '#/clinic/home' : '#home')) {
     throw new ReleaseLaunchError('startup-failed');
   }
   return url.origin;
@@ -269,15 +269,17 @@ async function launchSelectedRelease({ anchor, entry, projectRoot, expectedBindi
   return launchImported({ path: directory, version: entry.version }, root, expected, { signal, startupTimeoutMs, anchor, port, owned });
 }
 
-function openBrowser(address) {
+function openBrowser(address, signal) {
   const command = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'cmd.exe');
   const browser = spawn(command, ['/d', '/c', 'start', '""', address], {
-    windowsHide: true, windowsVerbatimArguments: true, stdio: 'ignore',
+    windowsHide: true, windowsVerbatimArguments: true, stdio: 'ignore', signal,
   });
-  const report = () => console.error('Could not open the browser. Open the address above.');
-  browser.on('error', report);
-  browser.on('exit', code => { if (code !== 0) report(); });
+  const result = once(browser, 'close').then(([code]) => code === 0, () => false).then(opened => {
+    if (!opened) console.error('Could not open the browser. Open the address above.');
+    return opened;
+  });
   browser.unref();
+  return result;
 }
 
 module.exports = { importAndLaunchRelease, launchSelectedRelease, openBrowser, ReleaseLaunchError, readStartupAddress, probeProject };

@@ -1,7 +1,43 @@
 'use strict';
 
+const { fork } = require('node:child_process');
+const { once } = require('node:events');
 const path = require('node:path');
 const { localApplication, readSelection, saveSelection } = require('./release-selection');
+
+async function launchBackground(args) {
+  const { openBrowser, readStartupAddress } = require('./release-launcher');
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(), 25000).unref();
+  const open = args.includes('--open');
+  let child;
+  try {
+    child = fork(__filename, args.filter(arg => !['--background', '--open'].includes(arg)), {
+      detached: true, windowsHide: true, execArgv: [], stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+      env: { ...process.env, WORKBENCH_BACKGROUND: '1', WORKBENCH_STARTUP_PARENT: '' },
+    });
+    const [message] = await Promise.race([
+      once(child, 'message', { signal: deadline.signal }),
+      once(child, 'exit', { signal: deadline.signal }).then(() => { throw Error('Workbench could not start.'); }),
+    ]);
+    if (message?.startupError) throw Error(message.startupError);
+    const origin = readStartupAddress(message, args.includes('--demo'));
+    if (open && !await openBrowser(`${origin}/#bootstrap=${message.bootstrap}`, deadline.signal)) {
+      throw Error('Could not open the browser. Please restart Workbench.');
+    }
+    console.log(`Workbench: ${message.address}`);
+    if (process.connected) process.send({ ...message, pid: child.pid });
+    if (child.connected) child.disconnect();
+    child.unref();
+  } catch (error) {
+    if (child?.pid && child.exitCode === null && child.signalCode === null) child.kill();
+    if (deadline.signal.aborted) throw Error('Workbench startup timed out.');
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    deadline.abort();
+  }
+}
 
 async function openDefault(projectRoot) {
   if (process.platform !== 'win32' || !projectRoot || process.argv.includes('--demo')) return false;
@@ -64,9 +100,13 @@ async function openDefault(projectRoot) {
 }
 
 const projectIndex = process.argv.indexOf('--project');
-openDefault(projectIndex === -1 ? null : process.argv[projectIndex + 1]).then(started => {
-  if (!started) require('../prototype/serve');
-}).catch(error => {
+async function main() {
+  if (process.platform === 'win32' && process.argv.includes('--background')) return launchBackground(process.argv.slice(2));
+  if (!await openDefault(projectIndex === -1 ? null : process.argv[projectIndex + 1])) require('../prototype/serve');
+}
+
+main().catch(error => {
+  if (process.connected) process.send({ startupError: error.message });
   console.error(error.message);
   process.exitCode = 1;
 });

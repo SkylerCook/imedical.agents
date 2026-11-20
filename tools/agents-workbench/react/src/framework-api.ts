@@ -1,11 +1,14 @@
 const headers = { "X-Workbench-Request": "1", "Content-Type": "application/json" };
 const prefix = "#bootstrap=";
 const token = location.hash.startsWith(prefix) ? location.hash.slice(prefix.length) : undefined;
-if (token) history.replaceState(null, "", location.pathname + location.search + "#home");
+if (token) {
+  const demo = document.querySelector('meta[name="workbench-mode"]')?.getAttribute("content") === "demo";
+  history.replaceState(null, "", location.pathname + location.search + (demo ? "#/clinic/home" : "#home"));
+}
 
-async function exchange(bootstrap?: string): Promise<string> {
+async function exchange(bootstrap?: string, signal?: AbortSignal): Promise<string> {
   const response = await fetch("/framework/session", {
-    method: "POST", headers, body: JSON.stringify(bootstrap ? { token: bootstrap } : {}),
+    method: "POST", headers, body: JSON.stringify(bootstrap ? { token: bootstrap } : {}), signal,
   });
   if (!response.ok) throw new Error("请从工作台启动器重新打开当前工程。");
   return (await response.json()).csrf;
@@ -14,12 +17,48 @@ async function exchange(bootstrap?: string): Promise<string> {
 // Start the one-time exchange before route rendering. Reloads can resume via the session cookie.
 let session = token ? exchange(token).catch(() => undefined) : undefined;
 export async function frameworkPost(route: string, body: object, signal?: AbortSignal) {
-  const csrf = await session ?? await exchange();
+  const csrf = await session ?? await exchange(undefined, signal);
   session = Promise.resolve(csrf);
   return fetch("/framework/" + route, {
     method: "POST", headers: { ...headers, "X-Workbench-CSRF": csrf },
     body: JSON.stringify(body), signal,
   });
+}
+
+export function watchWorkbenchPage() {
+  let connection: AbortController | undefined;
+  function start() {
+    if (connection) return;
+    connection = new AbortController();
+    const { signal } = connection;
+    async function watch() {
+      while (!signal.aborted) {
+        try {
+          const response = await frameworkPost("page-presence", {}, signal);
+          if (response.ok) await response.text();
+          return;
+        } catch (error) {
+          if (signal.aborted || !(error instanceof TypeError)) return;
+          await new Promise(resolve => window.setTimeout(resolve, 1000));
+        }
+      }
+    }
+    // One stream per browser context keeps ordinary HTTP requests available even with many tabs.
+    const observing = navigator.locks ? navigator.locks.request("workbench-page-presence", { signal }, watch) : watch();
+    void observing.catch(() => undefined);
+  }
+  function stop() {
+    connection?.abort();
+    connection = undefined;
+  }
+  start();
+  addEventListener("pageshow", start);
+  addEventListener("pagehide", stop);
+  return () => {
+    stop();
+    removeEventListener("pageshow", start);
+    removeEventListener("pagehide", stop);
+  };
 }
 
 export type FrameworkUpdateNote = {

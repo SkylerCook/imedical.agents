@@ -48,7 +48,7 @@ const drafts = settingsBinding && createDraftStore({root:projectRoot, binding:se
  inspect:id=>id==='project'?projectSettings.inspect():settings.inspect(id), sourcePath:settings.sourcePath});
 const framework = require('../src/framework-service.js').createFrameworkService(projectRoot,{writeSettings,
  manualSource: file => manuals.get(file)?.source,
- pluginEntry: id => generate(repo).plugins.find(({manifest}) => manifest.name === id)});
+ pluginEntry: id => generate(repo).plugins.find(({manifest}) => manifest.name === id), watchPage});
 let port=Number(process.env.PORT||4179);
 
 function isWorkbenchRequest(req) {
@@ -120,7 +120,26 @@ async function handleKnowledgeQuery(req, res) {
 }
 
 const requests = new Map();
+const pages = new Set();
 let closing = false;
+let idle;
+
+function exitWhenIdle(delay) {
+ clearTimeout(idle);
+ idle = setTimeout(() => { if (!pages.size) shutdown(); }, delay);
+}
+
+function watchPage(response) {
+ if (closing || response.destroyed) return response.end();
+ clearTimeout(idle);
+ pages.add(response);
+ response.once('close', () => {
+  if (pages.delete(response) && !pages.size && !closing) exitWhenIdle(5000);
+ });
+ response.writeHead(200, {'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+ response.write('connected\n');
+}
+
 async function handleRequest(req,res) {
 const u=new URL(req.url,'http://127.0.0.1');const name=u.pathname.slice(1);let file;
 if (name === 'framework.json' || name.startsWith('framework/')) return framework.handle(req,res,name,'http://127.0.0.1:' + port);
@@ -205,15 +224,18 @@ const server = http.createServer((req,res) => {
 }).listen(port, '127.0.0.1', () => {
  port = server.address().port;
  const address = `http://127.0.0.1:${port}/${projectRoot ? '#home' : '#/clinic/home'}`;
+ if (process.env.WORKBENCH_BACKGROUND === '1') exitWhenIdle(60000);
  if (process.send) process.send({address,bootstrap:framework.bootstrap});
  console.log(`Workbench: ${address}`);
  if (process.platform !== 'win32' || !process.argv.includes('--open')) return;
- require('../src/release-launcher').openBrowser(projectRoot ? address.split('#')[0] + '#bootstrap=' + framework.bootstrap : address);
+ require('../src/release-launcher').openBrowser(address.split('#')[0] + '#bootstrap=' + framework.bootstrap);
 });
 
 function shutdown() {
  if (closing) return;
  closing = true;
+ clearTimeout(idle);
+ for (const page of pages) page.end();
  console.log('正在退出工作台，等待当前任务到达安全点。');
  const stopped = framework.shutdown();
  const closed = new Promise(resolve => server.close(resolve));
@@ -228,6 +250,8 @@ for (const signal of ['SIGINT','SIGTERM',...(process.platform === 'win32' ? ['SI
 if (process.env.WORKBENCH_STARTUP_PARENT === '1' && process.connected) process.once('disconnect',shutdown);
 server.on('error', error => {
  if (error.code !== 'EADDRINUSE') throw error;
- console.error(`Workbench port ${port} is in use. Free that port or restart with PORT=0.`);
+ const message = `Workbench port ${port} is in use. Free that port or restart with PORT=0.`;
+ if (process.connected) process.send({startupError:message});
+ console.error(message);
  process.exitCode = 1;
 });

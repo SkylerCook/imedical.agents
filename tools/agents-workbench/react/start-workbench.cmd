@@ -5,8 +5,9 @@ if errorlevel 1 exit /b 1
 if not defined PORT set "PORT=0"
 set "WORKBENCH_LAUNCH_ANCHOR="
 set "WORKBENCH_STARTUP_PARENT="
+set "WORKBENCH_BACKGROUND="
 if not "%~1"=="" goto launch
-powershell.exe -NoProfile -STA -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Windows.Forms; $d=New-Object Windows.Forms.FolderBrowserDialog; $d.Description='Select the project folder'; if($d.ShowDialog() -eq 'OK'){ & '.\runtime\node.exe' 'tools/agents-workbench/src/start-release.js' --open --project $d.SelectedPath; exit $LASTEXITCODE }; exit 0"
+powershell.exe -NoProfile -STA -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Windows.Forms; $d=New-Object Windows.Forms.FolderBrowserDialog; $d.Description='Select the project folder'; if($d.ShowDialog() -eq 'OK'){ & '.\runtime\node.exe' 'tools/agents-workbench/src/start-release.js' --background --open --project $d.SelectedPath; exit $LASTEXITCODE }; exit 0"
 if errorlevel 1 goto failed
 exit /b 0
 :launch

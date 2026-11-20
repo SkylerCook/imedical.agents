@@ -17,8 +17,8 @@ import { AppearanceMenu } from "./appearance";
 import { RealPages } from "./real-pages";
 import { href, readRoute, type DemoId, type Navigation, type Page, type Params } from "./routes";
 import { Status } from "./ui";
+import { watchWorkbenchPage } from "./framework-api";
 import "./theme.css";
-import "./framework-api";
 
 const navigation = [
   { title: "工程", items: [
@@ -95,6 +95,7 @@ function Workbench() {
   const [boundName, setBoundName] = useState("");
   const demo = route.demo;
   const demoLabel = demo ? projects[demo] : null;
+  useEffect(watchWorkbenchPage, []);
 
   useEffect(() => {
     const followHash = () => setRoute(readRoute());

@@ -77,6 +77,66 @@ Add-Type -TypeDefinition $source -Language CSharp -OutputAssembly $env:WORKBENCH
   });
 });
 
+test('Windows background launcher exits after startup and the last page safely shuts down the service', {
+  skip: process.platform !== 'win32', timeout: 25000,
+}, async t => {
+  const root = createTempDirectory('workbench-background-launch-');
+  const streams = [];
+  let workerPid;
+  t.after(() => {
+    for (const stream of streams) stream.abort();
+    if (workerPid) {
+      try { process.kill(workerPid); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+    }
+    assert.ok(ownsTempDirectory(root));
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 3 });
+  });
+  const launcher = fork(path.resolve(__dirname, '../src/start-release.js'), ['--background', '--project', root], {
+    env: { ...process.env, PORT: '0', GIT_ALLOW_PROTOCOL: '' }, execArgv: [], silent: true, windowsHide: true,
+  });
+  const exited = once(launcher, 'exit');
+  const [session] = await once(launcher, 'message', { signal: AbortSignal.timeout(8000) });
+  workerPid = session.pid;
+  assert.equal(typeof workerPid, 'number', session.startupError);
+  assert.notEqual(workerPid, launcher.pid);
+  assert.deepEqual(await exited, [0, null]);
+  const origin = new URL(session.address).origin;
+  const headers = { 'X-Workbench-Request': '1', 'Content-Type': 'application/json', Origin: origin };
+  const post = (route, body, auth, signal) => fetch(origin + '/framework/' + route, {
+    method: 'POST', headers: { ...headers, ...auth }, body: JSON.stringify(body), signal,
+  });
+  assert.equal((await post('page-presence', {})).status, 403);
+  const exchange = await post('session', { token: session.bootstrap });
+  const auth = { Cookie: exchange.headers.get('set-cookie').split(';')[0], 'X-Workbench-CSRF': (await exchange.json()).csrf };
+  async function openPage() {
+    const stream = new AbortController();
+    streams.push(stream);
+    const response = await post('page-presence', {}, auth, stream.signal);
+    assert.equal(response.status, 200);
+    return stream;
+  }
+  const first = await openPage();
+  const second = await openPage();
+  first.abort();
+  second.abort();
+  await delay(200);
+  const refreshed = await openPage();
+  await delay(5200);
+  assert.equal((await fetch(origin + '/framework.json', { headers })).status, 200);
+  refreshed.abort();
+  const deadline = Date.now() + 7500;
+  while (Date.now() < deadline) {
+    try { process.kill(workerPid, 0); }
+    catch (error) {
+      assert.equal(error.code, 'ESRCH');
+      workerPid = undefined;
+      break;
+    }
+    await delay(100);
+  }
+  assert.equal(workerPid, undefined, 'The background service is still running without pages');
+});
+
 test('Windows package launcher keeps two project sessions independent', { skip: process.platform !== 'win32' }, async t => {
   const root = createTempDirectory('workbench-parallel-launch-');
   const launches = [];

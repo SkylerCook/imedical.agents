@@ -14,7 +14,7 @@ const recoveryErrors = new Set(['project-recovery-not-available','project-recove
 const boundDeploymentStatuses = ['standard','partial','invalid-head','unknown-source'];
 const updateNoteStatuses = [...boundDeploymentStatuses,'overlay-declared','invalid-declaration'];
 
-function createFrameworkService(root, { pickOffline = pickOfflinePackage, releaseUpdate = createReleaseUpdateService(root), readUpdateHead, writeSettings, manualSource, pluginEntry } = {}) {
+function createFrameworkService(root, { pickOffline = pickOfflinePackage, releaseUpdate = createReleaseUpdateService(root), readUpdateHead, writeSettings, manualSource, pluginEntry, watchPage } = {}) {
   const id = crypto.randomUUID();
   const pickerLifetime = new AbortController();
   const knowledgeBuild = createKnowledgeBuildService(root);
@@ -259,6 +259,10 @@ function createFrameworkService(root, { pickOffline = pickOfflinePackage, releas
       cookie = `wb-${id}=${secret()}`; csrf = secret();
       res.setHeader('Set-Cookie',cookie + '; HttpOnly; SameSite=Strict; Path=/framework/');
       return reply(200,{csrf});
+    }
+    if (route === 'framework/page-presence' && watchPage) {
+      if (Object.keys(data).length) return reply(400,{error:'invalid-body'});
+      return watchPage(res);
     }
     if (isSettings) return writeSettings(route.slice(settingsPrefix.length), data, reply);
     if (route === 'framework/offline') return offlineRequest(data,reply);

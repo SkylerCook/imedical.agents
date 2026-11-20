@@ -8,7 +8,7 @@ Windows standard 工程可从工作台首页首装或只读检查。已有工程
 
 ## 使用工作台安装与更新
 
-在 Windows x64 上按发行记录校验并解压 `agents-workbench-react.zip`，双击 `start-workbench.cmd` 并选择工程根目录，也可从解压目录启动并明确指定工程。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。在线检测与首装访问框架源，离线操作使用团队批准的完整能力包。
+在 Windows x64 上按发行记录校验并解压 `agents-workbench-react.zip`，双击 `start-workbench.cmd` 并选择工程根目录。自 0.4.0 起，双击启动后命令窗口自动关闭，关闭最后一个工作台标签页后服务自动收尾退出。需要保留启动输出时，可在现有终端指定工程目录。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。在线检测与首装访问框架源，离线操作使用团队批准的完整能力包。
 
 ```powershell
 & ./start-workbench.cmd --project "<工程根目录>"
