@@ -489,7 +489,7 @@ Windows standard 源码试点的插件管理预览按实际安装情况提供补
 | 安装工作台 | 解压可信 ZIP 到独立工具目录，用随包 `start-workbench.cmd` 启动后选工程，也可显式传 `--project` | 无系统 Node、无源码 checkout、无 `node_modules` 的隔离环境能解压、启动、读手册并识别工程 |
 | 更新工作台 | 按 8.7.1 从发行渠道取新版，验证 ZIP 后并排解压，用原工程启动。旧版可作为启动失败时的恢复入口 | 新版可查看同一工程，原框架 revision、配置及恢复材料可读取。旧版恢复启动后重新检测工程兼容性 |
 | 首次安装框架 | 识别无 `.agents` 的 standard 工程。可沿现有 Git 来源首装，也可选择完整离线能力包并核对目标，再确认调用随包可信 `install-agents.ps1` | `.agents` Git、sparse 范围、基础插件和生成入口实际读回。既有 AGENTS 正文、自定义 MCP 与私有配置按原安装契约保护。需 Agent 初始化或宿主验证的步骤分别显示 |
-| 更新已有框架 | 工作台只读比较当前 revision 与上游观测结果，并提供统一更新提示词。Agent 在当前工程按原手册处理 standard、Overlay 或批准的离线能力包 | Agent 复查实际 Git revision、受管生成层和需验证的宿主。返回工作台后重新读取实际版本 |
+| 更新已有框架 | 工作台只读比较当前 revision 与上游观测结果，并提供统一更新提示词。Agent 按原手册处理 standard、Overlay 或批准的离线能力包 | Agent 在会话报告实际 Git revision、复查和未完成项。工作台总览回到前台时自动读取本地状态 |
 
 原更新器在 `Check` 阶段也会加载已装插件声明的迁移脚本。工作台执行前同时核对已验证的完整提交号及其运行文件，检查已装插件声明的脚本是否在场。即使文件树相同，新提交仍需单独验证。其它提交可以查看工程身份和实际版本。
 
@@ -529,7 +529,7 @@ Windows standard 源码试点的插件管理预览按实际安装情况提供补
 |---|---|---|
 | 工程管理 | 选择、只读接入、状态、分域编辑 | 无全盘扫描；自定义布局先保持只读 |
 | 工作台交付与更新 | 完整 ZIP、可信发行记录、并排解包升级、原工程绑定恢复 | 渠道稳定后接检查与导入更新包 |
-| 框架部署更新 | Windows standard 在线／离线首装。已有工程只读检测及提示词接续，完成后重新读取实际版本 | 正式候选 ZIP 复验、Overlay 共享及离线接续，逐步开放已验收路径的确认执行 |
+| 框架部署更新 | Windows standard 在线／离线首装。已有工程只读检测及提示词接续，工作台总览回到前台时自动读取本地版本 | 正式候选 ZIP 复验、Overlay 共享及离线接续，逐步开放已验收路径的确认执行 |
 | 插件管理 | 全部有manifest插件可浏览、依赖预览、补装、启停 | 不自动启用未完成初始化的领域插件 |
 | 配置UI | 基础工程、IRIS、BOS、知识提供方有schema与保存；JSONC域全消费者闭环 | 其余owner逐个补schema；无schema显示原来源，不宣称全部可编辑 |
 | Agent客户端 | 入口适配、能力分级、提示词交接与结果重查；可用接口逐宿主接通 | 不保证操控任意宿主聊天窗口或取得其会话结果 |
@@ -716,7 +716,7 @@ Marked、DOMPurify与Ajv版本沿原调查记录，尚不代表本项目集成�
 
 入口：`prototype/serve.js` 的工作台后端、`scripts/install-agents.ps1`、`scripts/update-agents.ps1` 以及原插件部署入口。
 
-- 12a：绑定已有标准工程后只读检查上游，提示词带入当前版本、观测版本与工程身份。验证检查和复制前后实际 `HEAD`、Git 引用与配置保持原样。Agent 按原手册核对升级范围并执行获授权的预演、更新和复查，回工作台重新读取实际版本。首装命令仍在绑定工程运行。
+- 12a：绑定已有标准工程后只读检查上游，提示词带入当前版本、观测版本与工程身份。验证检查和复制前后实际 `HEAD`、Git 引用与配置保持原样。Agent 按原手册核对升级范围，执行获授权的操作并报告复查结果。工作台总览回到前台时自动读取实际版本。首装命令仍在绑定工程运行。
 - 12b：从 ZIP 解包后，以随包安装入口在无 `.agents` 的非空工程完成真实安装与读回。保留既有 AGENTS 正文、自定义 MCP 和业务文件。沿用 `scripts/tests/update-agents.tests.ps1` 的本地 bare Git 模式，用历史 revision 验证真实更新和部分失败后续接。安装器固定来源只在测试子进程中映射到夹具，保持用户的 Git 配置和框架生产来源。
 
   `.agents` 已存在但框架部署不完整、无法核实版本或来源待核对时，首页可复制绑定当前工程的恢复提示词，并打开内置恢复手册。非默认来源先沿项目授权核对镜像、跟踪分支与本地历史，处理后从首页重新读取实际状态。
@@ -862,7 +862,7 @@ git diff --cached --check
 
   隔离正式规则候选已与现有 0.3.1 实跑导入和回退。候选目录不可用、候选子进程启动后退出都回退到旧版，且同名工程的默认版本独立。`standard-pilot.py` 使用同一个候选验证已部署工程的原更新入口接续和固定提交的首装。发布提交与原生选择窗口仍按上面的正式验收范围核对。
 
-  Windows 可用 `python tools/agents-workbench/tests/offline-browser-pilot.py "<工作台 ZIP>" "<解压后的 capability.bundle>" "<独立框架记录.json>"` 复验实际物料。测试预先提供文件选择路径，之后通过 Edge 操作真实预演、确认和重查，安装及读回使用原 Windows PowerShell 5.1 脚本。追加 `--tamper-after-preview` 可用隔离副本验证预演后文件被替换时拒绝写入，恢复物料后要求重新预演。追加 `--check-bundled-updater` 验证已部署工程复制的提示词指向同一工作台 ZIP 的完整更新入口和手册。
+  Windows 可用 `python tools/agents-workbench/tests/offline-browser-pilot.py "<工作台 ZIP>" "<解压后的 capability.bundle>" "<独立框架记录.json>"` 复验实际物料。测试预先提供文件选择路径，之后通过 Edge 操作真实预演、确认和重查，安装及读回使用原 Windows PowerShell 5.1 脚本。追加 `--tamper-after-preview` 可用隔离副本验证预演后文件被替换时拒绝写入，恢复物料后要求重新预演。追加 `--check-bundled-updater` 验证已部署工程复制的提示词可找到同一工作台 ZIP 的离线更新和恢复说明。
 
 - **已有配置、插件、隔离与原消费者（2／3／4／5／6／9／12／13／14）**。复用任务07–12的定向回归及 `project-recovery.test.js`、`task-owner-observations.test.js`、`state-export.test.js`、`overlay-stock-pilot.test.js`、`parallel-launch.test.js`。运行 `python tools/agents-workbench/tests/project-policy-pilot.py --archive "<Windows ZIP>"`，从实际解包版本和包内 Node 验证配置修改、撤销、恢复和关闭工作台后的原 CLI 读回。隔离工程首次生成受管 IRIS MCP 后，移走试用版解包目录，原 CLI、适配器初始化和工具列表读回通过。在获授权的新工程、旧全量、旧按需及 Overlay 上核对实际写入、原 CLI 读回与重开后的状态。其余写入中断点和其它宿主的独立运行继续沿各 owner 路径验证。
   - `overlay-stock-pilot.test.js` 可用 `WORKBENCH_OVERLAY_PILOT_APP` 指向 Windows 试用包的解压目录，并用包内 `runtime/node.exe` 运行。它验证共享根更新后一个成员成功、另一个成员因本地 GitRoot 不可用而失败。原入口只续失败成员，工作台重读核验，已成功成员与共享框架状态保持原样。

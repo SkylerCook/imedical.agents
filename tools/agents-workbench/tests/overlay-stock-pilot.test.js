@@ -248,9 +248,9 @@ test('Workbench hands off a stock root and two Overlay projects to the existing 
   const rootNote = await updateNote(primary,before);
   assert.equal(rootNote.res.status,200,JSON.stringify(rootNote.body));
   assert.equal(rootNote.body.revision,a);
-  assert.match(rootNote.body.prompt,/已登记的 Overlay 成员如下/u);
-  assert.ok(rootNote.body.prompt.includes(path.basename(left.workspace)));
-  assert.ok(rootNote.body.prompt.includes(path.basename(right.workspace)));
+  assert.match(rootNote.body.prompt,/\.agents\/\.git\/plugin-deployment\.json 的 members/u);
+  assert.ok(!rootNote.body.prompt.includes(path.basename(left.workspace)));
+  assert.ok(!rootNote.body.prompt.includes(path.basename(right.workspace)));
   const memberNote = await updateNote(local,await local.read());
   assert.equal(memberNote.res.status,200,JSON.stringify(memberNote.body));
   assert.equal(memberNote.body.revision,a);
@@ -382,7 +382,7 @@ with sync_playwright() as playwright:
   const originalSparse = fs.readFileSync(sparse);
   const coldNote = await updateNote(local,known);
   assert.equal(coldNote.res.status,200,JSON.stringify(coldNote.body));
-  assert.match(coldNote.body.prompt,/plugin-deploy\.js register/u);
+  assert.match(coldNote.body.prompt,/workspace-overlay\.md.*未登记时按该手册补登记/u);
   refreshMember(left.workspace);
   if (!fs.existsSync(registry)) {
     const registered = JSON.parse(run(left.workspace,process.execPath,[

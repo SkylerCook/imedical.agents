@@ -30,7 +30,7 @@ def session(page):
 
 def copy_update_prompt(page):
     page.get_by_role("button", name="复制更新提示词", exact=True).click(timeout=30000)
-    page.get_by_text("已复制。请粘贴到当前工程的 Agent 会话，完成后重新读取。", exact=True).wait_for()
+    page.get_by_text("已复制。请粘贴到当前工程的 Agent 会话。", exact=True).wait_for()
     return page.evaluate("navigator.clipboard.readText()")
 
 
@@ -56,10 +56,10 @@ def main():
         assert root.get_by_role("button", name="获取新版并预演", exact=True).count() == 0
         assert root.get_by_role("button", name="应用更新并复查", exact=True).count() == 0
         root_prompt = copy_update_prompt(root)
-        assert original["revision"] in root_prompt and "框架更新手册" in root_prompt
-        assert "已登记的 Overlay 成员如下" in root_prompt
-        assert "模块 一" in root_prompt and "模块 二" in root_prompt
-        assert "DryRun -NoPull" in root_prompt and "Check -NoPull" in root_prompt
+        assert original["revision"] in root_prompt and "update-agents.md" in root_prompt
+        assert ".agents/.git/plugin-deployment.json 的 members" in root_prompt
+        assert "模块 一" not in root_prompt and "模块 二" not in root_prompt
+        assert "获授权且就绪的成员逐个 -NoPull" in root_prompt
 
         launcher.rename(unavailable_launcher)
         try:
@@ -84,10 +84,10 @@ def main():
         assert member.get_by_role("button", name="刷新本工程", exact=True).count() == 0
         member_prompt = copy_update_prompt(member)
         owner = json.dumps(own["overlay"]["standardRoot"], ensure_ascii=False)
-        assert f"所属标准根：{owner}" in member_prompt
+        assert f"所属标准根 {owner}" in member_prompt
         assert "当前成员 ContextRoot" in member_prompt and "模块 一" in member_prompt
         assert "模块 二" not in member_prompt and original["revision"] in member_prompt
-        assert "Write -NoPull" in member_prompt and "Check -NoPull" in member_prompt
+        assert "只按授权对当前成员做 -NoPull" in member_prompt
 
         root_csrf, member_csrf = session(root), session(member)
         assert root_csrf != member_csrf

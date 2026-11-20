@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { frameworkAction, offlineFrameworkAction, readFrameworkUpdateNote, type FrameworkUpdateNote, type OfflinePlan } from "./framework-api";
@@ -56,8 +56,13 @@ const manualHelp: Record<string, { label: string; doc: string; section: string }
 export function FrameworkPanel({onChanged, projectHandoff}:{onChanged:()=>void; projectHandoff:ReactNode}) {
   const [state,setState]=useState<Observation>();
   const [receipt,setReceipt]=useState<Receipt>();
-  const [pending,setPending]=useState<Action | "offline-select" | "offline-apply">();
+  const [pending,setPending]=useState<Action | "auto-refresh" | "offline-select" | "offline-apply">();
+  const [noteCheck,setNoteCheck]=useState(0);
+  const actionRunning=useRef(false);
   const overlay=state?.overlay;
+  const canHandoff=state?.status==="standard" || state?.status==="overlay-declared";
+  const needsRecovery=!!state && ["partial", "invalid-head", "unknown-source", "invalid-declaration"].includes(state.status);
+  const overlayPlan=overlay && "planId" in overlay ? overlay.planId : undefined;
   useEffect(()=>{
     const controller=new AbortController();
     let timer: ReturnType<typeof setTimeout>;
@@ -72,9 +77,11 @@ export function FrameworkPanel({onChanged, projectHandoff}:{onChanged:()=>void; 
     void read();
     return ()=>{controller.abort();clearTimeout(timer);};
   },[]);
-  async function act(action:Action) {
-    if (!state || pending) return;
-    setPending(action); setReceipt(undefined);
+  async function act(action:Action, automatic=false) {
+    if (!state || actionRunning.current) return;
+    actionRunning.current=true;
+    setPending(automatic ? "auto-refresh" : action);
+    if (!automatic) setReceipt(undefined);
     try {
       const result=await frameworkAction(action,state.projectId,state.revision);
       const next=action==="refresh" ? result : result.after || result.before;
@@ -82,13 +89,35 @@ export function FrameworkPanel({onChanged, projectHandoff}:{onChanged:()=>void; 
         workbenchUpdate:result.workbenchUpdate ?? state.workbenchUpdate,workbenchRollback:result.workbenchRollback ?? state.workbenchRollback,
         overlay:result.overlay,
         offline:action==="refresh" ? result.offline : next.revision===state.revision && next.status===state.status ? state.offline : null});
-      setReceipt(result);
+      if (!automatic) {
+        setReceipt(result);
+        if (next) setNoteCheck(count=>count+1);
+      } else if (next && (next.revision!==state.revision || next.status!==state.status)) {
+        setReceipt(undefined);
+      }
       if(action==="install" || action==="refresh") onChanged();
-    } catch(e) {setReceipt({error:e instanceof Error ? e.message : "请求失败"});}
-    finally {setPending(undefined);}
+    } catch(e) {
+      if (!automatic) setReceipt({error:e instanceof Error ? e.message : "请求失败"});
+    } finally {
+      actionRunning.current=false;
+      setPending(undefined);
+    }
   }
+  const refreshOnReturn=useEffectEvent(()=>{
+    if (document.visibilityState==="visible" && (canHandoff || needsRecovery)) void act("refresh",true);
+  });
+  useEffect(()=>{
+    const refresh=()=>refreshOnReturn();
+    window.addEventListener("focus",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    return ()=>{
+      window.removeEventListener("focus",refresh);
+      document.removeEventListener("visibilitychange",refresh);
+    };
+  },[]);
   async function actOffline(action: "select" | "apply") {
-    if (state?.status!=="no-framework" || pending || (action==="apply" && !state.offline?.install)) return;
+    if (state?.status!=="no-framework" || actionRunning.current || (action==="apply" && !state.offline?.install)) return;
+    actionRunning.current=true;
     setPending(action==="select" ? "offline-select" : "offline-apply");
     setReceipt(undefined);
     try {
@@ -101,11 +130,12 @@ export function FrameworkPanel({onChanged, projectHandoff}:{onChanged:()=>void; 
     } catch(e) {
       setReceipt({error:e instanceof Error ? e.message : "离线请求失败"});
       setState({...state,offline:null});
-    } finally {setPending(undefined);}
+    } finally {
+      actionRunning.current=false;
+      setPending(undefined);
+    }
   }
   const button=(action:Action,disabled=false)=><Button variant="outline" disabled={!!pending || disabled} onClick={()=>act(action)}>{labels[action]}</Button>;
-  const canHandoff=state?.status==="standard" || state?.status==="overlay-declared";
-  const needsRecovery=!!state && ["partial", "invalid-head", "unknown-source", "invalid-declaration"].includes(state.status);
   const help=state && manualHelp[state.status];
   const installChecked=receipt?.action==="install" && receipt.exitCode===0 && !receipt.error &&
     receipt.steps?.some(step=>step.step==="check" && step.exitCode===0);
@@ -135,7 +165,7 @@ export function FrameworkPanel({onChanged, projectHandoff}:{onChanged:()=>void; 
           <Button disabled={!!pending} onClick={()=>actOffline("apply")}>{labels["offline-apply"]}</Button>
         </div>}
         <div role="status" aria-live="polite">
-          {pending && <p>{pending === "offline-select" ? "请在 Windows 文件选择窗口选取发行记录和能力包，选完后工作台会校验并预演。" : `正在执行 ${labels[pending]}…`}</p>}
+          {pending && pending!=="auto-refresh" && <p>{pending === "offline-select" ? "请在 Windows 文件选择窗口选取发行记录和能力包，选完后工作台会校验并预演。" : `正在执行 ${labels[pending]}…`}</p>}
           {installChecked && <p>基础框架已安装并通过检查。</p>}
           {compatibility && compatibility.publishedRevision !== compatibility.selectedRevision && <p>
             已安装核验版本 <code>{compatibility.selectedRevision.slice(0,12)}</code>。发布分支的 <code>{compatibility.publishedRevision.slice(0,12)}</code> 可用更新提示词接续。
@@ -151,7 +181,8 @@ export function FrameworkPanel({onChanged, projectHandoff}:{onChanged:()=>void; 
       </section>
       {(canHandoff || needsRecovery) && <section aria-labelledby="framework-handoff" className="space-y-3 border-t pt-3">
         <h4 id="framework-handoff" className="font-semibold">交给 Agent</h4>
-        <UpdatePrompt key={state.observedAt} projectId={state.projectId} revision={state.revision} recovery={needsRecovery} />
+        <UpdatePrompt key={`${state.status}:${state.revision}:${overlayPlan}:${noteCheck}`}
+          projectId={state.projectId} revision={state.revision} recovery={needsRecovery} />
         {needsRecovery ? <Button asChild variant="link" className="h-auto p-0">
           <a href={href("manual", null, { doc: help?.doc ?? "update-agents.md", section: help?.section ?? "更新中断与续接" })}>
             {help?.label ?? "查看框架恢复手册"}
@@ -209,8 +240,8 @@ function UpdatePrompt({ projectId, revision, recovery }: { projectId: string; re
   const prompt = note?.prompt;
   const promptLabel = recovery ? "恢复提示词" : "更新提示词";
   return <div className="space-y-2">
-    <p className="text-muted-foreground">{recovery ? "在当前工程的 Agent 会话核对现有 .agents 和项目规则，处理完毕后回工作台重新读取。"
-      : "已有工程更新由当前工程的 Agent 会话接续，完成后回工作台重新读取。"}</p>
+    <p className="text-muted-foreground">{recovery ? "在当前工程的 Agent 会话核对 .agents 和项目规则。"
+      : "在当前工程的 Agent 会话接续更新。"}</p>
     <div role="status" aria-live="polite" className="space-y-1">
       <p>{error || (note ? updateStatus[note.status] : recovery ? "正在准备恢复提示词…" : "正在检查框架更新…")}
         {note?.targetRevision && note.targetRevision !== note.revision && <> · <code>{note.targetRevision.slice(0,12)}</code></>}
@@ -221,7 +252,7 @@ function UpdatePrompt({ projectId, revision, recovery }: { projectId: string; re
     {prompt && <Button type="button" variant={note.status === "update-available" || recovery ? "default" : "outline"}
       onClick={() => void copyPrompt(prompt)}>复制{promptLabel}</Button>}
     {copyState && <p role="status" className="text-muted-foreground">{copyState === "copied"
-      ? "已复制。请粘贴到当前工程的 Agent 会话，完成后重新读取。"
+      ? "已复制。请粘贴到当前工程的 Agent 会话。"
       : "剪贴板不可用，请选中以下提示词手动复制。"}</p>}
     {copyState === "manual" && prompt &&
       <textarea className={textareaClass} aria-label={promptLabel} value={prompt} rows={8} readOnly

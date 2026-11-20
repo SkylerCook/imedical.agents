@@ -99,11 +99,13 @@ test('Update note checks project binding, reports upstream state, and never adva
     assert.equal(updated.body.revision, revision);
     assert.equal(updated.body.targetRevision, next);
     assert.match(updated.body.prompt, /update-agents\.md/);
+    assert.match(updated.body.prompt, /取版和写入以用户授权为准/);
+    assert.match(updated.body.prompt, /联网 DryRun 可能推进/);
     assert.match(updated.body.prompt, /Check -NoPull/);
-    assert.doesNotMatch(updated.body.prompt, /已登记的 Overlay/);
-    assert.match(updated.body.prompt, /模块、医院等工作区/);
-    assert.match(updated.body.prompt, /capability\.json/);
-    assert.match(updated.body.prompt, /登记缺失时沿项目已有管理入口/);
+    assert.match(updated.body.prompt, /在本会话报告实际框架提交、复查结果和未完成项/);
+    assert.doesNotMatch(updated.body.prompt, /重新读取|plugin-deployment\.json|runtime\/node\.exe/);
+    assert.match(updated.body.prompt, /模块、医院等共享工作区/);
+    assert.match(updated.body.prompt, /项目工作区清单.*workspace-overlay\.md/);
 
     target = revision;
     assert.equal((await request()).body.status, 'current');
@@ -111,8 +113,8 @@ test('Update note checks project binding, reports upstream state, and never adva
     const offline = await request();
     assert.equal(offline.body.status, 'unavailable');
     assert.match(offline.body.prompt, /批准的离线能力包/);
-    assert.match(offline.body.prompt, /独立发行记录.*本地裸仓.*-UpdateSource.*-ExpectedRevision.*-TrustedRuntimeTree/);
-    assert.match(offline.body.prompt, /sparse-refresh-failed.*HEAD.*运行文件.*DryRun -NoPull.*授权后的 Write -NoPull.*Check -NoPull/);
+    assert.match(offline.body.prompt, /独立发行记录.*update-agents\.md.*「离线更新」/);
+    assert.match(offline.body.prompt, /sparse-refresh-failed.*「更新中断与续接」/);
     assert.doesNotMatch(offline.body.prompt, /该随包更新器|runtime\/node\.exe/);
     assert.doesNotMatch(JSON.stringify(offline), /fixture-private-transport-error/);
     target = unrelated;
@@ -156,9 +158,9 @@ test('Update note uses actual standard registration and scopes an Overlay note t
     const standardNote = (await standard()).body;
     assert.equal(standardNote.status, 'update-available');
     assert.equal(standardNote.scope, 'standard');
-    assert.match(standardNote.prompt, /Module member/);
-    assert.match(standardNote.prompt, /Hospital member/);
-    assert.match(standardNote.prompt, /Write -NoPull/);
+    assert.match(standardNote.prompt, /\.agents\/\.git\/plugin-deployment\.json 的 members/);
+    assert.match(standardNote.prompt, /标准根更新一次.*获授权且就绪的成员逐个 -NoPull/);
+    assert.doesNotMatch(standardNote.prompt, /Module member|Hospital member/);
 
     const overlay = await start(t, moduleMember.root, async () => revision);
     const memberNote = (await overlay()).body;
@@ -167,7 +169,7 @@ test('Update note uses actual standard registration and scopes an Overlay note t
     assert.equal(memberNote.revision, revision);
     assert.match(memberNote.prompt, /Standard owner/);
     assert.match(memberNote.prompt, /Module member/);
-    assert.match(memberNote.prompt, /plugin-deploy\.js register/);
+    assert.match(memberNote.prompt, /只按授权对当前成员做 -NoPull/);
     assert.doesNotMatch(memberNote.prompt, /Hospital member/);
 });
 
@@ -224,7 +226,7 @@ test('Incomplete or unreadable deployments receive local recovery notes without 
         assert.match(note.body.prompt, guidance);
         assert.match(note.body.prompt, /状态判定.*更新中断与续接/);
         assert.match(note.body.prompt, /DryRun -NoPull.*Write -NoPull.*Check -NoPull/);
-        assert.doesNotMatch(note.body.prompt, /private-fixture/);
+        assert.doesNotMatch(note.body.prompt, /private-fixture|重新读取/);
         assert.equal(lookups, 0);
         assert.deepEqual(snapshot(), before);
 

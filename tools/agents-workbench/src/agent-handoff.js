@@ -388,72 +388,38 @@ async function checkHistory(capabilityRoot, revision, readUpdateHead) {
     }
 }
 
-function bundledUpdater() {
-    if (process.platform !== 'win32') return null;
-    try {
-        if (fs.lstatSync(path.join(packageRoot, '.git'), { throwIfNoEntry: false })) return null;
-        const record = existingFile(packageRoot, 'workbench-release.json');
-        const node = existingFile(packageRoot, 'runtime/node.exe');
-        if (!record || !node || fs.statSync(record).size > 128 * 1024 ||
-            path.relative(node, fs.realpathSync.native(process.execPath)) !== '') return null;
-        const release = JSON.parse(fs.readFileSync(record, 'utf8'));
-        if (release?.platform !== 'windows-x64' || typeof release.formal !== 'boolean' ||
-            release.node !== process.versions.node || !commitId.test(release.sourceBaseRevision)) return null;
-        const scripts = ['scripts/update-agents.ps1', 'scripts/lib/offline-capability-update.js', 'scripts/lib/WorkspaceContext.psm1',
-            'scripts/lib/workspace-context.js', 'scripts/lib/plugin-deployment.js', 'scripts/refresh-agents-sparse.js'];
-        if (!scripts.every(file => existingFile(packageRoot, file))) return null;
-        return { file: path.join(packageRoot, scripts[0]), guide: existingFile(packageRoot, 'docs/update-agents.md') };
-    } catch { return null; }
-}
-
-function updatePrompt(root, observation, target, plan, link, discovery) {
+function updatePrompt(root, target, plan, link, discovery) {
     const display = JSON.stringify;
-    const overlay = observation.status === 'overlay-declared';
     const lines = [
-        '请在当前工程核对 .agents 框架更新，并按用户授权执行。',
-        `当前工程：${display(root)}`,
-        ...(target ? [
-            `已安装框架提交：${target.revision}`,
-            `CapabilityRoot：${display(target.capabilityRoot)}`,
-            `框架更新手册：${display(path.join(target.capabilityRoot, 'docs', 'update-agents.md'))}`
-        ] : []),
-        ...(discovery.targetRevision ? [`上游观测提交：${discovery.targetRevision}`] : []),
-        '复制此请求仅提供上下文。开始前读取当前工程 AGENTS.md 和框架更新手册，写入按用户有效授权执行。'
+        '先只读核对当前工程的 .agents 更新。取版和写入以用户授权为准。',
+        `工程 ${display(root)}`
     ];
     if (!target) {
-        lines.push('共享能力根尚待核对。根据本工程 .agents/capability.json 只读核对所属标准根、ContextRoot 和能力包来源；确认后在标准根工作台获取更新提示词。');
+        lines.push('先读 AGENTS.md 和 .agents/capability.json，只读核对所属标准根、ContextRoot 与能力包来源。在本会话报告归属和更新路径。');
         return lines.join('\n');
     }
+    lines.push(`已安装 ${target.revision}${discovery.targetRevision ? `，上游观测 ${discovery.targetRevision}` : ''}`);
+    const updateGuide = path.join(target.capabilityRoot, 'docs', 'update-agents.md');
+    lines.push(`先读工程 AGENTS.md 与更新手册 ${display(updateGuide)}。核对实际 HEAD、上游、快进关系和本地改动。`);
     if (discovery.status === 'current') {
-        lines.push('共享框架提交与当前受支持上游一致。先用原更新器的 Check -NoPull 核对有效配置、Skill 和受影响的宿主入口，并报告尚待验证的项目适配。');
+        lines.push('观测版本与上游一致，先用 Check -NoPull 核对实际状态。');
     } else if (discovery.status === 'update-available') {
-        lines.push('先核对实际 HEAD、上游、快进关系和本地变更。获得相应授权后按手册运行原更新器预演；标准流程的联网 DryRun 可能推进 .agents 的 Git 提交。预演无阻塞后在授权范围内执行 Write，再用 Check -NoPull 复查。');
-    } else if (discovery.status === 'unavailable') {
-        lines.push('暂未取得可信上游版本。先只读确认当前提交与连接状态。');
+        lines.push('按授权用原更新器做 DryRun。联网 DryRun 可能推进 .agents HEAD。预演通过后按授权 Write，再做 Check -NoPull。');
     } else {
-        lines.push('工程的上游配置或提交历史需要核对。先只读查明差异并报告可行路径；经用户确认目标与处理方式后使用原更新器。');
+        lines.push('先只读查明上游或历史差异，确认来源、目标和授权后按手册更新。');
     }
-    lines.push('断网且已有批准的离线能力包和独立发行记录时，先核对来源、目标提交、bundle SHA-256 和批准的运行树，在任务临时目录准备并验证含完整 Git 对象的本地裸仓。离线取版在标准根按手册使用 -UpdateSource、-ExpectedRevision 和 -TrustedRuntimeTree 预演，获授权后执行 Write。');
-    lines.push('若出现 sparse-refresh-failed，先只读核实 HEAD、运行文件、有效 Git 换行配置和本地改动。目标已落盘、运行入口可信且只需补生成层时，按手册走 DryRun -NoPull、授权后的 Write -NoPull 和 Check -NoPull。');
-    const packaged = bundledUpdater();
-    if (packaged) {
-        lines.push(`确认旧更新器存在 Git 换行兼容风险时，核对发放渠道的工作台 ZIP SHA-256，并确认新版随包脚本完整且包含相应修复后，可使用该随包更新器 ${display(packaged.file)}，-ProjectRoot 指向已核实的标准工程根 ${display(target.workspaceRoot)}。使用 Windows PowerShell 5.1 和本机 Git，将同包 runtime/node.exe 所在目录放在该临时 PowerShell 进程的 PATH 首位。先核对实际 HEAD 和运行文件，再按手册预演、经授权执行 Write 并用 Check -NoPull 复查。`);
-        if (packaged.guide) lines.push(`随包更新手册：${display(packaged.guide)}`);
-    }
-    if (overlay) {
-        lines.push(`所属标准根：${display(target.workspaceRoot)}。当前成员 ContextRoot：${display(link.member.contextRoot)}。先读取所属标准根的 AGENTS.md，共享能力更新在所属标准根按其授权执行。共享版本就绪后，核对当前成员的源码和归属，只在其授权范围内使用标准根的更新器执行 DryRun -NoPull、Write -NoPull 和 Check -NoPull，并核对本成员入口。`);
-        if (link.member.status !== 'ready') lines.push('当前成员源码或目录尚未就绪，先核对声明与实际路径，报告未就绪原因。');
-        lines.push('当前成员若尚未登记，在生成及复查成功、归属一致且本次授权覆盖后，按既有流程使用共享 CapabilityRoot 的 scripts/plugin-deploy.js register 补登记当前成员，并读回登记。旧版 owner 未完成登记时报告结果，提示先更新所属标准根。');
+    const overlayGuide = existingFile(packageRoot, 'docs/workspace-overlay.md') ?? path.join(target.capabilityRoot, 'docs', 'workspace-overlay.md');
+    if (link) {
+        lines.push(`所属标准根 ${display(target.workspaceRoot)}，当前成员 ContextRoot ${display(link.member.contextRoot)}。共享取版在标准根按授权执行。`);
+        lines.push(`读标准根 AGENTS.md，按 ${display(overlayGuide)} 核对归属、共享根版本和源码就绪状态。共享根就绪后，只按授权对当前成员做 -NoPull 预演、刷新和复查。未登记时按该手册补登记。`);
     } else {
-        lines.push('若工程有共享此根的模块、医院等工作区，先从项目 AGENTS.md 路由的规则及管理入口读取实际工作区清单，也可使用用户给出的管理入口。登记缺失时沿项目已有管理入口核对。逐个读取成员 AGENTS.md，核对 .agents/capability.json 是否指向此共享 CapabilityRoot，并确认授权范围和就绪状态。清单或归属仍无法确认时，报告待核对的范围。');
-        lines.push(`共享 CapabilityRoot 在标准根更新和复查一次。对获授权且就绪的成员按 ${display(path.join(target.capabilityRoot, 'docs', 'workspace-overlay.md'))} 执行 DryRun -NoPull、Write -NoPull 和 Check -NoPull。项目若已有可按授权名单执行并逐成员复查的管理入口，优先使用该入口。逐成员记录成功、跳过和失败及原因。`);
-        if (plan?.members.length) lines.push('已登记的 Overlay 成员如下，可与实际工作区清单交叉核对。');
-        for (const member of plan?.members ?? []) {
-            const label = display(member.workspaceRoot ?? member.label);
-            lines.push(`- ${label}${member.contextRoot ? `，ContextRoot ${display(member.contextRoot)}` : ''}（${member.status}）`);
-        }
+        lines.push(`有模块、医院等共享工作区时，按项目工作区清单和 ${display(overlayGuide)} 核对归属与授权。标准根更新一次，再对获授权且就绪的成员逐个 -NoPull 预演、刷新和复查，优先使用项目原管理入口。`);
+        if (plan?.members.length) lines.push('成员登记线索见 .agents/.git/plugin-deployment.json 的 members，以项目工作区清单核实实际成员。');
     }
-    lines.push('保留连接、凭据、已禁用能力和用户定制。使用 Check -NoPull 核对更新后的实际框架提交、配置、Skill 与受影响宿主入口，报告未完成项，完成后回工作台点「重新读取」。');
+    const workbenchGuide = existingFile(packageRoot, 'docs/update-agents.md');
+    const exceptions = workbenchGuide ? `工作台手册 ${display(workbenchGuide)}` : '更新手册';
+    lines.push(`断网且有批准的离线能力包与独立发行记录时，读${exceptions}中的「离线更新」。遇到 sparse-refresh-failed 或生成层中断时，读同一手册的「更新中断与续接」。`);
+    lines.push('保留连接、凭据、已禁用能力及项目定制。在本会话报告实际框架提交、复查结果和未完成项。有工作区时逐个说明成功、跳过或失败的原因。');
     return lines.join('\n');
 }
 
@@ -468,7 +434,7 @@ function recoveryHandoff(root, observation) {
             `待核对声明：${JSON.stringify(path.join(root, '.agents', 'capability.json'))}`,
             '先读取当前工程 AGENTS.md（如存在），参照工作台随包 docs/workspace-overlay.md 的「Manifest 与目录边界」和「恢复策略」核对本地声明格式。',
             '声明中的路径尚未核实。先按项目已有规则和工作区清单确认归属，勿从声明猜测标准根、访问候选路径、运行脚本或取版。',
-            '先报告缺项和建议，省略连接与凭据。仅在归属明确并取得用户授权后处理当前声明，保留已有配置和业务文件。修复后从工作台启动器重新打开此工程，再核对实际归属。'
+            '先报告缺项和建议，省略连接与凭据。获授权后修复声明，保留已有配置和业务文件，再核对归属并报告结果。'
         ].join('\n')
     };
     const guidance = {
@@ -484,8 +450,8 @@ function recoveryHandoff(root, observation) {
             `当前工程：${JSON.stringify(root)}`,
             '先读取当前工程 AGENTS.md（如存在），并参考工作台随包 docs/update-agents.md 的「状态判定」和「更新中断与续接」。',
             guidance[reason],
-            '请先报告发现和建议的恢复范围。保留现有配置、连接、凭据来源、定制入口与业务文件。任何写入均须按用户有效授权执行，禁止直接删除、覆盖或重新克隆现有 .agents。',
-            '若已确认目标版本和可信更新入口已落盘、只需补齐生成层，按手册从工程根目录先执行原更新器 DryRun -NoPull。预演通过并取得授权后执行 Write -NoPull，最后用 Check -NoPull 核对版本、配置和 Skill。完成后回工作台点「重新读取」。'
+            '先报告发现和恢复范围。保留现有 .agents、配置、凭据来源、定制入口与业务文件，按授权接续。',
+            '目标版本和可信更新器已落盘且仅需补生成层时，按手册用 DryRun -NoPull、Write -NoPull、Check -NoPull 接续，在本会话报告实际版本、复查结果和未完成项。'
         ].join('\n')
     };
 }
@@ -504,7 +470,7 @@ async function updateHandoff(root, observation, plan, link, readUpdateHead = rea
         ...discovery,
         scope: overlay ? 'overlay' : 'standard',
         revision: target?.revision ?? null,
-        prompt: updatePrompt(root, observation, target, plan, link, discovery)
+        prompt: updatePrompt(root, target, plan, link, discovery)
     };
 }
 

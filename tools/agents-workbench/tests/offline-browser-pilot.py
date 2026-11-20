@@ -181,14 +181,16 @@ def verify_existing(page, address, project, revision, recovery_app=None):
     assert snapshot["revision"] == revision
     before = read_project_files(project)
     page.get_by_role("button", name="复制更新提示词", exact=True).click()
-    expect(page.get_by_text("已复制。请粘贴到当前工程的 Agent 会话，完成后重新读取。", exact=True)).to_be_visible()
+    expect(page.get_by_text("已复制。请粘贴到当前工程的 Agent 会话。", exact=True)).to_be_visible()
     prompt = page.evaluate("navigator.clipboard.readText()").replace("\\\\", "\\")
-    assert str(project) in prompt and revision in prompt and "Check -NoPull" in prompt
+    assert str(project) in prompt and revision in prompt and "复查结果和未完成项" in prompt
+    assert "离线更新" in prompt and "重新读取" not in prompt
     if recovery_app:
-        assert str(recovery_app / "scripts/update-agents.ps1") in prompt
-        assert str(recovery_app / "docs/update-agents.md") in prompt
-        assert "runtime/node.exe" in prompt and "-ProjectRoot" in prompt and "sparse-refresh-failed" in prompt
-        assert "SHA-256" in prompt and "授权" in prompt
+        guide = recovery_app / "docs/update-agents.md"
+        assert str(guide) in prompt and "sparse-refresh-failed" in prompt and "授权" in prompt
+        manual = guide.read_text(encoding="utf-8-sig")
+        assert all(phrase in manual for phrase in ("### 离线更新", "scripts/update-agents.ps1", "runtime/node.exe", "-ProjectRoot", "ZIP SHA-256"))
+        assert (recovery_app / "scripts/update-agents.ps1").is_file()
     headers, auth = authenticated_headers(page, address)
     target = {"projectId": snapshot["projectId"], "revision": revision}
     rejected = page.request.post(headers["Origin"] + "/framework/offline", headers=auth, data={**target, "action": "select"})
@@ -278,7 +280,7 @@ if __name__ == "__main__":
     parser.add_argument("offline_release_record", type=Path)
     parser.add_argument("--workbench-sha256", help="Digest from the workbench distribution channel")
     parser.add_argument("--tamper-after-preview", action="store_true", help="Verify confirmation rejects a modified copy and requires a fresh preview")
-    parser.add_argument("--check-bundled-updater", action="store_true", help="Verify the copied prompt points to the same unpacked recovery updater and manual")
+    parser.add_argument("--check-bundled-updater", action="store_true", help="Verify the copied prompt routes to the bundled recovery guidance")
     args = parser.parse_args()
     assert os.name == "nt", "Windows PowerShell 5.1 and Edge are required"
     parent = Path("D:/tmp/Codex") if Path("D:/tmp/Codex").is_dir() else Path(tempfile.gettempdir()) / "Codex"

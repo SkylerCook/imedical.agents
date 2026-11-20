@@ -229,6 +229,8 @@ service.createFrameworkService = (root, options) => create(root, {
             prompt = page.get_by_role("textbox", name="更新提示词", exact=True).input_value()
             assert str(project) in prompt.replace("\\\\", "\\")
             assert previous in prompt and target in prompt and "update-agents.md" in prompt
+            assert "在本会话报告实际框架提交、复查结果和未完成项" in prompt
+            assert "重新读取" not in prompt
             for label in ("获取新版并预演", "应用更新并复查", "应用离线更新"):
                 assert page.get_by_role("button", name=label, exact=True).count() == 0
             assert git(cap, "rev-parse", "HEAD") == previous and git(cap, "show-ref") == refs
@@ -242,9 +244,14 @@ service.createFrameworkService = (root, options) => create(root, {
                 result = subprocess.run([*owner, "-Mode", mode, *args], cwd=project, env=owner_env, capture_output=True)
                 assert result.returncode == 0, (mode, result.stdout, result.stderr)
             assert git(cap, "rev-parse", "HEAD") == target
-            page.get_by_role("button", name="重新读取", exact=True).click()
+            refs_after_update = git(cap, "show-ref")
+            with page.expect_response(lambda reply: reply.url.endswith("/framework/action") and
+                                      reply.request.post_data_json.get("action") == "refresh") as response:
+                page.evaluate("window.dispatchEvent(new Event('focus'))")
+            assert response.value.ok and response.value.json()["revision"] == target
             page.get_by_text("当前框架已是上游版本", exact=True).wait_for()
-            print("verified read-only discovery, copied project prompt, original updater and workbench readback", flush=True)
+            assert git(cap, "show-ref") == refs_after_update
+            print("verified read-only discovery, short copied prompt, original updater and automatic readback", flush=True)
             for name, content in original.items():
                 current = (project / name).read_bytes()
                 if name == "AGENTS.md":

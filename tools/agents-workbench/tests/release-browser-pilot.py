@@ -159,7 +159,8 @@ def action(page, label):
 def exercise(old_archive, old_record, new_archive, new_record, work):
     old_info, new_info = verify_release(old_archive, old_record), verify_release(new_archive, new_record)
     old_version, new_version = old_info["version"], new_info["version"]
-    assert old_version == "0.3.1" and new_version != old_version
+    assert all(re.fullmatch(r"\d+\.\d+\.\d+", version) for version in (old_version, new_version))
+    assert tuple(map(int, new_version.split("."))) > tuple(map(int, old_version.split(".")))
     base, candidate = work / "原工作台", work / f"agents-workbench-react-{new_version}"
     with ZipFile(old_archive) as bundle:
         bundle.extractall(base)
@@ -210,7 +211,7 @@ def exercise(old_archive, old_record, new_archive, new_record, work):
                 assert launched.url.partition("#")[0] == opened["address"].partition("#")[0]
                 launched.close()
                 check(old, old_version, a, False)
-                print("PASS exact 0.3.1 browser rejects bad digest; real importer opens formal successor without closing old", flush=True)
+                print(f"PASS {old_version} rejects bad digest and opens {new_version} through the actual importer", flush=True)
 
             with boot(context, base, first, env) as selected:
                 check(selected, new_version, a, True)

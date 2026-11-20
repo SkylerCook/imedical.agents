@@ -16,7 +16,7 @@
 
 - imedical-ui 0.3.0 增加[手机端活力蓝参考](../plugins/imedical-ui/references/vital-blue-mobile.md)，开发和评审按项目基准读取。完整原型留源仓本地，真实设备与宿主验证沿现有 UI 队列。
 
-- 工作台 0.4.0 双击启动后自动关闭命令窗口，最后一个标签页关闭后安全退出。已部署工程使用首页固定更新提示词，Overlay 沿标准根与实际项目工作区清单接续。分发版本以包外记录为准，验收与试用见[工作台说明](../tools/agents-workbench/react/README.md)和维护日志。
+- 工作台 0.4.1 精简框架更新和恢复提示词。Agent 在会话报告复查结果，工作台总览回到前台时自动读取本地状态。Overlay 沿标准根与实际项目工作区清单接续。分发版本以包外记录为准，启动、验收与回退见[工作台说明](../tools/agents-workbench/react/README.md)和维护日志。
 
 - 新离线部署默认 Node 24.22.3，工作台复用 ai-dev-offline 环境；框架最低兼容要求保留，验证范围见维护日志与工具准备回执。
 

@@ -35,9 +35,9 @@ backend-only 工作区可按项目注册表查看相关前端实现，但不新�
 
 标准根首页列出已登记成员。点击成员行的「打开工作台」进入该工程的独立窗口。模块首页也可打开所属标准根。本地源码或 GitRoot 尚未就绪时，仍可打开已核验的工程以排查，成员刷新需等待目录就绪。
 
-在标准根或模块首页点「复制更新提示词」，粘贴到当前工程的 Agent 会话。模块提示词注明当前成员和所属标准根。Agent 先核对真实共享关系、版本和授权，由标准根完成共享更新并复查后，再按授权对实际已登记的模块和医院成员逐个以 `-NoPull` 预演、刷新和复查。失败成员按其回执续接，缺席成员已有的能力依赖保留。
+在标准根或模块首页点「复制更新提示词」，粘贴到当前工程的 Agent 会话。模块提示词注明当前成员和所属标准根。按标准根 `AGENTS.md` 路由的工作区清单与管理入口核对范围，即使共享登记暂缺也沿该入口查证。读取获授权成员的 `AGENTS.md` 和 `.agents/capability.json`，核对 `CapabilityRoot` 指向同一共享根及目录就绪状态。标准根更新并复查一次，再用项目原管理入口逐成员以 `-NoPull` 预演、刷新和复查。报告成功、跳过和失败及原因，失败成员按其回执续接。
 
-在列表中找不到已部署模块时，可用启动器直接打开该模块，在 Agent 会话先核对其声明和共享登记，再按下文阶段二接入。完成后在标准根重新读取并检查登记。部署模式和已装物料沿现有 owner 保留。
+在列表中找不到已部署模块时，可用启动器直接打开该模块，在 Agent 会话先核对其声明和共享登记，再按下文阶段二接入。归属核实、成员刷新和复查成功且授权覆盖补登记时，从共享 `CapabilityRoot` 调用 `node scripts/plugin-deploy.js register --project-root <成员根>` 并读回登记。旧版运行时无法完成登记时，先报告并由所属标准根按授权更新。部署模式和已装物料沿现有 owner 保留。
 
 ## 阶段一：更新 canonical capability 与标版 Context
 
@@ -46,6 +46,7 @@ backend-only 工作区可按项目注册表查看相关前端实现，但不新�
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents\scripts\update-agents.ps1 -ProjectRoot . -Mode DryRun
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents\scripts\update-agents.ps1 -ProjectRoot . -Mode Write
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents\scripts\update-agents.ps1 -ProjectRoot . -Mode Check -NoPull
 ```
 
 这一步可以 fetch/pull canonical capability Git，并刷新标版 Context。出现停止条件时不得进入模块更新。
@@ -62,7 +63,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\CodeSpace\GIT\Gitlab\
   -Detailed
 ```
 
-确认无停止条件后，仅将 `-Mode DryRun` 改为 `-Mode Write`。随后执行模块工作区自己的验证器。overlay 输出应包含 `capability-pull-skipped-overlay`；不要求 `ContextRoot` 存在 `.git` 或 `.git/info/exclude`。Write 还会在 `ContextRoot/scripts/` 生成 manifest-aware runtime adapter，其中 `.agents/scripts/iris-mcp.js` 在运行时读取 `capability.json` 并转发到 `CapabilityRoot/scripts/iris-mcp.js`，不会复制 helper 实现或写死 capability 绝对路径。
+确认无停止条件后，仅将 `-Mode DryRun` 改为 `-Mode Write`。随后执行 `Check -NoPull` 及模块工作区自己的验证器。overlay 输出应包含 `capability-pull-skipped-overlay`；不要求 `ContextRoot` 存在 `.git` 或 `.git/info/exclude`。Write 还会在 `ContextRoot/scripts/` 生成 manifest-aware runtime adapter，其中 `.agents/scripts/iris-mcp.js` 在运行时读取 `capability.json` 并转发到 `CapabilityRoot/scripts/iris-mcp.js`，不会复制 helper 实现或写死 capability 绝对路径。
 
 固定顺序是：更新一次 capability → 对每个模块 DryRun → 无停止条件后 Write → 执行模块验证器。不要在每个模块中重复更新 capability。
 
