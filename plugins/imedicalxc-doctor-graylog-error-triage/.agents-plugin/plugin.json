@@ -1,0 +1,61 @@
+{
+  "name": "imedicalxc-doctor-graylog-error-triage",
+  "version": "1.0.0",
+  "displayName": "iMedicalXC Doctor Graylog Error Triage",
+  "description": "HIS 医生站 Graylog 报错巡检：30 分钟水位线增量采集 ERROR 日志，按堆栈自校准归属（本组/基础设施/他组/待定），前端界面操作穿透，生成本组修正清单与他组通知文档，并按 errorHash 去重推送 QQ 群。",
+  "entry": "AGENTS.md",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "initSkill": "imedicalxc-doctor-graylog-error-triage-init",
+  "thinIndex": {
+    "excludeSkills": ["imedicalxc-doctor-graylog-error-triage-init"]
+  },
+  "availableDependencies": [
+    {
+      "plugin": "imedicalxc-doctor-codegraph",
+      "stage": "frontend-penetration",
+      "trigger": "需要把报错请求 URL 穿透到具体页面、操作元素与 JS 方法行号时",
+      "entries": [
+        "scripts/query_front_back_chain.py",
+        "skills/imedicalxc-doctor-codegraph-front-gen/SKILL.md"
+      ]
+    }
+  ],
+  "requiresProjectFiles": ["AGENTS.md"],
+  "defaultPrompt": [
+    "巡检 Graylog 报错",
+    "补上次巡检的本组修正方案",
+    "生成他组报错通知文档",
+    "安装/卸载报错巡检计划任务",
+    "校准报错归属分类"
+  ],
+  "projectDirectories": [
+    {
+      "id": "graylog-triage-reports",
+      "base": "workspace",
+      "path": "docs/agent-reports/graylog-triage",
+      "role": "delivery",
+      "create": "task",
+      "purpose": "每轮巡检产物：原始日志 JSON、分类明细、前端链路、汇总/本组/他组通知 md",
+      "examples": [
+        "87/2026-11-19/raw-errors-1430.json",
+        "87/2026-11-19/classified-1430.json",
+        "87/2026-11-19/report-summary-1430.md",
+        "87/2026-11-19/notify-药房药库-1430.md"
+      ],
+      "boundary": "只含脱敏后的报错事实与分析结论；禁止写入主机地址、凭据、患者数据",
+      "lifecycle": "按轮次追加，文件名含 HHmm 与 run 标记；他轮次文件拒绝覆盖"
+    },
+    {
+      "id": "graylog-triage-runlog",
+      "base": "workspace",
+      "path": ".agents/plugins/imedicalxc-doctor-graylog-error-triage/config/logs",
+      "role": "runtime",
+      "create": "task",
+      "purpose": "计划任务每轮编排日志（追加写入 triage-<yyyyMMdd>.log）",
+      "examples": ["triage-20261119.log"],
+      "boundary": "本机运行态，不入库；由 config/.gitignore 的 logs/ 规则排除。目前无自动清理，需定期手工删除",
+      "lifecycle": "按日追加写入，不自动轮转"
+    }
+  ]
+}

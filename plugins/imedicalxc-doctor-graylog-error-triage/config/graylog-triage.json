@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "defaultEnv": "wengyuan-prod",
+  "mcpConfig": {
+    "envVar": "QODER_MCP_CONFIG",
+    "base": "userHome",
+    "defaultRelative": ".qoder-cn/shared_client/mcp.json",
+    "serverKeyTemplate": "graylog-{env}"
+  },
+  "environments": {
+    "87": {
+      "enabled": true,
+      "label": "87 环境",
+      "mcpServer": "graylog-87",
+      "urlEnv": "GRAYLOG_87_URL",
+      "tokenEnv": "GRAYLOG_87_TOKEN",
+      "cookieEnv": "GRAYLOG_87_COOKIE",
+      "transport": "http",
+      "streamIds": [],
+      "retentionDays": 7,
+      "overlapSeconds": 120,
+      "intervalMinutes": 15,
+      "pageSize": 1000,
+      "maxMessagesPerRun": 12000,
+      "sliceBudget": 8000,
+      "maxSlicesPerRun": 4
+    },
+    "wengyuan-prod": {
+      "enabled": true,
+      "label": "翁源生产环境",
+      "mcpServer": "graylog-wengyuan-prod",
+      "urlEnv": "GRAYLOG_WENGYUAN_PROD_URL",
+      "tokenEnv": "GRAYLOG_WENGYUAN_PROD_TOKEN",
+      "cookieEnv": "GRAYLOG_WENGYUAN_PROD_COOKIE",
+      "transport": "http",
+      "apiMode": "legacy",
+      "streamIds": [],
+      "retentionDays": 7,
+      "overlapSeconds": 120,
+      "intervalMinutes": 15,
+      "initialLookbackMinutes": 30,
+      "pageSize": 1000,
+      "maxMessagesPerRun": 12000,
+      "sliceBudget": 8000,
+      "maxSlicesPerRun": 4
+    }
+  },
+  "query": {
+    "errorSelector": "level:3",
+    "fallbackSelector": "level_name:ERROR",
+    "slowSelector": "full_message:\"接口响应超过\"",
+    "slowThresholdMs": 15000,
+    "extraFilter": "",
+    "fields": "*",
+    "traceLookup": true,
+    "maxTraceLookups": 20
+  },
+  "severity": {
+    "businessLoggers": ["com.mediway.his.server.advise.HisBusinessInterceptor"],
+    "businessMessagePrefixes": ["业务异常("],
+    "businessExceptionClasses": ["HisBusinessException", "BaseBusinessException", "BusinessException"]
+  },
+  "classify": {
+    "businessPackageRoot": "com.mediway",
+    "hisPackageRoot": "com.mediway.his",
+    "scanWorkspaceRepos": true,
+    "maxSamplesPerCluster": 3,
+    "maxFullMessageChars": 4000,
+    "appNameRule": true,
+    "frameworkPrefixes": [
+      "java.", "javax.", "jdk.", "sun.", "com.sun.",
+      "org.springframework.", "org.apache.", "org.mybatis.",
+      "com.baomidou.", "com.fasterxml.", "feign.", "com.netflix.",
+      "org.hibernate.", "io.netty.", "reactor."
+    ]
+  },
+  "ownerGroups": {
+    "self": {
+      "label": "医生站",
+      "modules": ["opcare", "ipcare", "aggcare", "comoe", "cfoe", "commr", "cfmr", "curc", "generator", "ma", "tr", "opalloc", "opreg", "hispa"],
+      "repos": [
+        "src/backend/care/opcare-mediway-boot",
+        "src/backend/care/ipcare-mediway-boot",
+        "src/backend/care/aggcare-mediway-boot",
+        "src/backend/care/comoe-mediway",
+        "src/backend/care/cfoe-mediway",
+        "src/backend/care/commr-mediway",
+        "src/backend/care/cfmr-mediway",
+        "src/backend/curc-mediway-boot",
+        "src/backend/ma-mediway-boot",
+        "src/backend/opalloc-mediway-boot",
+        "src/backend/opreg-mediway-boot",
+        "src/backend/hispa-mediway-boot"
+      ],
+      "appKeywords": ["his-mediway-server"],
+      "appPrefixes": ["his-mediway-server", "opcare", "ipcare", "aggcare", "comoe", "cfoe", "commr", "cfmr", "curc", "opalloc", "opreg", "hispa", "ma-mediway"],
+      "packagePrefixTemplate": "com.mediway.his.{module}",
+      "urlPrefixTemplate": "/{module}/",
+      "notify": true
+    },
+    "infra": {
+      "label": "基础设施",
+      "modules": ["hisbase", "hiscore", "hiscf", "hiscfsv", "hisct", "ctsv", "cloud", "microbiz"],
+      "repos": [
+        "src/backend/public/his-mediway-boot",
+        "src/backend/public/hisbase-mediway",
+        "src/backend/public/hiscore-mediway-boot",
+        "src/backend/public/cf/hiscf-mediway-boot",
+        "src/backend/public/cf/hiscfsv-mediway",
+        "src/backend/public/ct/hisct-mediway-boot",
+        "src/backend/public/ct/hisctsv-mediway"
+      ],
+      "packagePrefixes": [
+        "com.mediway.his.base",
+        "com.mediway.his.runner",
+        "com.mediway.his.cf",
+        "com.mediway.his.ct",
+        "com.mediway.his.server",
+        "com.mediway.his.hisbasesv",
+        "com.mediway.his.hisbsp",
+        "com.mediway.his.hissyscf",
+        "com.mediway.hos"
+      ],
+      "appPrefixes": ["his-mediway-gateway", "his-gateway", "hisbsp", "job-mediway", "hisct", "hiscf", "hiscore", "hisbase"],
+      "loggerPrefixes": {
+        "c.m.h.h.b.": "hisbsp"
+      },
+      "urlPrefixes": ["hisbsp"],
+      "notify": false,
+      "markSelfAffected": true
+    },
+    "external": {
+      "mappingSource": ".agents/plugins/imedicalxc-doctor-perf-analysis-engineer/skills/imedicalxc-doctor-perf-analysis-engineer/references/application-mapping.md",
+      "appGroups": {
+        "计费医保": ["opar", "ipar", "insu"],
+        "药房药库": ["phop", "phip", "phherb", "phin", "phm"],
+        "护士站": ["opnur", "ipnur", "newnurm", "nurm"],
+        "手术麻醉": ["opms", "ipms"],
+        "病案": ["mrdia", "mrqc", "mrfs"],
+        "检验": ["lis"],
+        "检查": ["ris", "pacs"],
+        "输血": ["bt"],
+        "体检": ["peis"],
+        "互联网医院": ["ih"],
+        "自助机": ["ssm"],
+        "排队叫号": ["queue"],
+        "设备": ["device"],
+        "报表": ["report"],
+        "主数据": ["mdm"],
+        "HAI": ["hai"],
+        "电子病历": ["ipemr", "ipnemr", "emr"],
+        "病历质控": ["emrq"],
+        "电子签名": ["hisca", "hosca"],
+        "临床数据中心": ["aggregation"],
+        "聚合平台": ["esb"]
+      },
+      "packagePrefixes": {
+        "护士站": ["com.mediway.hos.nurm"],
+        "药房药库": [
+          "com.mediway.his.ph.in",
+          "com.mediway.his.ph.ip",
+          "com.mediway.his.ph.op",
+          "com.mediway.his.ph.herb"
+        ],
+        "电子签名": ["com.mediway.his.ca", "com.mediway.hos.ca"],
+        "体检": ["com.mediway.his.hm"]
+      },
+      "notify": true,
+      "notifyUnrelated": ["检查"],
+      "unrelatedLabel": "无关（他组自身故障）",
+      "unknownGroupLabel": "待定"
+    }
+  },
+  "feignExceptionTypes": [
+    "feign.FeignException",
+    "feign.RetryableException",
+    "com.netflix.hystrix.exception.HystrixRuntimeException",
+    "org.springframework.web.client.RestClientException"
+  ],
+  "frontend": {
+    "mode": "codegraph",
+    "queryScript": ".agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chain.py",
+    "chainDb": "docs/agents/imedicalxc-doctor-front-codegraph/front_chain_db.json",
+    "endpoints": "docs/agents/imedicalxc-doctor-codegraph/controller_endpoints.json",
+    "pageCatalog": "src/frontend/README.md",
+    "fallback": "heuristic",
+    "staleCheck": true,
+    "maxCandidates": 5
+  },
+  "output": {
+    "dir": "docs/agent-reports/graylog-triage",
+    "keepRawJson": true,
+    "rawKeepDays": 3,
+    "preserveExisting": true,
+    "runLogDir": "logs/graylog-triage",
+    "runLogKeepDays": 14,
+    "maxStackLinesSelf": 60,
+    "maxStackLinesNotify": 25,
+    "pruneStaleNotify": true,
+    "maxSampleMessageChars": 1200,
+    "redactPatterns": [],
+    "preserveAnalysis": true
+  },
+  "analysis": {
+    "mode": "manual",
+    "cliCommand": "",
+    "queueFile": "config/pending-queue.json"
+  },
+  "notify": {
+    "enabled": true,
+    "channel": "qqbot",
+    "minNewErrors": 1,
+    "dedupeHours": 6,
+    "uploadMd": true,
+    "infraSummaryOnly": true,
+    "pushConfigFile": "config/graylog-triage-push.json",
+    "pushStateFile": "config/push-state.json",
+    "tokenEnv": "GRAYLOG_TRIAGE_QQBOT_TOKEN",
+    "maxTextChars": 1500,
+    "maxClustersPerMessage": 8,
+    "retry": 1,
+    "retryDelayMs": 2000,
+    "sections": ["summary", "notify", "upload"]
+  },
+  "schedule": {
+    "taskNameTemplate": "iMedicalxc-GraylogTriage-{env}",
+    "intervalMinutes": 15,
+    "executionTimeLimitMinutes": 10,
+    "allowStartIfOnBatteries": true,
+    "startWhenAvailable": true,
+    "lockStaleMinutes": 60
+  },
+  "state": {
+    "file": "config/graylog-triage-state-{env}.json",
+    "dedupeTtlHours": 6,
+    "dedupeMaxEntries": 80000
+  }
+}

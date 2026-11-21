@@ -1,0 +1,12 @@
+graylog-triage-push.json
+# 通配：一环境一状态文件（graylog-triage-state-87.json / -88.json …）都必须被忽略，
+# 精确文件名会让新增环境的状态文件直接入库
+graylog-triage-state*.json
+push-state.json
+pending-queue.json
+dedupe.json
+runtime.json
+.run*.lock
+# 运行日志（run-triage.ps1 写入）
+logs/
+config/logs/
