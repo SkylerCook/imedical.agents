@@ -165,9 +165,8 @@ async function refresh({ workspace, sourceId, execute = false, api, runId = cryp
   publisher.id(sourceId);
   if (!/^[0-9a-f-]{36}$/.test(runId)) fail('Invalid run id');
   const context = publisher.resolveProject(workspace), root = path.join(context.contextRoot, 'work/menu-sync', sourceId);
-  const configFile = path.join(context.contextRoot, 'config/menu-sync', sourceId + '.json');
-  publisher.noLinks(configFile); const profile = read(configFile);
-  if (profile.schema !== 'iris-menu-refresh/v1' || profile.sourceId !== sourceId || profile.groupFilter !== 'active' || profile.allowMenuRead !== true || !Number.isFinite(profile.maxRemovalRatio) || profile.maxRemovalRatio <= 0 || profile.maxRemovalRatio > 0.5) fail('Invalid menu refresh profile');
+  const profile = require('../../../../scripts/lib/project-menu-settings').inspect(context,sourceId).value;
+  if (!profile || profile.allowMenuRead !== true) fail('Invalid menu refresh profile');
   api ||= client(context.workspaceRoot);
   if (api.fingerprint !== profile.targetFingerprint) fail('Configured environment differs from enrolled source');
   const previous = publisher.current(root);
@@ -260,10 +259,10 @@ async function enroll(workspace, sourceId, allowMenuRead) {
   }
   const doc = await api.call('iris_doc', { mode: 'get', name: CLASS + '.cls' });
   if (typeof doc.content !== 'string' || !doc.content.includes('ClassMethod getGroupData(')) fail('Menu method missing');
-  const file = path.join(context.contextRoot, 'config/menu-sync', sourceId + '.json'); publisher.noLinks(file);
-  if (fs.existsSync(file)) fail('Source already enrolled; review the existing profile explicitly');
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  write(file, { schema: 'iris-menu-refresh/v1', sourceId, targetFingerprint: api.fingerprint, methodSourceHash: sourceHash(doc.content), allowMenuRead: true, groupFilter: 'active', maxRemovalRatio: 0.1 });
+  require('../../../../scripts/lib/project-menu-settings').add(context, {
+    schema: 'iris-menu-refresh/v1', sourceId, targetFingerprint: api.fingerprint,
+    methodSourceHash: sourceHash(doc.content), allowMenuRead: true, groupFilter: 'active', maxRemovalRatio: 0.1
+  });
   return { status: 'enrolled', sourceId };
 }
 async function main(argv) {

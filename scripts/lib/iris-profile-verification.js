@@ -17,6 +17,7 @@ function snapshot(context) {
   const data=require('./configuration-file-io').parse(fs.readFileSync(main,'utf8')).irisConnections;
   if (!data || !Object.hasOwn(data.profiles,data.active)) return null;
   const files=[main,path.join(dir,'project-env.json'),path.join(dir,'iris-session-backend.json'),
+    path.join(dir,'iris-profile-credentials.json'),
     ...['.vscode/settings.json','.mcp.json','.iris-agentic-dev.toml'].map(f=>path.join(context.workspaceRoot,f))];
   return {file:path.join(dir,'iris-profile-verification.json'),identity:crypto.createHash('sha256').update(files.map(fileState).join('|')).digest('hex')};
 }

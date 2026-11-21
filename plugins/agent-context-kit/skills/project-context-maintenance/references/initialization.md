@@ -12,7 +12,7 @@ ensure 成功后按返回顺序执行初始化技能。配置缺失集中处理�
 
 ## 插件更新流程
 
-IRIS 项目接入 coding owner 时，开发方式独立于 contextMode，以当前 `ContextRoot/config/iris-development.json` 的 `developmentMode` 为唯一配置，profile 只引用。初始化按用户已明确的现场约束选择 connected/offline，无法判断时只询问一次；offline 创建最小模式配置，不要求环境资格、不生成医院连接，既有连接只报告给授权维护。已有文字离线约定需授权维护补齐，普通能力更新不自动切换或清理旧任务。编码/Review/交付继续复用 coding owner；其它技术栈不新增此配置。
+IRIS 项目接入 coding owner 时，从当前 `ContextRoot/config/project.jsonc` 的 `irisDevelopment.developmentMode` 读取 connected/offline。初始化沿用户已明确的环境约束填写。offline 只创建需要的开发声明，编码和交付沿 coding owner 处理。
 
 已部署业务工程更新 `.agents` 能力包时，优先使用统一更新脚本：
 
@@ -42,7 +42,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 初始化项目上下文时，先按主 skill 的“面向项目编程”确认实际入口和验证方式；只生成有内容的章节，不保留无信息 TODO：
 
-1. 先判断 `contextMode`，相关证据核对后落盘；缺少 `.agents/config/project_context_profile.md` 时，参考 `templates/project_context_profile.template.md` 创建。
+1. 核对上下文证据后，授权范围内填写 `config/project.jsonc` 的 `projectContext.contextMode`。写入使用工作台「工程配置」或 `configure-agents.js plan/apply`。项目背景按实际情况补进项目规则。
 2. 通过原更新器 Write 初始化 `.agents/config/project.jsonc` 的 `plugins` 节；启停用 `update-plugin-profile.ps1`；默认 `agent-context-kit` 和 `agent-framework-evolution` 为 `enabled`，能力目录中的其它插件为 `available`，正文可以尚未落盘。
 3. 运行 `.agents/scripts/check-agent-entrypoints.ps1`，只检查 `CLAUDE.md`、`CODEBUDDY.md` 可选兼容入口；不自动创建、复制或修复。
 4. **代码探索（仅 `codebase-complete`）**：在写入任何 config/rules 之前，先探索本地代码，提取可验证的事实填入配置文件。探索范围：

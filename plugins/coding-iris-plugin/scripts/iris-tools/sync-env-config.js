@@ -30,20 +30,18 @@ if (process.argv.includes('--check-profile')) {
   }
   return;
 }
-const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
-const templatePath = path.join(workspaceContext.capabilityRoot, 'plugins', 'coding-iris-plugin', 'templates', 'project-env.template.json');
-
-console.log(`[INFO] Config source: ${configPath}`);
 console.log(`[INFO] Workspace root: ${workspaceRoot}`);
 
 // Read centralized config
 let config;
 try {
-  const configContent = fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, '');
-  config = JSON.parse(configContent);
+  const state = require('./project-env').readProjectEnv(workspaceContext);
+  config = state.config;
+  console.log(`[INFO] Config source: ${state.configPath}`);
 } catch (err) {
-  console.error(`[ERROR] Configuration ${err.code === 'ENOENT' ? 'file missing' : err instanceof SyntaxError ? 'JSON invalid' : 'read failed'}`);
-  console.error(`[TIP] Initialize ${configPath} using ${templatePath} and confirmed project settings.`);
+  const reason = {'project-env-invalid':'Configuration JSON invalid','project-env-missing':'Configuration file missing'};
+  console.error(`[ERROR] ${reason[err.message] || err.message}`);
+  console.error('[TIP] Initialize the project connection using confirmed settings.');
   process.exit(1);
 }
 
@@ -173,4 +171,4 @@ require('../../../../scripts/lib/iris-session-migration').writeGenerated({contex
 console.log('[OK] .mcp.json generated');
 
 console.log('');
-console.log('[DONE] MCP config synced from .agents/config/project-env.json');
+console.log('[DONE] MCP config synced from the project connection settings');

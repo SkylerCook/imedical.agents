@@ -76,8 +76,9 @@ async function main(argv = process.argv.slice(2)) {
   const context = require('./lib/workspace-context').resolveWorkspaceContext(args['project-root']);
   if(command==='status') {
     const admission=remote.localPoolStatus(context);
-    const backendFile=path.join(context.contextRoot,'config','iris-session-backend.json');
-    if (!fs.existsSync(backendFile)) {console.log(JSON.stringify({...risk.statusDetails(admission), ...admission}));return;}
+    if (!require('./lib/project-configuration').inspect(context,'irisSessionBackend').value) {
+      console.log(JSON.stringify({...risk.statusDetails(admission), ...admission}));return;
+    }
     const ipc=require('./lib/iris-session-ipc');
     const description=require('./lib/iris-session-backends').describe(context.workspaceRoot,undefined,{localOnly:true});
     const poolId=require('./lib/iris-session-manager').hash(description.pool);

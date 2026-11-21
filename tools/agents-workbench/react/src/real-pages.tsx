@@ -12,6 +12,7 @@ import { DiscoverIrisTools, VerifyConnection } from "./project-owner-actions";
 import { PluginsPage } from "./plugins-page";
 import { href, type Navigation, type Page } from "./routes";
 import { SettingsDialog } from "./settings";
+import { ManagedConfiguration } from "./managed-configuration";
 import { VectorIndexControls } from "./vector-index";
 import { Details, Empty, GridTable, Notice, PageHeading, Panel, ReadState, SearchField, Status, textareaClass, WorkbenchDialog } from "./ui";
 
@@ -104,6 +105,7 @@ function Configuration({ project, edit, handoff, preparing }: {
       actions={<Button onClick={() => edit("project")}>{issue ? "核对工程配置" : "编辑工程连接"}</Button>} />
     <div className="space-y-4">
       {issue && <Notice error>{issue}</Notice>}
+      <ManagedConfiguration onReview={item => handoff({ purpose: "task", task: "config-review", item })} />
       <Panel title="工程来源" hint={issue ? "可查看已读取的连接和各配置来源。" : "IRIS 同步集中配置、VS Code、MCP、TOML 和受管后端。Web 路径可编辑，SFTP 支持既有入口。"}>
         <DomainRows domains={project.domains.filter(domain => domain.scope === "当前工程")} />
       </Panel>

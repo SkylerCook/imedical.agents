@@ -34,6 +34,7 @@ jobs:
           tools/agents-workbench/prototype/personal-settings.test.js
           tools/agents-workbench/prototype/project-settings.test.js
           tools/agents-workbench/tests/configuration-files.test.js
+          scripts/tests/project-configuration.tests.js
           tools/agents-workbench/tests/config-conflicts.test.js
           scripts/tests/project-plugin-settings.tests.js
           plugins/coding-iris-plugin/scripts/iris-tools/tests/frontend-encoding.test.js

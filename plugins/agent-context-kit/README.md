@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+0.11.5 通过 `project.jsonc` 维护上下文模式、辅助程度和技能适配目录。已有工程沿[配置迁移](../../docs/update-agents.md#工程配置迁移)接入。初始化与宿主适配读取当前 ContextRoot 的工程设置。
+
 0.11.3：插件操作统一从 [plugin-management](skills/plugin-management/SKILL.md) 进入，状态与发现入口验证后交接到[项目上下文收尾](skills/project-context-maintenance/SKILL.md#插件变更后的项目上下文收尾)，核对当前工程的条件路由。已有流程直接续接，保留 contextMode 与自定义内容；项目配置和长期记忆只在事实变化时更新。正常能力包更新取得指导，既有入口在明确插件操作或授权维护时定点合并，无新增配置或业务资料清理。
 
 Codex 原生 Agent 适配复用 `coding-agent-adaptation`，生成器为根 `scripts/sync-runtime-agents.js`；技能目录与原生 Agent 分开执行和验收，规则见能力包 `docs/coding-agent-adaptation.md`。

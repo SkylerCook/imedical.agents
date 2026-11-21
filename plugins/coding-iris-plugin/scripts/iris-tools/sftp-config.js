@@ -34,9 +34,8 @@ function migrate(projectRoot, contextRoot, capabilityRoot, mode = 'DryRun') {
   if (require('../../../../scripts/lib/iris-remote-operations').developmentMode({workspaceRoot: projectRoot, contextRoot}) === 'offline') {
     return result('skipped', 'Offline development retains existing connection configuration for authorized maintenance');
   }
-  const configPath = path.join(contextRoot, 'config', 'project-env.json');
   const mcpPath = path.join(projectRoot, target);
-  const config = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, '')) : {};
+  const config = require('../../../../scripts/lib/project-environment').read({contextRoot},{optional:true,inherit:false}).config;
   if (config.sftp?.runtime === 'custom') return result('unchanged', 'Explicit custom runtime retained');
   if (!fs.existsSync(mcpPath)) return result('unchanged', 'No MCP configuration; no SFTP service created');
   const original = fs.readFileSync(mcpPath);

@@ -6,7 +6,7 @@ This file is the project entrypoint. Optional CLAUDE.md / CODEBUDDY.md links, if
 
 TODO: 用一句话说明业务用途和技术栈；只写已验证边界。初始化完成前替换占位，删除不适用章节。
 
-上下文模式及本地代码范围见 `.agents/config/project_context_profile.md`。若为 `intent-first-on-demand-export`，少量已导出文件只代表需求上下文；不得推断完整架构，按任务获取必要源码后再处理。
+上下文模式读取 `.agents/config/project.jsonc` 的 `projectContext.contextMode`。若为 `intent-first-on-demand-export`，按任务取得相关源码后再判断工程事实。
 
 若启用 `coding-iris-plugin`，先读取当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`：offline 统一进入 coding owner 的 `references/iris-offline-development.md`，禁止医院远端调用（含原生 MCP），用人工材料完成本地修改、Review、打包和独立 Verify。connected（含旧配置缺省）才继续按 contextMode 与需求类型分流：project + 按需导出先读 `references/project-demand-development.md`；标版沿既有分支。非法开发方式停止 IRIS 流程，缺连接不自动判为离线，模式不产生远端授权。
 
@@ -34,7 +34,7 @@ TODO: 只保留项目实际需要的高频保护，如所属 Git 仓库、用户
 
 - 工程任务读取 `.agents/memory/project-memory.md` 的简短入口，仅跟进相关领域链接；自包含的措辞/翻译等问题不额外加载工程资料。
 - 工程任务先读取[规则索引](.agents/rules/index.md)，按触发条件读取专项 rules、skills 和 profile；只加载命中项，已持有且未变化的内容复用。
-- 上下文模式不明或维护配置时读 `project_context_profile.md`；使用项目插件前查 `project.jsonc` 的 `plugins` 节，目录存在不代表 enabled。私有连接配置仅在连接、远端能力或实际配置问题时读取。
+- 核对上下文模式和插件启用状态时读 `project.jsonc`。连接问题沿对应连接入口核对已生效的项目档案。
 - 按 `.agents/agents/_shared/execution-guidance.md` 执行，guidanceMode 缺省 auto；复用仍持有且未变化的资料，动态状态按当前操作核对。
 
 - 知识资料：按 `.agents/config/project.jsonc` 的 `plugins` 节 确认 `coding-iris-plugin` 已启用且入口可用后，可通过 `.agents/skills/iris-imedical-knowledge/SKILL.md` 查询业务、菜单与实现参考；由模型根据当前任务自主决定是否查询，已有证据足够时可跳过。资料索引随能力包维护，结论以当前工程代码与配置为准。

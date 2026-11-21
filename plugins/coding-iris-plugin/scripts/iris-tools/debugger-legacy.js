@@ -12,15 +12,14 @@ const path = require('path');
 const readline = require('readline');
 const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
 
-// 加载 config/project-env.json 配置
+// 读取当前工程的连接配置。
 function loadConfig() {
     const workspaceContext = resolveWorkspaceContext(process.cwd());
-    const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
-    if (!fs.existsSync(configPath)) {
-        console.error('\x1b[31m%s\x1b[0m', `错误: 未找到配置文件 ${configPath}`);
+    try { return require('./project-env').readProjectEnv(workspaceContext).config; }
+    catch (error) {
+        console.error('\x1b[31m%s\x1b[0m', `错误: 无法读取工程连接配置 ${error.message}`);
         process.exit(1);
     }
-    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 }
 
 // 解析命令行参数

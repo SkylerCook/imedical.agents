@@ -1,0 +1,26 @@
+{
+  // 将需要的分节并入当前工程的 project.jsonc。填写已核对的目标再生成宿主入口。
+  "irisConnections": {
+    "source": "project.jsonc",
+    "active": "development",
+    "serverName": "iris-agentic-dev",
+    // 档案需要同步的实际入口。首次仅生成 MCP 时按下列绑定填写。
+    "bindings": { "central": true, "vscode": false, "mcp": true, "toml": false },
+    "profiles": {
+      "development": {
+        "scheme": "https",
+        "host": "TODO",
+        "port": 2443,
+        "namespace": "TODO",
+        "alias": "development",
+        "tlsVerify": false,
+        // 从项目的私有连接配置解析。主配置仅记录引用。
+        "credentialRef": "private:development"
+      }
+    }
+  },
+  "mcp": {
+    // Windows x64 默认从能力根定位随包运行程序。
+    "includeBuiltInSkills": false
+  }
+}

@@ -22,8 +22,9 @@ function physicalDirectory(file) {
 function target(context, rel) {
   const file = d.safePath(context.workspaceRoot,rel);
   const docs = path.join(context.workspaceRoot,'docs'), work = path.join(context.contextRoot,'work');
-  const config = path.join(context.contextRoot,'config/documentation-layout.json');
-  if (!(d.within(file,docs) || d.within(file,work) || d.same(file,config) || ['AGENTS.md','README.md'].includes(rel))) throw Error('Unmanaged write target: ' + rel);
+  const config = require('./lib/project-configuration').filePath(context.contextRoot);
+  const legacyLayout = path.join(context.contextRoot,'config/documentation-layout.json');
+  if (!(d.within(file,docs) || d.within(file,work) || d.same(file,config) || d.same(file,legacyLayout) || ['AGENTS.md','README.md'].includes(rel))) throw Error('Unmanaged write target: ' + rel);
   let cursor = path.dirname(file);
   while (d.within(cursor,docs)) {
     if (fs.existsSync(path.join(cursor,'.git'))) throw Error('Nested Git workspace preserved: ' + cursor);
@@ -73,13 +74,23 @@ function seal(plan) {
   return {...plan,id:d.digest(JSON.stringify(plan))};
 }
 function base(context,kind) { return {schema:PLAN,kind,workspaceRoot:context.workspaceRoot,contextRoot:context.contextRoot,policyHash:d.fingerprint(context),actions:[],skipped:[]}; }
+function layoutAction(context, config) {
+  const owner = require('./lib/project-configuration');
+  const state = owner.inspect(context, 'documentationLayout');
+  if (state.legacy !== null) {
+    if (state.canonical) throw Error('Documentation layout migration is pending');
+    return action(context,'write',rel(context,state.file),JSON.stringify({...config,workspaceRoot:context.workspaceRoot},null,2)+'\n');
+  }
+  const next = owner.edited(state.main,owner.delta(['documentationLayout'],state.main.value.documentationLayout,config));
+  return action(context,'write',rel(context,state.main.file),next);
+}
 function setupPlan(root) {
   const context=d.contextFor(root), existing=d.configFor(context);
   if (existing?.enabled) throw Error('Layout already enrolled; use extension-plan or migration plan');
   const entries=entriesFor(context), plan=base(context,'setup');
   for(const e of entries.filter(e=>e.create==='setup')) plan.actions.push(action(context,'mkdir',rel(context,e.target)));
-  const config={schema:d.SCHEMA,enabled:true,workspaceRoot:context.workspaceRoot,extensions:[]};
-  plan.actions.push(action(context,'write',rel(context,path.join(context.contextRoot,'config/documentation-layout.json')),JSON.stringify(config,null,2)+'\n'));
+  const config={...existing,schema:d.SCHEMA,enabled:true,extensions:existing?.extensions || []};
+  plan.actions.push(layoutAction(context,config));
   addDocumentation(plan,context,entries);
   const agents=path.join(context.workspaceRoot,'AGENTS.md');
   if (fs.existsSync(agents)) {
@@ -103,7 +114,7 @@ function extensionPlan(root, entry) {
   if (config.extensions.some(e=>e.path===entry.path)) throw Error('Extension already registered');
   const plan=base(context,'extension');
   plan.actions.push(action(context,'mkdir',entry.path));
-  plan.actions.push(action(context,'write',rel(context,path.join(context.contextRoot,'config/documentation-layout.json')),JSON.stringify({...config,extensions:[...config.extensions,entry]},null,2)+'\n'));
+  plan.actions.push(layoutAction(context,{...config,extensions:[...config.extensions,entry]}));
   addDocumentation(plan,context,entriesFor(context,[...config.extensions,entry]));
   return seal(plan);
 }
@@ -214,6 +225,16 @@ function checkPlan(root,plan,approval) {
     if (op.kind==='mkdir') { if (fs.existsSync(file) && !fs.statSync(file).isDirectory()) throw Error('Directory conflict'); continue; }
     if (!['write','delete'].includes(op.kind) || (op.kind==='write' && typeof op.content!=='string')) throw Error('Invalid action');
     if (fileHash(file)!==op.beforeHash) throw Error('File changed since review: '+op.path);
+    const configuration = require('./lib/project-configuration');
+    if (d.same(file, configuration.filePath(context.contextRoot))) {
+      if (op.kind !== 'write' || !['setup','extension'].includes(plan.kind)) throw Error('Unexpected project configuration action');
+      const io = require('./lib/configuration-file-io');
+      const {documentationLayout, ...remaining} = structuredClone(io.parse(Buffer.from(op.content, 'base64').toString('utf8')));
+      const previous = configuration.document(context.contextRoot).value;
+      delete previous.documentationLayout;
+      d.validateConfig(context, documentationLayout || {});
+      if (!require('node:util').isDeepStrictEqual(remaining, previous)) throw Error('Unrelated project configuration changes');
+    }
   }
   return context;
 }
@@ -261,6 +282,10 @@ function restoreJournal(context,journal,journalFile) {
   journal.state='rolled-back'; saveJournal(journalFile,journal);
 }
 function applyPlan(root,plan,approval,backupRoot) {
+  const context = d.contextFor(root);
+  return require('./lib/project-configuration').withLock(context, () => applyReviewedPlan(root,plan,approval,backupRoot));
+}
+function applyReviewedPlan(root,plan,approval,backupRoot) {
   const context=checkPlan(root,plan,approval);
   if(!backupRoot) throw Error('Explicit backup root outside WorkspaceRoot and CapabilityRoot required');
   backupRoot=path.resolve(backupRoot); physicalDirectory(backupRoot);

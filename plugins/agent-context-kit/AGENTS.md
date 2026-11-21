@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+核对上下文模式、辅助程度和技能目录时，用能力根 `scripts/configure-agents.js read <WorkspaceRoot>` 读取当前工程的 `projectContext`。配置迁移沿[原更新器](../../docs/update-agents.md#工程配置迁移)。
+
 Codex 原生 Agent 适配复用 `coding-agent-adaptation`，生成器为根 `scripts/sync-runtime-agents.js`；技能目录与原生 Agent 分开执行和验收，规则见能力包 `docs/coding-agent-adaptation.md`。
 
 宿主技能适配先沿用用户明确的项目目录和目标项目已确认的配置，再按 `coding-agent-adaptation` 的来源参考补齐未知项。WorkBuddy 与 WorkBuddyDonghua 的命名 adapter 仅在项目 skills 共用 `.workbuddy/skills`；其它配置按宿主机制独立核对。各端技能发现、规则加载与调用分别验收。

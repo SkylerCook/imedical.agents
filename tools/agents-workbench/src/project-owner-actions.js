@@ -6,6 +6,7 @@ const {hash} = require('node:crypto');
 const {spawnSync} = require('node:child_process');
 const deployment = require('../../../scripts/lib/plugin-deployment');
 const verification = require('../../../scripts/lib/iris-profile-verification');
+const configuration = require('../../../scripts/lib/project-configuration');
 
 const pluginAction = /^plugin-(inspect|install|enable|disable):([a-z0-9][a-z0-9-]{0,79})$/;
 function accepts(action) { return typeof action==='string' && (['verify-connection','discover-iris-mcp'].includes(action) || pluginAction.test(action)); }
@@ -27,15 +28,15 @@ function verifyConnection({root,cap,node,env}) {
   const {context,current,active}=activeProfile(root,cap);
   const entry=path.join(cap,'scripts/iris-mcp.js');
   if (!fs.readFileSync(entry,'utf8').includes('--verify-profile')) failure('profile-owner-unavailable');
-  const local=path.join(cap,'config/project-env.json');
-  const name=(checked(local) && readJson(local).mcp?.serverName) || 'iris-agentic-dev';
+  const {config}=require('../../../scripts/lib/project-environment').read(context,{optional:true,inherit:false});
+  const selected=configuration.document(cap).value.irisConnections;
+  const name=selected?.serverName || config.mcp?.serverName || 'iris-agentic-dev';
   const server=readJson(path.join(root,'.mcp.json')).mcpServers?.[name];
   const vendor=path.join(cap,'vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe');
   const adapter=path.join(cap,'scripts/iris-session-mcp.js');
   const same=(value,file)=>typeof value==='string' && path.resolve(root,value).toLowerCase()===file.toLowerCase();
   if (!server || server.disabled || !checked(vendor) || Object.keys(server.env||{}).some(key=>!/^IRIS_[A-Z0-9_]+$/.test(key))) failure('connection-handoff');
-  const backendFile=path.join(cap,'config/iris-session-backend.json');
-  const backend=checked(backendFile)?readJson(backendFile):null;
+  const backend=configuration.inspect(context,'irisSessionBackend').value;
   const managed=server.args?.some(arg=>same(arg,adapter));
   if (managed && (!same(server.args[0],adapter) || !same(server.args[server.args.indexOf('--project-root')+1],root) ||
       server.args[server.args.indexOf('--server-name')+1]!==name || !/^node(?:\.exe)?$/i.test(path.basename(server.command||'')))) failure('connection-handoff');
@@ -74,8 +75,7 @@ async function discoverTools({root,cap,node,env}) {
       !same(args[0],adapter) || args[1]!=='--project-root' || !same(args[2],root) || args[3]!=='--server-name' || args[4]!==name ||
       !/^node(?:\.exe)?$/i.test(path.basename(server.command||''))) failure('mcp-discovery-handoff');
   if (server.disabled) failure('mcp-discovery-disabled');
-  const file=path.join(cap,'config/iris-session-backend.json');
-  const backend=checked(file)?readJson(file):null;
+  const backend=configuration.inspect(context,'irisSessionBackend').value;
   const vendor=path.join(cap,'vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe');
   if (backend?.schema!=='iris-session-backend/v1' || backend.serverName!==name || !same(backend.command,vendor) ||
       !Array.isArray(backend.args) || backend.args[0]!=='mcp' ||

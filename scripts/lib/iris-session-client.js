@@ -31,7 +31,7 @@ function createClient({projectRoot, serverName, root, allowWrite = false, onNoti
         let args=server?.args || [];
         if(managed(server)) {
           const context=require('./workspace-context').resolveWorkspaceContext(projectRoot);
-          args=JSON.parse(fs.readFileSync(path.join(context.contextRoot,'config','iris-session-backend.json'),'utf8')).args;
+          args=require('./project-configuration').inspect(context,'irisSessionBackend').value?.args || args;
         }
         const noSkills=args.includes('--no-skills') || ['true','1'].includes(String(server?.env?.IRIS_NO_SKILLS).toLowerCase());
         return {result: {tools: catalog(!noSkills)}};

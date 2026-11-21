@@ -71,16 +71,15 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - 执行下文“本地配置初始化与已有项目补齐”，生成必要的开发方式和准入配置并 Check；配置缺失不能留到日常开发才反复提示。
    - **多仓库工作区**：若目标工程是平铺多仓库架构（如 `corePro-flat`），工作区级别 profile 只填通用项（Web 技术、编码策略、HISUI 基础路径）；仓库特有项（namespace、包前缀、目录路径、命名模板）标注"按仓库填写"，不要填入单一仓库的值当作全局事实。
 5. 初始化 IRIS 开发主力脚本配置：
-   - 已有 `project.jsonc#irisConnections.active` 时，运行 `sync-env-config.js --check-profile` 核对绑定来源。按所选档案同步，切换目标沿档案入口。冲突时保留报出的来源与字段，继续其它独立初始化。以下连接反填及模板生成只适用于无档案工程。
-   - 无档案时，`.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源；两者共存但 `.mcp.json` 优先。
-   - **若 `.mcp.json` 已存在**：从 `.mcp.json` 反向填充 `project-env.json`（Agent 直接读取 `.mcp.json` 提取 iris/sftp/mcp 字段），web.* 部分无法从 `.mcp.json` 推导的标注 TODO。无需运行 `sync-env-config.js`。
+   - 有活动档案时，运行 `sync-env-config.js --check-profile` 核对宿主绑定。按所选档案同步；冲突报告来源和字段，其他独立初始化继续。
+   - 无档案时，从已有连接确认目标和绑定，按[工程连接初始化](../../templates/coding-iris-init-guide.md)维护 `project.jsonc`。旧集中配置由更新器承接。
    - SFTP 默认禁用。新建配置可选择 `sftp.runtime: vendor`，使用 CapabilityRoot 内置运行时；先按 `vendor/sftp-server/README.md` 准备 Python 依赖及可信主机密钥。已有可识别的 legacy 启动路径在更新时自动迁移 vendor；显式 custom 保持不变。`knownHosts`、`keyFile`、`allowRemoteCommands` 分别映射对应私有环境字段，不写入可复用文档。
-   - **若 `.mcp.json` 不存在**：在本次初始化授权内，基于模板创建被忽略的 `project-env.json`，复用当前工程已确认的连接事实。必需且无法确定的字段集中询问，齐备后运行：
+   - **若需要生成 `.mcp.json`**：在本次初始化授权内核对活动档案、凭据引用和本机运行时，再运行：
      ```powershell
      node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
      ```
    - 连接身份和目标使用用户确认或当前工程已有事实。MCP 路径从 CapabilityRoot 与本机平台解析并验证文件存在，显式 custom 路径保留；缺运行时只报告对应依赖。凭据通过现有私有配置或安全输入取得，诊断只显示字段名。
-   - `.agents/config/project-env.json` 和 `.mcp.json` 可能包含敏感信息，不得提交到业务项目版本库。
+   - 工程连接及私有实例需受 Git 忽略。凭据引用以实际本机解析结果为准。
    - 初始化 XML 导出时展示两种可选准备方式：按 [XML 导出协议](../../references/iris-xml-export.md)提供 canonical `DHCDoc.Util.XmlPackage` 类源及经验证的安装 XML（存在时），提示用户导入；也可选默认受管 WS terminal 的系统执行通道，先核对目标版本／API。HTTP MCP 须单独资格明确接受其内部重试，不自动 fallback。启用不自动上传、编译或连接服务器。可选类未部署只限制类通道，不阻断 coding 插件其它能力；类现状或契约不明时报告待验证，已存在的项目类先比对后处理。
    - 需要代码基线时读取 [基线协议](../../references/iris-code-baseline.md)，只采代码并预筛图片，纯采集不自动初始化 Git。私有多会话资格必须经目标窗口验证后登记，不因模板或旧性能记录自动标记 verified。
 6. 生成 thin-index：
@@ -130,7 +129,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    ```
 
    offline 使用 `--development-mode offline`，省略环境参数；不创建或检查医院连接和远端策略。Overlay 从已解析 CapabilityRoot 定位同一脚本，它只写当前 ContextRoot。
-3. `project.jsonc` 的 `irisDevelopment` 节 按明确事实创建。connected＋按需上下文同时创建 `iris-remote-policy.json`，公共准入同样覆盖该上下文中的 standard 需求。未取得连接事实的模板保持 `enabled: false`，不创建资格登记；受管会话迁移根据现有连接自动生成必要协调设置。按[首次接入协议](../../references/project-demand-development.md#首次接入)核对实际连接，不要求普通操作先验证 License。
+3. 根据已核实事实填写 `irisDevelopment`。connected 加按需上下文时，初始化补齐 `project.jsonc` 的 `irisRemotePolicy`。待确定目标时保持 `enabled: false`；受管会话迁移沿实际连接生成协调设置。接入后按[首次接入协议](../../references/project-demand-development.md#首次接入)核对目标。
 4. configure 保留已有文件；更新器仅清理上述已废弃字段，未命中时保持原字节。Check 报缺字段时，由 Agent 在已有配置维护授权内依据明确事实局部补齐，再 Check。模式或环境冲突、非法 JSON、未忽略/已跟踪的私有配置、链接重定向均先解决具体原因。缺少显式 developmentMode（含自动补齐的 `{}`）却已有 source-sync 恢复材料时，补显式声明前先按原任务核实配置指纹与恢复条件；普通更新的兼容空声明不改变旧绑定，不清理或改写旧计划。
 5. 完成后报告本地配置、实际连接及服务器基线；只有所选批量导出路径需要时报告其资格。配置 Check 不建立服务器基线；`work/source-sync/` 由首次同步任务创建，初始化不创建空目录或假回执。connected 分支的待修改文件仍须先完成 before-edit，有变化先提交 export，再开始需求修改；普通任务不因缺少 License 资格登记而停止。
 

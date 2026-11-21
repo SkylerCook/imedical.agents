@@ -54,6 +54,8 @@ try {
     $manifest.bundleId='ai-dev-offline-gui-windows-x64'
     $manifest|ConvertTo-Json -Depth 10|Set-Content -LiteralPath "$tools/manifest.json" -Encoding UTF8
     foreach($file in @('gui-worker.ps1','configure-environment.ps1','verify-packages.ps1','GUI.md','configure-project.js','iris-connection-profiles.js','configure-vscode.js','install-objectscript.js','operation-runtime.js','resolve-package.ps1','package-extension.ps1','extensions.json','update-notes.txt')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $tools}
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "../../scripts/lib/project-environment-data.js") -Destination $tools
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "../../scripts/lib/workspace-context.js") -Destination $tools
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'vendor') -Destination $tools -Recurse
     Copy-Item -Path (Join-Path $PSScriptRoot '../../vendor/jsonc-parser/*') -Destination (Join-Path $tools 'vendor/jsonc-parser') -Recurse -Force
     Copy-Item -Path (Join-Path $PSScriptRoot '../../vendor/iarna-toml/*') -Destination (Join-Path $tools 'vendor/iarna-toml') -Recurse -Force

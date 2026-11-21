@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- 工程配置统一迁移已接入更新器和工作台 0.5.0 源码。作用域、旧来源退场及恢复见[工程配置迁移](../docs/update-agents.md#工程配置迁移)。正式发放以包外记录为准。
+
 - coding 0.34.4 支持[显式 SQL Storage 新增字段](../plugins/coding-iris-plugin/references/deployment-protection.md#显式-sql-storage-新增字段)，校验既有映射并回读新增段号。已部署工程正常更新即可取得。
 
 - coding 0.34.1 用 `iris-code-baseline --` 查看 [Skill 命令](../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md#命令)。按路径与类包导出继续通过受管查询生成精确 TXT，复用采集和续采。

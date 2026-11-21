@@ -17,10 +17,8 @@ function stop(code, details) { throw new RemoteOperationError(code, details); }
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); }
 function contextMode(context = {}) {
   const root = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
-  try {
-    const text = fs.readFileSync(path.join(root, 'config', 'project_context_profile.md'), 'utf8');
-    return text.match(/^\s*[-*]?\s*`?contextMode`?\s*[:：=]\s*`?([a-z-]+)/m)?.[1] || null;
-  } catch (error) { if (error.code === 'ENOENT') return null; stop('remote-context-unreadable'); }
+  try { return require('./project-configuration').contextMode(root); }
+  catch { stop('remote-context-unreadable'); }
 }
 function developmentSettings(context = {}) {
   const root = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
@@ -79,11 +77,8 @@ function loadRemotePolicy(context = {}, { connection, policy, qualification, rec
   const contextRoot = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
   let value = policy;
   if (value === undefined) {
-    try { value = readJson(path.join(contextRoot, 'config', 'iris-remote-policy.json')); }
-    catch (error) {
-      if (error.code === 'ENOENT' && !required) return { enabled: false, required: false };
-      stop(error.code === 'ENOENT' ? 'remote-policy-required' : 'remote-policy-invalid');
-    }
+    try { value = require('./project-configuration').inspect({...context,contextRoot}, 'irisRemotePolicy').value; }
+    catch { stop('remote-policy-invalid'); }
   }
   if (qualification !== undefined) validQualificationGrant(qualification, connection);
   if (value?.enabled !== true) {
@@ -151,7 +146,7 @@ function managedPolicy(context, policy, force = false, connection) {
   if (!policy?.enabled) return policy;
   const contextRoot = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
   let effective = policy;
-  if (force || fs.existsSync(path.join(contextRoot, 'config', 'iris-session-backend.json'))) {
+  if (force || require('./project-configuration').inspect({...context,contextRoot}, 'irisSessionBackend').value) {
     const coordinationRoot = path.join(os.homedir(), '.imedical', 'iris-sessions', 'admission');
     effective = {...policy, coordinationRoot,
       ...(path.resolve(policy.coordinationRoot) !== path.resolve(coordinationRoot) ? {legacyCoordinationRoot:policy.coordinationRoot} : {})};
@@ -161,11 +156,10 @@ function managedPolicy(context, policy, force = false, connection) {
 function localPolicy(context = {}, allowMissing = false) {
   const root=context.contextRoot || path.join(context.workspaceRoot || process.cwd(),'.agents');
   let policy;
-  try { policy=readJson(path.join(root,'config','iris-remote-policy.json')); }
-  catch (error) {
-    if (error.code === 'ENOENT' && allowMissing) return null;
-    stop(error.code === 'ENOENT' ? 'remote-policy-required' : 'remote-policy-invalid');
-  }
+  try { policy=require('./project-configuration').inspect({...context,contextRoot:root},'irisRemotePolicy').value; }
+  catch { stop('remote-policy-invalid'); }
+  if (!policy && allowMissing) return null;
+  if (!policy) stop('remote-policy-required');
   if(policy?.schema!=='iris-remote-policy/v1' || !path.isAbsolute(policy.coordinationRoot || '') ||
     !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || ''))stop('remote-policy-invalid');
   return managedPolicy(context,{...policy,enabled:true});

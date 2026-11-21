@@ -77,25 +77,36 @@ function Write-JsonFilesAtomically {
 
   try {
     foreach ($file in $Files) {
-      $serialized = ConvertTo-StableJson -Value $file.value
-      $null = $serialized | ConvertFrom-Json
       $tempPath = $file.path + ".tmp-" + [System.Guid]::NewGuid().ToString("N")
-      [System.IO.File]::WriteAllText($tempPath, $serialized, $utf8NoBom)
+      if ($file.PSObject.Properties.Name -contains "plannedBytes") {
+        [System.IO.File]::WriteAllBytes($tempPath, $file.plannedBytes)
+      }
+      else {
+        $serialized = ConvertTo-StableJson -Value $file.value
+        $null = $serialized | ConvertFrom-Json
+        [System.IO.File]::WriteAllText($tempPath, $serialized, $utf8NoBom)
+      }
       $prepared.Add([PSCustomObject]@{
         path = $file.path
         tempPath = $tempPath
         originalBytes = $file.originalBytes
+        expectedBytes = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($tempPath))
       })
     }
 
     foreach ($file in $prepared) {
+      if ([Convert]::ToBase64String([System.IO.File]::ReadAllBytes($file.path)) -ne [Convert]::ToBase64String($file.originalBytes)) {
+        throw "MCP configuration changed during the vendor preference operation."
+      }
       Move-Item -LiteralPath $file.tempPath -Destination $file.path -Force
       $replaced.Add($file)
     }
   }
   catch {
     foreach ($file in $replaced) {
-      [System.IO.File]::WriteAllBytes($file.path, $file.originalBytes)
+      if ([Convert]::ToBase64String([System.IO.File]::ReadAllBytes($file.path)) -eq $file.expectedBytes) {
+        [System.IO.File]::WriteAllBytes($file.path, $file.originalBytes)
+      }
     }
     foreach ($file in $prepared) {
       if (Test-Path -LiteralPath $file.tempPath) {
@@ -171,10 +182,12 @@ else {
 }
 $mcpPath = Join-Path $projectRootFull ".mcp.json"
 $projectEnvPath = Join-Path $contextRootFull "config/project-env.json"
+$projectJsoncPath = Join-Path $contextRootFull "config/project.jsonc"
+$projectJsoncTarget = ".agents/config/project.jsonc"
 $mcpExists = Test-Path -LiteralPath $mcpPath -PathType Leaf
 $projectEnvExists = Test-Path -LiteralPath $projectEnvPath -PathType Leaf
 
-if ((-not $mcpExists) -and (-not $projectEnvExists)) {
+if ((-not $mcpExists) -and (-not $projectEnvExists) -and (-not (Test-Path -LiteralPath $projectJsoncPath -PathType Leaf))) {
   New-PreferenceResult -Status "mcp-vendor-command-not-configured" -Target ".mcp.json" -Reason "No existing MCP or project-env configuration was found; no connection config was created"
   return
 }
@@ -191,6 +204,7 @@ if (-not (Test-Path -LiteralPath $vendorExecutable -PathType Leaf)) {
 }
 
 $projectEnvFile = $null
+$projectJsoncFile = $null
 if ($projectEnvExists) {
   try {
     $projectEnvFile = Read-JsonFile -Path $projectEnvPath
@@ -198,6 +212,36 @@ if ($projectEnvExists) {
   catch {
     New-PreferenceResult -Status "mcp-vendor-config-invalid" -Target ".agents/config/project-env.json" -Reason $_.Exception.Message
     return
+  }
+}
+elseif (Test-Path -LiteralPath $projectJsoncPath -PathType Leaf) {
+  $jsoncIo = Join-Path $PSScriptRoot "lib/configuration-file-io.js"
+  $jsoncScript = @'
+const fs = require('node:fs');
+const [helper, file, preferred] = process.argv.slice(1);
+try {
+  const io = require(helper);
+  const bytes = fs.readFileSync(file);
+  const text = new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(bytes);
+  const mcp = io.parse(text).mcp;
+  if (mcp) {
+    const next = mcp.serverPath === preferred ? text : io.edit(text,[{path:['mcp','serverPath'],value:preferred}]);
+    process.stdout.write(JSON.stringify({name:mcp.serverName,path:mcp.serverPath,original:bytes.toString('base64'),next:Buffer.from(next).toString('base64')}));
+  }
+} catch { process.exitCode = 1; }
+'@
+  $jsoncResult = & node -e $jsoncScript $jsoncIo $projectJsoncPath $preferredCommand
+  if ($LASTEXITCODE -ne 0) {
+    New-PreferenceResult -Status "mcp-vendor-config-invalid" -Target $projectJsoncTarget -Reason "Cannot read the project's JSONC MCP settings"
+    return
+  }
+  if ($jsoncResult) {
+    $jsoncMcp = $jsoncResult | ConvertFrom-Json
+    $projectJsoncFile = [PSCustomObject]@{
+      path = $projectJsoncPath
+      originalBytes = [Convert]::FromBase64String($jsoncMcp.original)
+      plannedBytes = [Convert]::FromBase64String($jsoncMcp.next)
+    }
   }
 }
 
@@ -217,6 +261,9 @@ $projectEnvMcp = $null
 if (($null -ne $projectEnvFile) -and ($null -ne $projectEnvFile.value.mcp)) {
   $projectEnvMcp = $projectEnvFile.value.mcp
   $configuredServerName = [string]$projectEnvMcp.serverName
+}
+elseif ($null -ne $projectJsoncFile) {
+  $configuredServerName = [string]$jsoncMcp.name
 }
 
 try {
@@ -255,8 +302,15 @@ if ($null -ne $projectEnvMcp) {
     $targets.Add(".agents/config/project-env.json")
   }
 }
+elseif ($null -ne $projectJsoncFile) {
+  $observedTargets.Add($projectJsoncTarget)
+  if ([string]$jsoncMcp.path -ne $preferredCommand) {
+    $filesToWrite.Add($projectJsoncFile)
+    $targets.Add($projectJsoncTarget)
+  }
+}
 
-if (($null -eq $mcpServerEntry) -and ($null -eq $projectEnvMcp)) {
+if (($null -eq $mcpServerEntry) -and ($null -eq $projectEnvMcp) -and ($null -eq $projectJsoncFile)) {
   New-PreferenceResult -Status "mcp-vendor-command-not-configured" -Target ".mcp.json" -Reason "No iris-agentic-dev MCP server entry was found; no configuration was changed"
   return
 }
@@ -272,8 +326,10 @@ if ($Mode -eq "DryRun") {
   return
 }
 
+$writesDone = $false
 try {
   Write-JsonFilesAtomically -Files $filesToWrite
+  $writesDone = $true
 
   if ($targets.Contains(".mcp.json")) {
     $verifiedMcpFile = Read-JsonFile -Path $mcpPath
@@ -289,16 +345,21 @@ try {
       throw "Post-write verification failed for .agents/config/project-env.json."
     }
   }
+  if ($targets.Contains($projectJsoncTarget) -and ([Convert]::ToBase64String([System.IO.File]::ReadAllBytes($projectJsoncPath)) -ne $jsoncMcp.next)) {
+    throw "Post-write verification failed for project.jsonc."
+  }
 
   New-PreferenceResult -Status "mcp-vendor-command-applied" -Target $targetText -Reason ("Set only the iris-agentic-dev executable path to " + $preferredCommand + "; connection fields were preserved")
 }
 catch {
   $failureReason = $_.Exception.Message
-  try {
-    Restore-JsonFiles -Files $filesToWrite
-  }
-  catch {
-    $failureReason = $failureReason + "; rollback failed: " + $_.Exception.Message
+  if ($writesDone) {
+    try {
+      Restore-JsonFiles -Files $filesToWrite
+    }
+    catch {
+      $failureReason = $failureReason + "; rollback failed: " + $_.Exception.Message
+    }
   }
   New-PreferenceResult -Status "mcp-vendor-command-write-failed" -Target $targetText -Reason $failureReason
 }

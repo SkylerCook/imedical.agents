@@ -98,12 +98,10 @@ if (!fileIdentifier) {
 const workspaceContext = resolveWorkspaceContext(process.cwd());
 require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(workspaceContext);
 const workspaceRoot = workspaceContext.workspaceRoot;
-const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
 const profilePath = path.join(workspaceContext.contextRoot, 'config', 'iris_project_profile.md');
 let config;
 try {
-    const configContent = fs.readFileSync(configPath, 'utf8');
-    config = JSON.parse(configContent);
+    config = require('./project-env').readProjectEnv(workspaceContext).config;
 } catch (error) {
     console.error(`[错误] 无法读取配置文件: ${error.message}`);
     process.exit(1);
@@ -128,16 +126,11 @@ function readFrontendEncodingProfile() {
     try {
         text = fs.readFileSync(profilePath, 'utf8');
     } catch (_) {
-        return { mode: normalizeFrontendMode(settings.frontendMode), overrides: [] };
+        if (_.code !== 'ENOENT') throw _;
     }
     const modeMatch = text.match(/^\s*-\s*前端编码模式\s*[：:]\s*([^\r\n]+?)\s*$/m);
-    const overrides = [];
-    for (const line of text.split(/\r\n|\r|\n/)) {
-        const match = line.match(/^\s*\|\s*`?([^|`]+?)`?\s*\|\s*(utf8|standard-gb2312|project-utf8)\s*\|\s*$/);
-        if (match) {
-            overrides.push({ root: match[1].trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, ''), mode: normalizeFrontendMode(match[2]) });
-        }
-    }
+    const {values} = require('../../../../scripts/lib/project-frontend-settings').inspect(workspaceContext);
+    const overrides = values.frontendPathModes.map(({path,mode})=>({root:path,mode:normalizeFrontendMode(mode)}));
     return { mode: normalizeFrontendMode(settings.frontendMode || modeMatch?.[1]), overrides };
 }
 

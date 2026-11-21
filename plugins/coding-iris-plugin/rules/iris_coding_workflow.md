@@ -37,16 +37,8 @@ related:
 
 目标工程应先确认本地私密配置事实来源：
 
-- 有活动开发库档案时，按 coding-iris-init 的 `--check-profile` 核对并沿档案入口维护目标。以下两条适用于无档案工程。
-- 已有 `.mcp.json`：从 `.mcp.json` 反向生成或补齐 `.agents/config/project-env.json`，不得运行 `sync-env-config.js` 覆盖现有 `.mcp.json`。
-- 没有 `.mcp.json`：复制模板并填写 `.agents/config/project-env.json`，默认 `mcp.serverPath` 指向内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`，再运行 `sync-env-config.js` 生成 `.mcp.json`。
-
-```powershell
-New-Item -ItemType Directory -Force .agents/config
-Copy-Item .agents/plugins/coding-iris-plugin/templates/project-env.template.json .agents/config/project-env.json
-notepad .agents/config/project-env.json
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
-```
+- 有活动开发库档案时，用 `sync-env-config.js --check-profile` 复查 `project.jsonc` 中的档案是否和宿主绑定一致。
+- 首次配置或现有连接缺项，沿[初始化与补齐](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)确认目标后继续。
 
 常用脚本：
 

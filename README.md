@@ -83,6 +83,8 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 
 Windows x64 标准工程可用工作台首装。已有工程可在首页[复制更新提示词](docs/update-agents.md#使用工作台安装与更新)，交由当前工程的 Agent 执行。下面是直接使用 PowerShell 的操作。
 
+工程级设置通过当前 ContextRoot 的 `project.jsonc` 维护。已有项目按[原更新流程迁移配置](docs/update-agents.md#工程配置迁移)；工作台表单和框架共用验证入口。
+
 ### 首次安装到业务项目
 
 要求本机 Git `2.25.0` 或更新版本；安装脚本会使用 `git sparse-checkout`。如果版本过低，先升级 Git for Windows。

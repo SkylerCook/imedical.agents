@@ -77,6 +77,11 @@ function New-TestProject {
   foreach ($name in @("project-plugin-profile.js","project-deployment-policy.js","configuration-file-io.js","iris-development-settings.js")) {
     Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/$name") -Destination (Join-Path $root ".agents/scripts/lib/$name")
   }
+  foreach ($name in @("project-configuration.js", "project-configuration-fields.js", "project-configuration-migration.js",
+    "project-configuration-service.js", "project-context-settings.js", "project-frontend-settings.js", "project-menu-settings.js",
+    "project-environment.js", "project-environment-data.js", "project-environment-migration.js", "iris-selected-target.js")) {
+    Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/$name") -Destination (Join-Path $root ".agents/scripts/lib/$name")
+  }
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor") | Out-Null
   Copy-Item -LiteralPath (Join-Path $repoRoot "vendor/jsonc-parser") -Destination (Join-Path $root ".agents/vendor/jsonc-parser") -Recurse
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/plugin-deployment.js") -Destination (Join-Path $root ".agents/scripts/lib/plugin-deployment.js")
@@ -1263,7 +1268,7 @@ try {
   # A configured Overlay owns its local docs only; nearby workspaces remain unrelated.
   Enable-TestProjectDocsLayout -Root $overlayProject.WorkspaceRoot -CapabilityRoot $overlayProject.CapabilityRoot
   Assert-TestDocsDescriptionRefresh -Root $overlayProject.WorkspaceRoot -Updater (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1")
-  $overlayDocsOwner = Join-Path $overlayProject.ContextRoot "config/documentation-layout.json"
+  $overlayDocsOwner = Join-Path $overlayProject.ContextRoot "config/project.jsonc"
   $overlayDocsOwnerHash = (Get-FileHash -LiteralPath $overlayDocsOwner -Algorithm SHA256).Hash
   $overlayMissingDocs = Get-TestEmptyDocsDirectory -Root $overlayProject.WorkspaceRoot
   Remove-Item -LiteralPath $overlayMissingDocs -Force
@@ -1754,7 +1759,7 @@ try {
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $docsProjectRoot "docs"))) "No-setup ordinary Write must not initialize docs"
   Enable-TestProjectDocsLayout -Root $docsProjectRoot -CapabilityRoot $docsCapabilityRoot
   Assert-TestDocsDescriptionRefresh -Root $docsProjectRoot -Updater $docsUpdater
-  $docsOwnerPath = Join-Path $docsProjectRoot ".agents/config/documentation-layout.json"
+  $docsOwnerPath = Join-Path $docsProjectRoot ".agents/config/project.jsonc"
   $docsOwnerHash = (Get-FileHash -LiteralPath $docsOwnerPath -Algorithm SHA256).Hash
   $docsLegacyPath = Join-Path $docsProjectRoot "docs/project-custom-legacy/topic.md"
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $docsLegacyPath) | Out-Null
@@ -1845,7 +1850,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $repoRoot ("plugins/coding-iris-plugin/scripts/iris-tools/" + $name)) -Destination (Join-Path $autoToolsRoot $name)
   }
   Copy-Item -LiteralPath (Join-Path $repoRoot "plugins/coding-iris-plugin/scripts/migrate-development-config.ps1") -Destination (Join-Path $autoPluginRoot "scripts/migrate-development-config.ps1")
-  Copy-Item -LiteralPath (Join-Path $repoRoot "plugins/coding-iris-plugin/templates/iris-remote-policy.template.json") -Destination (Join-Path $autoPluginRoot "templates/iris-remote-policy.template.json")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "plugins/coding-iris-plugin/templates/iris-remote-policy.template.jsonc") -Destination (Join-Path $autoPluginRoot "templates/iris-remote-policy.template.jsonc")
   $autoManifestPath = Join-Path $autoPluginRoot ".agents-plugin/plugin.json"
   $autoManifest = Get-Content -LiteralPath $autoManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
   $autoManifest.configMigrations = @([PSCustomObject]@{ id = "iris-development-config-v1"; script = "scripts/migrate-development-config.ps1" })
@@ -1860,6 +1865,13 @@ try {
   $autoLegacyDevelopment = Join-Path $autoConfigRoot "iris-development.json"
   $autoContextRoot = Join-Path $autoConfigProjectRoot ".agents"
   $autoDevelopmentReader = Join-Path $autoContextRoot "scripts/lib/iris-development-settings.js"
+  $policyIO = Join-Path $autoContextRoot "scripts/lib/configuration-file-io.js"
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/configure-agents.js") -Destination (Join-Path $autoContextRoot "scripts/configure-agents.js")
+  function Read-AutoPolicy {
+    $result = & node -e 'const io=require(process.argv[1]); const value=io.parse(io.readText(process.argv[2])).irisRemotePolicy; console.log(JSON.stringify(value??null));' $policyIO $autoDevelopment
+    if ($LASTEXITCODE -ne 0) { throw "Cannot read project remote policy" }
+    return ($result | ConvertFrom-Json)
+  }
   function Read-AutoDevelopment {
     $declaration = & node -e "const state=require(process.argv[1]).inspect(process.argv[2]);process.stdout.write(JSON.stringify(state.value))" $autoDevelopmentReader $autoContextRoot
     if ($LASTEXITCODE -ne 0) { throw "Cannot read project development declaration" }
@@ -1886,33 +1898,42 @@ try {
   $developmentDeclaration = Read-AutoDevelopment
   Assert-True ($null -ne $developmentDeclaration) "Ordinary enabled-plugin update must create the development declaration in project.jsonc"
   Assert-True (-not (Test-Path -LiteralPath $autoLegacyDevelopment)) "Ordinary updates must not regenerate the legacy declaration"
-  Assert-True (Test-Path -LiteralPath $autoPolicy) "Ordinary enabled-plugin update must create the minimal remote policy"
-  Assert-True (-not ((Get-Content -LiteralPath $autoPolicy -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties.Name -contains "qualification")) "Fresh configuration must not manufacture license registration"
+  Assert-True ($null -ne (Read-AutoPolicy)) "Ordinary enabled-plugin update must create the minimal remote policy in project.jsonc"
+  Assert-True (-not ((Read-AutoPolicy).PSObject.Properties.Name -contains "qualification")) "Fresh configuration must not manufacture license registration"
+  Assert-True (-not (Test-Path -LiteralPath $autoPolicy)) "Fresh configuration must not create a legacy policy"
   Assert-True (-not ($developmentDeclaration.PSObject.Properties.Name -contains "developmentMode")) "Automatic completion must preserve legacy implicit mode bindings"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $autoConfigProjectRoot ".agents/work/source-sync"))) "Updating configuration must not manufacture a source baseline"
   $autoDevelopmentBefore = [System.IO.File]::ReadAllBytes($autoDevelopment)
-  $autoPolicyBefore = [System.IO.File]::ReadAllBytes($autoPolicy)
   $autoRepeated = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull -Detailed | Out-String
   Assert-True ([Convert]::ToBase64String($autoDevelopmentBefore) -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoDevelopment))) "Repeated updates must preserve existing development bytes"
-  Assert-True ([Convert]::ToBase64String($autoPolicyBefore) -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))) "Repeated updates must preserve existing policy bytes"
-  # Exercise the existing updater against an already deployed legacy policy.
+  # Exercise the existing updater against multiple already deployed settings.
+  & node -e "const fs=require('node:fs'),io=require(process.argv[1]),file=process.argv[2];fs.writeFileSync(file,io.edit(io.readText(file),[{path:['irisRemotePolicy'],value:undefined}]));" $policyIO $autoDevelopment
+  if ($LASTEXITCODE -ne 0) { throw "Cannot seed legacy policy fixture" }
   $oldPolicy = [ordered]@{ schema = "iris-remote-policy/v1"; enabled = $false; poolKey = "fixture"; coordinationRoot = (Join-Path $autoConfigProjectRoot "coordination"); admissionMode = "managed-single-session"; maxConcurrent = 1; qualification = @{ status = "pending"; channels = @{ mcp = @{ processExitVerified = $false } } }; custom = "retain" }
   $oldPolicy | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $autoPolicy -Encoding UTF8
   $legacyBytes = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))
+  $autoLegacyBackend = Join-Path $autoConfigRoot "iris-session-backend.json"
+  $oldBackend = @{ schema = "iris-session-backend/v1"; serverName = "iris-agentic-dev"; command = "iris-agentic-dev"; args = @("mcp") }
+  $oldBackend | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $autoLegacyBackend -Encoding UTF8
   foreach ($readMode in @("DryRun", "Check")) {
     $previewCleanup = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode $readMode -NoPull -Detailed | Out-String
     Assert-Contains $previewCleanup "Remove obsolete configuration" "Read-only updates must preview obsolete field cleanup"
+    Assert-True ([regex]::Matches($previewCleanup, '(?m)^status[ \t]*:[ \t]*project-config-planned[ \t]*\r?$').Count -eq 2) "Read-only updates must report each pending configuration separately"
     Assert-True ($legacyBytes -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))) "Preview must not rewrite a deployed policy"
   }
   $cleanupOutput = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull -Detailed | Out-String
   Assert-Contains $cleanupOutput "Remove obsolete configuration" "Normal Write updates must clean existing obsolete fields"
-  $cleanPolicy = Get-Content -LiteralPath $autoPolicy -Raw -Encoding UTF8 | ConvertFrom-Json
+  Assert-True ([regex]::Matches($cleanupOutput, '(?m)^status[ \t]*:[ \t]*project-config-applied[ \t]*\r?$').Count -eq 2) "Write must report each migrated configuration separately"
+  Assert-True (-not (Test-Path -LiteralPath $autoLegacyBackend)) "Normal Write must retire the verified legacy backend"
+  Assert-True (Test-Path -LiteralPath (Join-Path $autoConfigRoot ".migrations/iris-session-backend.json")) "Normal Write must archive the verified legacy backend"
+  $cleanPolicy = Read-AutoPolicy
+  Assert-True (-not (Test-Path -LiteralPath $autoPolicy)) "Normal Write must retire the verified legacy policy"
   Assert-True (-not ($cleanPolicy.PSObject.Properties.Name -contains "qualification")) "Unused license registration must be removed"
   Assert-True (-not ($cleanPolicy.PSObject.Properties.Name -contains "admissionMode")) "Unused admissionMode must be removed"
   Assert-True ($cleanPolicy.enabled -eq $false -and $cleanPolicy.custom -eq "retain") "Cleanup must preserve explicit disabled state and private additions"
-  $cleanBytes = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))
+  $cleanBytes = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoDevelopment))
   & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull | Out-Null
-  Assert-True ($cleanBytes -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))) "Repeated cleanup must leave the policy byte-identical"
+  Assert-True ($cleanBytes -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoDevelopment))) "Repeated cleanup must leave project.jsonc byte-identical"
 } finally {
   Remove-Item -LiteralPath $autoConfigProjectRoot -Recurse -Force
 }

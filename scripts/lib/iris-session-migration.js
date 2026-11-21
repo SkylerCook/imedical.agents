@@ -2,6 +2,7 @@
 const fs = require('node:fs'), path = require('node:path'), {spawnSync} = require('node:child_process');
 const {failure, hash} = require('./iris-session-manager');
 const {managed} = require('./iris-session-client');
+const configuration = require('./project-configuration');
 function read(file) {return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));}
 function validNodeCommand(command) {
   if (command === process.execPath) return true;
@@ -43,8 +44,7 @@ function write(file, value, before) {
 }
 function assertInactive(context,server) {
   const remote=require('./iris-remote-operations');
-  const policyFile=path.join(context.contextRoot,'config','iris-remote-policy.json');
-  const policy=fs.existsSync(policyFile)?read(policyFile):null;
+  const policy=configuration.inspect(context,'irisRemotePolicy').value;
   const connection=server.env || {};
   const pool=policy?.allowSharedPool === true ? policy.poolKey : remote.instanceIdentity(connection);
   const state=path.join(require('./iris-session-ipc').location().root,'pools',hash(pool)+'.json');
@@ -63,15 +63,17 @@ function migrate({projectRoot, mode='DryRun', serverName}={}) {
   if(!['DryRun','Write','Check','Rollback'].includes(mode))throw failure('session-migration-mode-invalid');
   const context=require('./workspace-context').resolveWorkspaceContext(path.resolve(projectRoot));
   const selected=require('./iris-selected-target').selected(context);
-  const environmentFile=path.join(context.contextRoot,'config','project-env.json');
-  serverName ||= selected?.serverName || (fs.existsSync(environmentFile)?read(environmentFile).mcp?.serverName:null) || 'iris-agentic-dev';
+  const environment=require('./project-environment').read(context,{optional:true,inherit:false}).config;
+  serverName ||= selected?.serverName || environment.mcp?.serverName || 'iris-agentic-dev';
   selected?.checkName(serverName,'session migration');
   if (selected && !selected.bindings.mcp) return {status:'not-applicable',reason:'profile-mcp-unbound'};
-  const configFile=path.join(context.workspaceRoot,'.mcp.json'), backendFile=path.join(context.contextRoot,'config','iris-session-backend.json');
+  const configFile=path.join(context.workspaceRoot,'.mcp.json');
   if(!fs.existsSync(configFile))return {status:'not-applicable',reason:'configuration-missing'};
   const configText=fs.readFileSync(configFile,'utf8'), config=JSON.parse(configText.replace(/^\uFEFF/,'')), server=config.mcpServers?.[serverName];
   if(!server) return {status:'not-applicable',reason:'server-missing'};
-  const existing=fs.existsSync(backendFile)?read(backendFile):null;
+  const backendState=configuration.inspect(context,'irisSessionBackend');
+  const backendFile=backendState.legacy !== null && !backendState.canonical ? backendState.file : backendState.main.file;
+  const existing=backendState.value;
   const args=[path.join(context.capabilityRoot,'scripts','iris-session-mcp.js'),'--project-root',context.workspaceRoot,'--server-name',serverName];
   const expected={command:process.execPath,args};
   if(mode==='Rollback') {
@@ -111,24 +113,24 @@ function migrate({projectRoot, mode='DryRun', serverName}={}) {
     const envKey={'--host':'IRIS_HOST','--web-port':'IRIS_WEB_PORT','--scheme':'IRIS_SCHEME','--namespace':'IRIS_NAMESPACE'}[flag];
     if(envKey && String(server.env?.[envKey])!==oldArgs[i])throw failure('session-target-config-conflict');
   }
-  const policyFile=path.join(context.contextRoot,'config','iris-remote-policy.json');
-  const generatedPolicy=!fs.existsSync(policyFile)?{schema:'iris-remote-policy/v1',enabled:true,
+  const policyState=configuration.inspect(context,'irisRemotePolicy');
+  const generatedPolicy=!policyState.value?{schema:'iris-remote-policy/v1',enabled:true,
     poolKey:require('./iris-remote-operations').instanceIdentity(server.env || {}),
     coordinationRoot:path.join(require('./iris-session-ipc').location().root,'admission')}:null;
   assertInactive(context,server);
   privateFile(context.workspaceRoot,configFile); privateFile(context.workspaceRoot,backendFile);
-  if(generatedPolicy)privateFile(context.workspaceRoot,policyFile);
+  if(generatedPolicy)privateFile(context.workspaceRoot,policyState.main.file);
   const capabilityRelative=path.relative(context.capabilityRoot,backendFile);
   if(!capabilityRelative.startsWith('..'+path.sep) && !path.isAbsolute(capabilityRelative)) {
-    privateFile(context.capabilityRoot,backendFile);if(generatedPolicy)privateFile(context.capabilityRoot,policyFile);
+    privateFile(context.capabilityRoot,backendFile);if(generatedPolicy)privateFile(context.capabilityRoot,policyState.main.file);
   }
   const backend={schema:'iris-session-backend/v1',serverName,command:server.command,args:oldArgs,originalArgsPresent:Object.hasOwn(server,'args'),managedHash:hash(expected)};
   if(existing && JSON.stringify(existing)!==JSON.stringify(backend))throw failure('session-backend-config-conflict');
   if(mode==='Write') {
     if(!fs.existsSync(args[0]))throw failure('session-adapter-missing');
     fs.mkdirSync(path.dirname(backendFile),{recursive:true});
-    if(!existing)write(backendFile,backend);
-    if(generatedPolicy)write(policyFile,generatedPolicy);
+    if(!existing)configuration.save(context,'irisSessionBackend',backend);
+    if(generatedPolicy)configuration.save(context,'irisRemotePolicy',generatedPolicy);
     Object.assign(server,expected);write(configFile,config,configText);
   }
   return {status:mode==='Write'?'applied':'planned',managed:mode==='Write',restartRequired:true};
@@ -155,16 +157,17 @@ function preserveManaged({context,config,selectedName}) {
     }
     if (!replacement && selectedName && name!==selectedName) continue;
     if(!replacement)throw failure('session-generator-server-rename-review-required');
-    const backendFile=path.join(context.contextRoot,'config','iris-session-backend.json');
+    const backendState=configuration.inspect(context,'irisSessionBackend');
+    const backendFile=backendState.legacy !== null && !backendState.canonical ? backendState.file : backendState.main.file;
     privateFile(context.workspaceRoot,backendFile);
-    const before=fs.readFileSync(backendFile,'utf8'),backend=JSON.parse(before);
-    if(backend.serverName!==name || backend.managedHash!==hash({command:current.command,args:current.args}))throw failure('session-managed-config-drift');
+    const before=fs.readFileSync(backendFile,'utf8'),backend=backendState.value;
+    if(backend?.serverName!==name || backend.managedHash!==hash({command:current.command,args:current.args}))throw failure('session-managed-config-drift');
     const next={...backend,command:replacement.command,args:replacement.args,originalArgsPresent:true};
     if(JSON.stringify(next)!==JSON.stringify(backend)) {
       assertInactive(context,current);
-      write(backendFile,next,before);
+      configuration.save(context,'irisSessionBackend',next);
       const after=fs.readFileSync(backendFile,'utf8');
-      undo.push(()=>write(backendFile,JSON.parse(before),after));
+      undo.push(()=>configuration.replace(backendFile,after,before));
     }
     config.mcpServers[name]={...current,...replacement,command:current.command,args:current.args,
       env:{...current.env,...replacement.env},...(Object.hasOwn(current,'disabled')?{disabled:current.disabled}:{})};

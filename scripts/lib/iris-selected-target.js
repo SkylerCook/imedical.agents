@@ -16,11 +16,8 @@ function read(file) {
   try { return JSON.parse(fs.readFileSync(file,'utf8').replace(/^\uFEFF/,'')); }
   catch { conflict(path.basename(file),'JSON'); }
 }
-function selection(context) {
-  const dir = path.join(context.contextRoot,'config');
-  const main = path.join(dir,'project.jsonc');
-  if (!fs.existsSync(main)) return;
-  const state = parse(fs.readFileSync(main,'utf8')).irisConnections;
+function selection(context, project) {
+  const state = (project || require('./project-configuration').document(context.contextRoot).value).irisConnections;
   if (state === undefined) return;
   const profile = state?.profiles?.[state.active];
   if (!profile || !Object.hasOwn(state.profiles,state.active) || !profile.host || !profile.namespace ||
@@ -28,12 +25,12 @@ function selection(context) {
       typeof profile.tlsVerify !== 'boolean' || !state.serverName) conflict('project.jsonc','irisConnections');
   return state;
 }
-function selected(context,{requireBindings=false}={}) {
-  const state=selection(context);
+function selected(context,{requireBindings=false,project,environmentConfig}={}) {
+  const state=selection(context,project);
   if (!state) return;
   const dir=path.join(context.contextRoot,'config');
   const profile=state.profiles[state.active];
-  const central = read(path.join(dir,'project-env.json'));
+  const central = environmentConfig || require('./project-environment').read(context,{optional:true,inherit:false}).config;
   if (requireBindings && state.bindings?.central && !central.iris) conflict('project-env.json','iris');
   const credentials = state.bindings?.central ? central.irisProfileCredentials : read(path.join(dir,'iris-profile-credentials.json'));
   const reference = /^private:([\w-]+)$/.exec(profile.credentialRef);
@@ -89,8 +86,8 @@ function selected(context,{requireBindings=false}={}) {
   }
   const server = read(path.join(context.workspaceRoot,'.mcp.json')).mcpServers?.[state.serverName];
   checkServer(server,'.mcp.json',requireBindings && state.bindings?.mcp);
-  const backend = read(path.join(dir,'iris-session-backend.json'));
-  if (backend.serverName !== undefined) {
+  const backend = require('./project-configuration').inspect(context, 'irisSessionBackend').value;
+  if (backend?.serverName !== undefined) {
     checkName(backend.serverName,'iris-session-backend.json');
     checkArgs(backend.args,'iris-session-backend.json');
   }

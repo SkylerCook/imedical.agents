@@ -67,7 +67,7 @@ async function writeSettings(operation, data, reply) {
  if (!settingsBinding || projectIdentity() !== settingsBinding) {
   return reply(409,{code:'binding-changed',error:'工程目录身份已改变，请从启动器重新绑定。'});
  }
- const plan = /^plan\/(project|bos|knowledge)$/u.exec(operation);
+ const plan = /^plan\/(project|bos|knowledge|managed)$/u.exec(operation);
  const draft = /^draft\/(project|bos|knowledge)$/u.exec(operation);
  if (!plan && !draft && operation !== 'apply') return reply(404,{error:'未知操作'});
  const keys = Object.keys(data).sort().join(',');
@@ -77,6 +77,14 @@ async function writeSettings(operation, data, reply) {
    if (keys !== 'planId' || typeof data.planId !== 'string') return reply(400,{error:'配置确认请求无效'});
    const isProject = projectPlans.delete(data.planId);
    return reply(200,isProject ? await projectSettings.apply(data.planId) : settings.apply(data.planId));
+  }
+  if (plan[1] === 'managed') {
+   if (keys !== 'edits,revision' || typeof data.revision !== 'string' || !Array.isArray(data.edits)) {
+     return reply(400,{error:'配置预览请求无效'});
+   }
+   const preview = projectSettings.planManaged(data);
+   projectPlans.add(preview.planId);
+   return reply(200,preview);
   }
   if (keys !== 'changes,revision' || typeof data.revision !== 'string' || !data.changes ||
       typeof data.changes !== 'object' || Array.isArray(data.changes)) return reply(400,{error:'配置预览请求无效'});
@@ -163,6 +171,7 @@ if(u.pathname.startsWith('/settings/')){
  if(req.method!=='GET')return reply(405,{error:'不允许的请求'});
  try {
   if (u.pathname === '/settings/project') return reply(200,annotateDraftFields(projectSettings.inspect()));
+  if (u.pathname === '/settings/managed') return reply(200,projectSettings.inspectManaged());
   if (u.pathname === '/settings/bos' || u.pathname === '/settings/knowledge')
    return reply(200,annotateDraftFields(settings.inspect(name.slice('settings/'.length))));
   return reply(404,{error:'未知操作'});

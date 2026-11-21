@@ -97,6 +97,12 @@ function demandKind(context, options = {}) {
         if (!['standard', 'project'].includes(options.kind)) stop('explicit-demand-kind-required');
         return {kind: options.kind, source: 'explicit-task'};
     }
+    const data = require('../../../../scripts/lib/project-configuration').document(context.contextRoot).value;
+    const configured = data.pluginSettings?.['coding-iris-plugin']?.defaultDemandKind;
+    if (configured !== undefined) {
+        require('../../../../scripts/lib/project-context-settings').demandSettings(context.contextRoot, data);
+        return {kind:configured, source:'project.jsonc'};
+    }
     for (const name of ['iris_project_profile.md', 'demand_delivery_profile.md']) {
         const file = path.join(context.contextRoot, 'config', name);
         if (!fs.existsSync(file)) continue;
@@ -306,8 +312,7 @@ async function prepare(planFile, options = {}) {
     assertSnapshot(plan);
     const {config} = projectConfiguration(context);
     if (plan.phase === 'initial-baseline' && plan.files.length > 5) {
-        const policyFile = path.join(context.contextRoot, 'config', 'iris-remote-policy.json');
-        const policy = fs.existsSync(policyFile) ? json(policyFile) : {};
+        const policy = require('../../../../scripts/lib/project-configuration').inspect(context, 'irisRemotePolicy').value || {};
         const legacyReference = policy.bulkQualification?.status === 'verified' ? policy.bulkQualification.reference : null;
         const batchReference = policy.readBatch?.qualification?.status === 'verified' ? policy.readBatch.qualification.reference : null;
         const reference = batchReference || legacyReference;

@@ -62,9 +62,8 @@ function validate(publication) {
 }
 function required(context, config = {}, options = {}) {
   require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
-  const file = path.join(context.contextRoot, 'config', 'project_context_profile.md');
-  const content = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  const onDemand = config.contextMode === 'intent-first-on-demand-export' || /^\s*[-*]?\s*`?contextMode`?\s*[:：=]\s*`?intent-first-on-demand-export\b/mi.test(content);
+  const onDemand = config.contextMode === 'intent-first-on-demand-export' ||
+    require('../../../../scripts/lib/iris-remote-operations').contextMode(context) === 'intent-first-on-demand-export';
   if (!onDemand) return false;
   return require('./source-sync-core').demandKind(context, options).kind === 'project';
 }

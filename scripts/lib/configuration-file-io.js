@@ -101,4 +101,33 @@ function copyFileAccess(source, target) {
     });
 }
 
-module.exports = {readText, parse, edit, copyFileAccess};
+function annotate(text, notes) {
+    parse(text);
+    const bom = text.startsWith('\uFEFF') ? '\uFEFF' : '';
+    const body = text.slice(bom.length);
+    const tree = parser.parseTree(body);
+    const eol = body.match(/\r\n|\r|\n/)?.[0] || '\n';
+    const indent = body.match(/(?:\r\n|\r|\n)([ \t]+)"/)?.[1] || '  ';
+    const edits = [];
+    for (const {path, description} of notes) {
+        const property = parser.findNodeAtLocation(tree, path)?.parent;
+        if (property?.type !== 'property' || !description) continue;
+        const siblings = property.parent.children;
+        const previous = siblings[siblings.indexOf(property) - 1];
+        const start = previous ? previous.offset + previous.length : property.parent.offset + 1;
+        const gap = body.slice(start, property.offset);
+        // Preserve existing explanations, including block comments and mixed line endings.
+        if (/\/\*|\/\//u.test(gap)) continue;
+        const whitespace = gap.split(/\r\n|\r|\n/).at(-1);
+        const onOwnLine = gap.includes('\n') || gap.includes('\r');
+        const padding = onOwnLine ? whitespace : indent.repeat(path.length);
+        edits.push({offset: property.offset, length: 0,
+            content: (onOwnLine ? '' : eol + padding) +
+                '// ' + description.replace(/[\r\n]+/g, ' ') + eol + padding});
+    }
+    const next = parser.applyEdits(body, edits);
+    parse(next);
+    return bom + next;
+}
+
+module.exports = {readText, parse, edit, annotate, copyFileAccess};

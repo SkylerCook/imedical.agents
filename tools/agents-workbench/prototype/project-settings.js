@@ -1,6 +1,10 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const owner=require('../../ai-dev-offline/configure-project');
+const managedConfiguration = require('../../../scripts/lib/project-configuration-service');
+const environment = require('../../../scripts/lib/project-environment');
+const configurationIO = require('../../../scripts/lib/configuration-file-io');
+const configurationFields = require('../../../scripts/lib/project-configuration-fields');
 const policy = require('../../../scripts/lib/project-deployment-policy');
 const deployment = require('../../../scripts/lib/plugin-deployment');
 const {workspaceContextBlockers} = require('../../../scripts/lib/workspace-context');
@@ -11,8 +15,8 @@ const developmentFields = ['developmentMode','environmentAlias','environmentType
 const pluginSettings=require('../../../scripts/lib/project-plugin-settings');
 const policyField = 'deployment.autoInstall';
 const keys=['host','port','scheme','namespace','alias','description','tlsVerify'];
-const sourceKeys=['web.basePath','web.cspBasePath','web.brokerPath','web.cookie','sftp.host','sftp.port','sftp.username','sftp.password','sftp.localPath','sftp.remotePath'];
-const files=['.vscode/settings.json','.mcp.json','.iris-agentic-dev.toml','.agents/config/project-env.json','.agents/config/iris-session-backend.json','.agents/config/iris-development.json','.agents/config/project.jsonc'];
+const sourceKeys=['web.basePath','web.cspBasePath','web.brokerPath','web.cookie','sftp.enabled','sftp.host','sftp.port','sftp.username','sftp.password','sftp.localPath','sftp.remotePath'];
+const bindings=['.vscode/settings.json','.mcp.json','.iris-agentic-dev.toml'];
 function settingsContext(root) {
  const context=inspectProjectContext(root);
  if (!context) fail('工程声明无法安全读取，请先核对当前工程 .agents/capability.json。');
@@ -20,9 +24,9 @@ function settingsContext(root) {
 }
 const digest=root=>{
  const ctx=settingsContext(root);
- const sources=files.map(f=>path.join(root,f));
- const main=path.join(ctx.contextRoot,'config/project.jsonc');
- if(!sources.includes(main)) sources.push(main);
+ const sources=[...bindings.map(f=>path.join(root,f)),
+   ...['project.jsonc','project-env.json','iris-session-backend.json','iris-development.json']
+     .map(file=>path.join(ctx.contextRoot,'config',file))];
  const hashes=sources.map(file=>owner.snapshot(file).hash);
  for(const spec of Object.values(pluginSettings.domains)) {
    try { hashes.push(owner.snapshot(path.join(ctx.contextRoot,'config',spec.file)).hash); }
@@ -47,7 +51,30 @@ function independentNode() {
 }
 function createProjectSettings(root){
  const plans=new Map();
- const runtime={resolveNodeExe:independentNode};
+ const runtime={resolveNodeExe:independentNode,
+   annotateConfiguration:text=>configurationIO.annotate(text,configurationFields.notes(configurationIO.parse(text)))};
+ function managedContext(){
+   const ctx=settingsContext(root);
+   if (ctx.mode==='invalid' || (ctx.mode==='workspace-overlay' && workspaceContextBlockers(ctx).length)) fail('工程工作区尚未就绪');
+   return ctx;
+ }
+ function inspectManaged(){
+   const ctx=managedContext();
+   const installed=fs.existsSync(path.join(ctx.capabilityRoot,'scripts','configure-agents.js'));
+   return {...managedConfiguration.read(ctx),installed};
+ }
+ function planManaged(request){
+   const ctx=managedContext();
+   if (!fs.existsSync(path.join(ctx.capabilityRoot,'scripts','configure-agents.js'))) fail('请先更新当前工程的框架');
+   let preview;
+   try { preview=managedConfiguration.plan(ctx,request); }
+   catch (error) { fail(error.message==='project-config-changed'?'配置已变化，请重新读取后再预览。':'存在无效字段、配置冲突或待迁移来源，请核对当前分节。'); }
+   for (const [id,value] of plans) if(value.expires<Date.now()) plans.delete(id);
+   if (plans.size>=20) fail('预览数量过多，请稍后重试');
+   const planId=crypto.randomUUID();
+   plans.set(planId,{managed:request,revision:digest(root),expires:Date.now()+300000});
+   return {...preview, planId, scope:ctx.mode==='workspace-overlay'?'当前工作区':'当前工程'};
+ }
  function readPolicy() {
    const ctx = settingsContext(root);
    if (ctx.mode === 'invalid' || (ctx.mode !== 'standard' && workspaceContextBlockers(ctx).length)) return null;
@@ -64,8 +91,14 @@ function createProjectSettings(root){
      source:current.hasOld?'ContextRoot/config/plugin-deployment.json · 通过原更新器 Write 迁移':'ContextRoot/config/project.jsonc · deployment'};
 
  }
- function inspect(){if(!root)fail('尚未绑定工程');const ctx=settingsContext(root);const data=owner.inspect({projectRoot:root});const central=owner.object(owner.snapshot(path.join(root,files[3])).text);const c=data.active ? {...central.iris,...Object.fromEntries(keys.map(key=>[key,data[key]]))} : central.iris||{};
+ function inspect(){if(!root)fail('尚未绑定工程');const ctx=settingsContext(root);const data=owner.inspect({projectRoot:root});
  const configIssue=checkProjectConfig(ctx.contextRoot);
+ let env={config:{}},connectionIssue;
+ if (!configIssue) {
+   try { env=environment.read(ctx,{optional:true}); }
+   catch { connectionIssue='工程连接来源有冲突或无法读取，请核对有效档案与旧配置。'; }
+ }
+ const central=env.config;const c=data.active ? {...central.iris,...Object.fromEntries(keys.map(key=>[key,data[key]]))} : central.iris||{};
  let currentPolicy,policyIssue=configIssue;
  if (!policyIssue) {
    try { currentPolicy=readPolicy(); }
@@ -77,8 +110,8 @@ function createProjectSettings(root){
  const policyFields=policyIssue ? [issue('deployment.issue','部署策略待核对',policyIssue,'ContextRoot/config/project.jsonc · deployment')]
    : currentPolicy ? [{id:policyField,label:'允许自动补装插件',type:'boolean',value:currentPolicy.value.autoInstall,readOnly:currentPolicy.readOnly,source:currentPolicy.source}] : [];
 
- let connectionFields=dev.issue ? [issue('irisConnections.issue','连接写入待核对','核对开发声明后可修改或切换连接。','ContextRoot/config/project.jsonc · irisConnections')] : [];
- if(!dev.issue && ctx.mode==='standard' && fs.existsSync(path.join(ctx.capabilityRoot,'.git'))) {
+ let connectionFields=(dev.issue || connectionIssue) ? [issue('irisConnections.issue','连接写入待核对',connectionIssue || '核对开发声明后可修改或切换连接。','ContextRoot/config/project.jsonc · irisConnections')] : [];
+ if(!dev.issue && !connectionIssue && !env.inherited && fs.existsSync(path.join(ctx.capabilityRoot,'.git'))) {
    let state;
    try { state=owner.inspectProfiles({projectRoot:root}); }
    catch { connectionFields=[{id:'irisConnections.status',label:'目标核验',type:'string',readOnly:true,value:'现有连接使用了无法识别的绑定，请核对目标来源。'}]; }
@@ -98,7 +131,14 @@ function createProjectSettings(root){
      ];
    }
  }
- const connectionValues=keys.map(k=>({id:k,label:k,type:typeof (k==='port'?(c.port||data.port):k==='tlsVerify'?(c.tlsVerify??data.tlsVerify):c[k]??data[k]),value:k==='port'?(c.port||data.port):k==='tlsVerify'?(c.tlsVerify??data.tlsVerify):c[k]??data[k]})).concat(['username','password'].map(k=>({id:k,label:k,type:'string',secret:true,configured:!!c[k]||data.hasCredentials}))).concat(sourceKeys.filter(k=>{const [a,b]=k.split('.');return central[a]?.[b]!==undefined}).map(k=>{const [a,b]=k.split('.'),value=central[a][b],secret=/password|cookie/.test(k);return {id:k,label:k,type:typeof value,secret,configured:!!value,value:secret?undefined:value}}));
+ const connectionValues=keys.map(k=>({id:k,label:k,type:typeof (k==='port'?(c.port||data.port):k==='tlsVerify'?(c.tlsVerify??data.tlsVerify):c[k]??data[k]),value:k==='port'?(c.port||data.port):k==='tlsVerify'?(c.tlsVerify??data.tlsVerify):c[k]??data[k]})).concat(['username','password'].map(k=>({id:k,label:k,type:'string',secret:true,configured:!!c[k]||data.hasCredentials}))).concat(sourceKeys.filter(k=>{
+   const [section,key]=k.split('.');
+   return central[section]?.[key]!==undefined || (env.canonical && section==='web');
+ }).map(k=>{
+   const [section,key]=k.split('.'),value=central[section]?.[key] ?? '';
+   const secret=/username|password|cookie/.test(k);
+   return {id:k,label:k,type:typeof value,secret,configured:!!value,value:secret?undefined:value};
+ }));
  const pluginFields=[];
  for(const [id,spec] of Object.entries(pluginSettings.domains)) {
    if(configIssue || !fs.existsSync(path.join(ctx.capabilityRoot,'plugins',id,'.agents-plugin/plugin.json'))) continue;
@@ -111,8 +151,11 @@ function createProjectSettings(root){
      }
    } catch {pluginFields.push(issue(prefix+'issue',id,'请核对 '+spec.file+' 和 project.jsonc 中的插件配置。','ContextRoot/config'));}
  }
- const usableConnection=dev.issue ? connectionValues.map(field=>({...field,readOnly:true})) : connectionValues;
- return {id:'project',revision:digest(root),scope:'当前工程',fields:usableConnection.concat(policyFields,devFields,connectionFields,pluginFields)}}
+ const usableConnection=connectionValues.map(field=>({...field,
+   source:env.canonical?'ContextRoot/config/project.jsonc':field.source,
+   readOnly:!!dev.issue || !!connectionIssue || env.inherited}));
+ return {id:'project',revision:digest(root),scope:ctx.mode==='workspace-overlay'?'当前工作区':'当前工程',
+   fields:usableConnection.concat(policyFields,devFields,connectionFields,pluginFields)}}
  function plan(request){const model=inspect();if(request.revision!==model.revision)fail('工程配置已变化，请重新读取');const requested=Object.entries(request.changes||{});
  if (requested.some(([key])=>key.startsWith('pluginSettings.'))) {
    const plugin=requested[0][0].split('.')[1],changes={};
@@ -176,8 +219,15 @@ function createProjectSettings(root){
  for(const [k,v]of Object.entries(request.changes||{})){const f=model.fields.find(f=>f.id===k);if(!f)fail('未知工程字段');if(f.readOnly)fail('此字段待核对，暂不可写入。');if(k.includes('.')){if(f.secret&&(v.action!=='replace'||!v.value))fail('Web/SFTP 凭据只支持保留或替换');if(typeof v.value!==f.type)fail('字段类型不匹配');sourceChanges[k]=v.value;continue}if(f.secret){if(v.action!=='replace'||typeof v.value!=='string'||!v.value)fail('工程凭据只支持保留或成对替换');replace=true;connection[k]=v.value}else{if(typeof v.value!==f.type)fail('工程字段类型不匹配');connection[k]=v.value}}
  if(replace&&(!connection.username||!connection.password))fail('请同时替换账号和密码');connection.writeCredentials=replace;
  const development=require('../../../scripts/lib/iris-development-settings').inspect(settingsContext(root).contextRoot).value;if(development?.developmentMode==='offline')fail('当前为离线开发模式，先通过开发方式入口切换后配置连接');
- const central=fs.existsSync(path.join(root,files[3]));
- const req={projectRoot:root,connection,configureMcp:true,syncProjectEnv:central,sourceChanges};
+ const env=environment.read(settingsContext(root),{optional:true,inherit:false});
+ const central=!!env.config.iris;
+ const active=model.fields.find(field=>field.id==='irisConnections.active')?.value;
+ const state=require('../../../scripts/lib/project-configuration').document(settingsContext(root).contextRoot).value.irisConnections;
+ const hasProfile=state?.source==='project.jsonc' && state.active===active;
+ const changingIris=requested.some(([field])=>!field.includes('.'));
+ const req=hasProfile && changingIris ? {projectRoot:root,profile:{id:active,edit:true,connection,
+   ...(replace ? {credentials:{username:connection.username,password:connection.password}} : {})},sourceChanges}
+   : {projectRoot:root,connection,configureMcp:hasProfile?state.bindings.mcp:true,syncProjectEnv:central,sourceChanges};
  let p;try{p=owner.plan(req,runtime)}catch(e){fail(/^[\u3400-\u9fff]/.test(e.message)?e.message:'工程配置解析或安全检查失败；请核对配置格式和文件边界')}
  for(const [k,v]of plans)if(v.expires<Date.now())plans.delete(k);if(plans.size>=20)fail('预览数量过多，请稍后重试');const id=crypto.randomUUID();plans.set(id,{request:{...req,fingerprint:p.fingerprint},revision:model.revision,expires:Date.now()+300000});
  return {planId:id,scope:'仅当前工程：VS Code、MCP、TOML、集中 IRIS 配置及受管 backend（存在时）',warning:'不连接远端；仅同步选定的 Web/SFTP 字段，不创建或启动 SFTP 服务。原配置恢复回执可能包含凭据，仅保存在工程忽略目录。',changes:p.changes.map(c=>({field:path.relative(root,c.file),action:c.before.exists?'更新':'新增'})),warnings:p.warnings};}
@@ -189,6 +239,11 @@ function createProjectSettings(root){
      pluginSettings.apply(ctx,p.plugin,'Write',p.changes);
      return {status:'saved',message:'插件参数已保存并读回。'};
    });
+ }if (p.managed) {
+   try {
+     managedConfiguration.apply(managedContext(),p.managed);
+     return {status:'saved',message:'工程配置已写入 project.jsonc 并读回。'};
+   } catch { fail('工程配置已变化或保存失败，请重新读取后核对当前分节。'); }
  }if (p.development) {
    const ctx=settingsContext(root);
    if(ctx.mode!=='standard'||!developmentOwner.inspect(ctx.contextRoot).canonical) fail('开发声明来源已变化');
@@ -213,6 +268,6 @@ function createProjectSettings(root){
    fail(/^[\u3400-\u9fff]/.test(error.message) ? error.message : '保存失败，已尝试原入口恢复；请检查本工程配置回执');
  }
  return {status:'saved',message:p.request.profile?'开发库配置已保存并读回，客户端待重连，服务器身份待核验。':'工程配置已同步保存并逐文件读回；未测试远端连接。'};}
- return {inspect,plan,apply};
+ return {inspect,plan,apply,inspectManaged,planManaged};
 }
 module.exports={createProjectSettings};

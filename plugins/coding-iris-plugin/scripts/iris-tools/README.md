@@ -25,7 +25,7 @@
 
 ## 配置说明
 
-项目连接来自现有 `.mcp.json` 与 `.agents/config/project-env.json`，各入口按其契约核对目标；已有开发库档案时先运行 `sync-env-config.js --check-profile`，按档案核对目标。无档案时沿用既有顺序：已有 `.mcp.json` 时，从 `.mcp.json` 反向生成或补齐 `project-env.json`；没有 `.mcp.json` 时，才从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制并填写真实环境，再运行 `sync-env-config.js` 生成 `.mcp.json`。模板默认使用内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 作为后端 MCP server 路径。这些文件包含敏感信息，不应提交到版本控制系统。
+工程连接读取 `project.jsonc` 中的开发库档案与 Web／SFTP 设置。使用 `sync-env-config.js --check-profile` 核对宿主绑定。初始化或接管已有连接按[工程连接初始化](../../templates/coding-iris-init-guide.md)处理。旧工程沿原更新器迁移配置。
 
 工具优先级：
 

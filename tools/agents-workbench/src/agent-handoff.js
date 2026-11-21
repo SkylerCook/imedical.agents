@@ -17,6 +17,16 @@ const commitId = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u;
 const packageRoot = path.resolve(__dirname, '../../..');
 const projectProfiles = Object.freeze(['iris_project_profile.md', 'project_context_profile.md', 'cure_form_profile.md',
     'demand_delivery_profile.md', 'i18n_project_profile.md']);
+const configurationSections = new Map([
+    ['projectContext','projectContext'],
+    ['documentationLayout','documentationLayout'],
+    ['irisRemotePolicy','irisRemotePolicy'],
+    ['irisSessionBackend','irisSessionBackend'],
+    ['mcp','mcp'],
+    ['frontendEncoding','pluginSettings.coding-iris-plugin'],
+    ['demandKind','pluginSettings.coding-iris-plugin.defaultDemandKind'],
+    ['menuSync','pluginSettings.coding-iris-plugin.menuSync'],
+]);
 const taskNames = new Map([
     ['plugin-init', '插件初始化核对'], ['iris-connection', 'IRIS 连接核对'], ['iris-mcp', 'IRIS MCP 核对'],
     ['knowledge-index', '知识索引核对'], ['manual', '手册解读'], ['config-review', '项目配置核对'],
@@ -220,7 +230,7 @@ function taskHandoff(root, status, { task, item }, { manualSource, pluginEntry }
     const needsItem = manual || plugin || profile;
     if (needsItem ? typeof item !== 'string' : !recovery && item !== undefined) invalid();
     if (recovery && item !== undefined && !validReceiptId(item)) invalid();
-    if (profile && !projectProfiles.includes(item)) invalid();
+    if (profile && !projectProfiles.includes(item) && !configurationSections.has(item)) invalid();
     if (status === 'invalid-declaration' && recovery) {
         return { name, prompt: recoveryHandoff(root, { status, revision: null }).prompt };
     }
@@ -295,8 +305,10 @@ function taskHandoff(root, status, { task, item }, { manualSource, pluginEntry }
             break;
         case 'config-review':
             steps.push(`先读 ${guide('docs/update-agents.md')} 关于已有工程、配置迁移与续接的说明。`,
-                `只读核对 ContextRoot 的 config/project.jsonc 与已选档案 config/${item}。辨认生效配置、仍有用途的说明、旧兼容来源和冲突。`,
-                '沿该配置 owner 的原手册和只读检查核对实际来源与字段状态，保留有效值、注释和未知字段。报告哪些需要业务判断或授权写入，然后回工作台重新读取。');
+                configurationSections.has(item)
+                    ? `用 configure-agents.js read 核对当前工程 project.jsonc 的 ${configurationSections.get(item)} 和对应消费者。`
+                    : `核对 ContextRoot 的 config/project.jsonc 与旧档案 config/${item}。`,
+                '说明当前生效值、需要核验的配置和处理步骤。写入按用户授权执行。');
             break;
         case 'recovery-diagnosis':
             steps.push(`先读 ${guide('docs/update-agents.md')} 的「状态判定」和「更新中断与续接」。`,

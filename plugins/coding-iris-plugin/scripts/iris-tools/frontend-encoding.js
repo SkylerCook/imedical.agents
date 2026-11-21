@@ -76,21 +76,22 @@ function resolve(context, filename, {requireConfirmed = true, projectTask = fals
     const logicalFile = sourceRoot ? path.join(sourceRoot.path,path.relative(sourceRoot.target,filename)) : filename;
     const relative = path.relative(context.workspaceRoot, logicalFile).split(path.sep).join('/');
     let legacyScopeLength = -1;
-    for(const match of text.matchAll(/^\s*\|\s*`?([^|`]+?)`?\s*\|\s*(utf8|standard-gb2312|project-utf8)\s*\|\s*$/gmi)){
-        const scope=match[1].trim().replace(/\\/g,'/');
+    const overridesByPath = require('../../../../scripts/lib/project-frontend-settings').inspect(ctx).values;
+    for(const {path:scope,mode} of overridesByPath.frontendPathModes){
         if((relative===scope||relative.startsWith(scope+'/')) && scope.length>legacyScopeLength) {
-            sourceEncoding=match[2]; legacyScopeLength=scope.length;
+            sourceEncoding=mode; legacyScopeLength=scope.length;
         }
     }
-    const overrides = [...text.matchAll(/^\s*\|\s*`?([^|`]+?)`?\s*\|\s*([a-z0-9-]+)\s*\|\s*([a-z0-9-]+)\s*\|\s*(confirmed|pending)\s*\|\s*$/gmi)]
-        .map(match => ({scope: match[1].trim().replace(/\\/g, '/').replace(/\/$/, ''), source: match[2], server: match[3].toLowerCase(), confirmed: match[4].toLowerCase() === 'confirmed'}))
+    const overrides = overridesByPath.frontendEncodingOverrides
+        .map(({path,source,server,confirmation}) => ({scope:path,source,server,confirmed:confirmation==='confirmed'}))
         .filter(item => relative === item.scope || relative.startsWith(item.scope + '/')).sort((a, b) => b.scope.length - a.scope.length);
     if (overrides.length > 1 && overrides[0].scope === overrides[1].scope && JSON.stringify(overrides[0]) !== JSON.stringify(overrides[1])) fail('frontend-encoding-scope-conflict',{file:relative});
     if (overrides.length) { sourceEncoding = overrides[0].source; serverEncoding = overrides[0].server; confirmed = overrides[0].confirmed; }
     sourceEncoding = normalize(sourceEncoding);
-    const contextFile = path.join(context.contextRoot || path.join(context.workspaceRoot, '.agents'), 'config', 'project_context_profile.md');
-    const onDemand = fs.existsSync(contextFile) && fs.readFileSync(contextFile, 'utf8').includes('intent-first-on-demand-export');
-    const standard = !projectTask && field('默认需求交付类型') === 'standard';
+    const onDemand = require('../../../../scripts/lib/project-configuration').contextMode(ctx.contextRoot) === 'intent-first-on-demand-export';
+    const demandKind = require('../../../../scripts/lib/project-configuration').document(ctx.contextRoot)
+        .value.pluginSettings?.['coding-iris-plugin']?.defaultDemandKind;
+    const standard = !projectTask && (demandKind || field('默认需求交付类型')) === 'standard';
     if ((onDemand || projectTask) && !standard && field('前端服务器编码确认环境') !== targetIdentity(context)) confirmed = false;
     if (standard && sourceEncoding === 'utf8' && (!serverEncoding || serverEncoding === 'pending')) { serverEncoding = 'utf8'; confirmed = true; }
     // Existing standard UTF-8 projects retain their established contract.

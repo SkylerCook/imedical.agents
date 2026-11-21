@@ -2,6 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process');
 const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory');
 const {migrate}=require('../lib/iris-session-migration');
+const io=require('../lib/configuration-file-io');
 function fixture(t){
   const root=createTempDirectory('iris-session-migration-');
   spawnSync('git',['init','-q',root]);fs.writeFileSync(path.join(root,'.gitignore'),'.mcp.json\n.agents/\n');
@@ -19,14 +20,14 @@ test('dry run, write, repeated update, Check and rollback preserve credentials a
   assert.equal(migrate({projectRoot:f.root}).status,'planned');assert.equal(fs.readFileSync(f.file,'utf8'),original);
   assert.throws(()=>migrate({projectRoot:f.root,mode:'Check'}),/direct-entry/);
   assert.equal(migrate({projectRoot:f.root,mode:'Write'}).status,'applied');
-  const policy=JSON.parse(fs.readFileSync(path.join(f.root,'.agents/config/iris-remote-policy.json')));
+  const policy=io.parse(fs.readFileSync(path.join(f.root,'.agents/config/project.jsonc'),'utf8')).irisRemotePolicy;
   assert.equal(policy.qualification,undefined);
   assert.equal(require('../lib/iris-remote-operations').loadRemotePolicy({workspaceRoot:f.root,contextRoot:path.join(f.root,'.agents')}).enabled,true);
   const updated=JSON.parse(fs.readFileSync(f.file,'utf8'));assert.deepEqual(updated.mcpServers.other,f.config.mcpServers.other);
   assert.deepEqual(updated.mcpServers['iris-agentic-dev'].env,f.config.mcpServers['iris-agentic-dev'].env);
   assert.equal(migrate({projectRoot:f.root,mode:'Check'}).managed,true);
   assert.equal(migrate({projectRoot:f.root,mode:'Write'}).status,'unchanged');
-  assert.equal(fs.readFileSync(path.join(f.root,'.agents/config/iris-session-backend.json'),'utf8').includes('private-sample'),false);
+  assert.equal(fs.readFileSync(path.join(f.root,'.agents/config/project.jsonc'),'utf8').includes('private-sample'),false);
   migrate({projectRoot:f.root,mode:'Rollback'});assert.deepEqual(JSON.parse(fs.readFileSync(f.file,'utf8')),f.config);
 });
 test('Check rejects old or modified vendor without connecting or changing private configuration',t=>{
@@ -48,7 +49,7 @@ test('a second Node installation can check and keep the registered managed host 
   const portable=path.join(f.root,process.platform==='win32'?'node.exe':'node');
   fs.copyFileSync(process.execPath,portable);
   const migration=path.resolve('plugins/coding-iris-plugin/scripts/iris-tools/session-migration.js');
-  const backend=path.join(f.root,'.agents/config/iris-session-backend.json');
+  const backend=path.join(f.root,'.agents/config/project.jsonc');
   const before=fs.readFileSync(f.file),receipt=fs.readFileSync(backend);
   for(const mode of ['DryRun','Check','Write']) {
     const run=spawnSync(portable,[migration,'--project-root',f.root,'--mode',mode],{encoding:'utf8',windowsHide:true});
@@ -62,8 +63,9 @@ test('a second Node installation can check and keep the registered managed host 
 test('a valid Node path alone cannot replace the recorded host or change its canonical adapter',t=>{
   const f=fixture(t);
   migrate({projectRoot:f.root,mode:'Write'});
-  const backendFile=path.join(f.root,'.agents/config/iris-session-backend.json');
-  const backend=JSON.parse(fs.readFileSync(backendFile,'utf8'));
+  const backendFile=path.join(f.root,'.agents/config/project.jsonc');
+  const settings=io.parse(fs.readFileSync(backendFile,'utf8'));
+  const backend=settings.irisSessionBackend;
   const config=JSON.parse(fs.readFileSync(f.file,'utf8'));
   const server=config.mcpServers['iris-agentic-dev'];
   const originalCommand=server.command,originalArgs=server.args.slice();
@@ -76,7 +78,7 @@ test('a valid Node path alone cannot replace the recorded host or change its can
   const checkWithRecordedBinding=()=>{
     const {hash}=require('../lib/iris-session-manager');
     const changed=JSON.stringify(config);
-    const changedReceipt=JSON.stringify({...backend,managedHash:hash({command:server.command,args:server.args})});
+    const changedReceipt=JSON.stringify({...settings,irisSessionBackend:{...backend,managedHash:hash({command:server.command,args:server.args})}});
     fs.writeFileSync(f.file,changed);
     fs.writeFileSync(backendFile,changedReceipt);
     for(const mode of ['DryRun','Check','Write']) assert.throws(()=>migrate({projectRoot:f.root,mode}),/session-managed-config-drift/);
@@ -210,5 +212,5 @@ test('configuration regeneration preserves adapter, unrelated services and disab
   assert.deepEqual(after.mcpServers['iris-agentic-dev'].args,managed.args);
   assert.equal(after.mcpServers['iris-agentic-dev'].env.IRIS_PASSWORD,'private-sample');
   assert.equal(after.mcpServers['iris-agentic-dev'].env.IRIS_NAMESPACE,'NEXT');
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(context.contextRoot,'config/iris-session-backend.json'))).args,['mcp']);
+  assert.deepEqual(io.parse(fs.readFileSync(path.join(context.contextRoot,'config/project.jsonc'),'utf8')).irisSessionBackend.args,['mcp']);
 });

@@ -1,6 +1,6 @@
 # .agents 本地工作台：可行方案与实施计划
 
-> 状态：Windows 正式 ZIP 为 0.3.1。0.4.0 Windows x64 独立试用 ZIP 已验证启动、首装、固定更新提示词和原更新器接续，Overlay 根成员导航已在隔离工程验证。正式交付与实机范围见 8.7，双开发库切换见 6.6。
+> 现行正式包以发放渠道的发行记录为准。0.5.0 源码接入工程配置迁移与分节表单。工程内切换步骤见[更新手册](update-agents.md#工程配置迁移)，双开发库路径见 6.6。
 > 本计划承接用户确认的方向：离线 Web UI／EXE、框架自有运行配置以 JSONC 为统一目标、UI 与 Agent 共用配置接口、复用本工程能力、兼容已经部署的项目。工作台首版不新增 SQLite；已有知识／向量组件的内部存储继续沿 owner 实现。
 
 ## 1. Goal：以工程为单位降低框架上手与日常维护成本
@@ -213,77 +213,27 @@ JSONC 比 JSON 多出注释能力，并不自动解决配置分散、校验与�
 
 ## 6. 配置Schema、UI与执行契约
 
-### 6.1 新增文件落点（均为计划，当前尚不存在）
+### 6.1 配置入口
 
-- `scripts/configure-agents.js`：统一配置CLI入口，支持describe/read/plan/apply；UI与Agent均可复用。
-- `scripts/lib/configuration-service.js`：域路由、来源聚合、校验与计划；UI／CLI 共用，不另存生效值。
-- `scripts/lib/configuration-adapters.js`：固定adapter registry；不是可执行插件加载器。
-- `scripts/lib/configuration-file-io.js`：JSONC／JSON 解析、保留注释编辑、原字节快照、条件写入与读回；复用 owner 回执，只补实际缺口。
-- `vendor/jsonc-parser/`：共享 canonical，固定 3.3.1 的无外部运行时依赖代码、来源摘要及许可证；沿部署与独立工具打包验证闭包。
-- `plugins/agent-context-kit/schemas/configuration.schema.json`、`configuration.ui.json`。
-- `plugins/coding-iris-plugin/schemas/configuration.schema.json`、`configuration.ui.json`。
-- `plugins/bos-plugin/schemas/configuration.schema.json`、`configuration.ui.json`。
-- `scripts/lib/knowledge-configuration.schema.json`、`knowledge-configuration.ui.json`：知识连接目前为共享运行时，暂不另建插件。
-- `tools/agents-workbench/`：HTTP／UI、最小本机状态、Windows启动器、打包和专属测试；不加入业务项目sparse。
+- `scripts/configure-agents.js` 提供 `describe / read / plan / apply / verify / migrate / restore`。按工程目录解析 ContextRoot。
+- `scripts/lib/project-configuration-service.js` 提供框架和工作台共用的读取、预览和条件写入。字段说明、注释和通用控件来自 `project-configuration-fields.js`，各域继续使用现有业务校验和宿主事务。
+- `scripts/lib/configuration-file-io.js` 复用随包 `jsonc-parser 3.3.1` 解析和增量编辑。业务项目运行只需 Node 内置模块与现有 vendor。
+- `tools/agents-workbench/` 提供 HTTP、界面与打包。连接档案、插件和个人配置沿对应专用入口。受管后端与核验证据显示来源，使用各自运行时流程重新生成。
 
-Schema声明归owner，不由UI维护第二套字段默认值。manifest新增可选 `configuration` 元数据指向schema/ui，旧更新器忽略该字段即可；不得要求未接入工作台的插件立即补全此字段。
+### 6.2 配置预览输入
 
-使用标准JSON Schema draft-07；Ajv仅作为维护者构建依赖生成固定standalone validator，业务项目运行不执行npm install。生成器放 `tools/agents-workbench/build/compile-schemas.js`，生成器输出随owner分发的 `schemas/configuration.validator.cjs`。schema改变必须重建并校验摘要；生成文件不是第二个可手改事实源。
-
-### 6.2 完整字段示例
-
-下例是新模型设计，不是声称现有字段已经采用这个结构。最终schema用真实owner字段逐项映射。
+`configure-agents.js plan <WorkspaceRoot>` 与 `apply <WorkspaceRoot>` 从标准输入读取同一个请求。先用 `read` 取得当前文件的 `revision`，再提交具体字段路径。
 
 ```json
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "urn:imedical:configuration:iris-connection:1",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["scheme", "host", "port", "namespace", "tlsVerify"],
-  "properties": {
-    "scheme": {"type": "string", "enum": ["http", "https"]},
-    "host": {"type": "string", "minLength": 1},
-    "port": {"type": "integer", "minimum": 1, "maximum": 65535},
-    "namespace": {"type": "string", "minLength": 1},
-    "tlsVerify": {"type": "boolean"},
-    "username": {"type": "string"},
-    "password": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["isSet"],
-      "properties": {
-        "sourceId": {"type": "string", "minLength": 1},
-        "isSet": {"type": "boolean"}
-      }
-    }
-  }
+  "revision": "<read 返回的 revision>",
+  "edits": [
+    {"path": ["projectContext", "guidanceMode"], "value": "concise"}
+  ]
 }
 ```
 
-```json
-{
-  "id": "iris.connection",
-  "schemaVersion": 1,
-  "owner": "coding-iris-plugin",
-  "scope": "project",
-  "adapterId": "iris-connection-v1",
-  "fields": [
-    {"path": "/scheme", "label": "协议", "widget": "select", "group": "连接"},
-    {"path": "/host", "label": "服务器", "widget": "text", "group": "连接"},
-    {"path": "/port", "label": "Web端口", "widget": "number", "group": "连接"},
-    {"path": "/namespace", "label": "命名空间", "widget": "text", "group": "连接"},
-    {"path": "/tlsVerify", "label": "校验证书", "widget": "checkbox", "group": "高级"},
-    {"path": "/username", "label": "账号", "widget": "text", "group": "凭据"},
-    {"path": "/password", "label": "密码", "widget": "secret", "sensitive": true, "group": "凭据"}
-  ],
-  "helpRef": "docs/guides/connection-configuration.md"
-}
-```
-
-上例 password 是读取时的脱敏状态；sourceId 仅为既有来源的不透明标识，不是新增密码库引用。替换凭据通过独立瞬时输入传给 owner，不进入模型快照、计划或草稿。
-
-端口／TLS历史默认由原owner解析，不在schema再写第二份default。host的协议、空白、分隔符等语义继续复用实际连接校验。`additionalProperties:false`限制提交的统一模型，不授权删除原文件中的未知字段。
+工作台使用同一预览和应用接口。预览列出字段和值变化，核对作用域后确认。连接和凭据编辑使用专用事务，密码等输入经私有通道交给既有配置入口。
 
 ### 6.3 每个adapter必须实现的契约
 
@@ -317,7 +267,7 @@ recover(context, receiptRef, decision) -> { state, findings[] }
 
 ### 6.5 框架消费者迁移：一个配置域一次交付完整链路
 
-当前源码已接入部署策略与插件启停。standard 工程的“工程配置 → 编辑工程连接 → 插件部署策略”和 `plugin-deploy.js configure` 共用 `deployment.autoInstall`。Check 兼容旧策略，Write 迁移后退出旧路径，切回旧版前运行 `rollback-project`。插件状态取自同一文件的 `plugins.<插件 ID>.status`；实际启停执行原 `update-plugin-profile.ps1`，工作台插件页读取同一节。IRIS 开发模式、环境别名与环境类型进入主配置的 `irisDevelopment` 节。工程连接与受管 backend 仍沿原 owner；这些域还需协调 CLI、PowerShell、宿主同步和凭据引用后迁移。个人知识提供方继续使用显式绑定的私有文件，支持注释。Windows 隔离安装、原更新和打包界面验收入口为 `tools/agents-workbench/tests/project-policy-pilot.py`。
+原更新器通过 `configure-agents.js` 预演并迁移工程上下文、目录布局、IRIS 远程策略、会话后端、前端目录编码覆盖、菜单来源及旧集中连接。连接使用独立档案和凭据引用，宿主通过现有配置事务读回。工作台分节表单复用框架字段描述与校验，插件启停、部署策略、IRIS 开发声明沿各自入口。个人知识提供方沿显式绑定的私有来源。保留自定义说明和未识别设置，待核对范围见各域回执。
 
 主配置位于 `ContextRoot/config/project.jsonc`（standard 工程为 `.agents/config/project.jsonc`）。插件按稳定 ID 分节，工程设置与连接档案可共用，凭据只引用个人来源。模块、医院和根工程各自沿现有 resolver 解析 ContextRoot。宿主协议文件、定位 ContextRoot 的启动声明及私有凭据来源沿各自契约。
 

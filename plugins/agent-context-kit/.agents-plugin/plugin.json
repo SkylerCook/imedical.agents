@@ -1,6 +1,6 @@
 {
   "name": "agent-context-kit",
-  "version": "0.11.4",
+  "version": "0.11.5",
   "displayName": "Agent Context Kit",
   "description": "Reusable project context, on-demand capability group selection, local task handoff and cross-session continuation, plus schema 2.0 agent run templates and separate demand and framework-maintenance lifecycles.",
   "entry": "AGENTS.md",

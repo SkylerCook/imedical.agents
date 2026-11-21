@@ -5,6 +5,7 @@ const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const {resolveWorkspaceContext, validateWorkspaceContext} = require('../../../../scripts/lib/workspace-context');
 const remote = require('../../../../scripts/lib/iris-remote-operations');
+const configuration = require('../../../../scripts/lib/project-configuration');
 const sync = require('./source-sync-core');
 
 function fail(code) { throw new Error(code); }
@@ -23,7 +24,7 @@ function assertPhysical(context, file) {
 }
 function readObject(file) {
     try {
-        const value = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+        const value = require('../../../../scripts/lib/configuration-file-io').parse(fs.readFileSync(file, 'utf8'));
         if (!value || typeof value !== 'object' || Array.isArray(value)) fail('invalid-development-config');
         return value;
     } catch (error) {
@@ -49,12 +50,6 @@ function assertIgnored(context, files) {
         if (git(root, ['check-ignore', '--no-index', '--', relative]) === null) fail('private-config-not-ignored');
     }
 }
-function createFile(file, value) {
-    const bytes = JSON.stringify(value, null, 2) + '\n';
-    // Exclusive creation preserves a file another initializer has just written.
-    fs.writeFileSync(file, bytes, {flag: 'wx', mode: 0o600});
-    if (fs.readFileSync(file, 'utf8') !== bytes) fail('development-config-write-verification-failed');
-}
 function configure(options = {}) {
     const mode = options.mode || 'DryRun';
     if (!['DryRun', 'Write', 'Check'].includes(mode)) fail('invalid-configure-mode');
@@ -71,7 +66,6 @@ function configure(options = {}) {
     assertPhysical(context,path.join(directory,'project.jsonc'));
     const development = require('../../../../scripts/lib/iris-development-settings').inspect(context.contextRoot);
     const developmentFile = development.main;
-    const policyFile = path.join(directory, 'iris-remote-policy.json');
     assertPhysical(context, developmentFile);
     const existing = development.value;
     const developmentMode = remote.developmentMode(context);
@@ -88,13 +82,18 @@ function configure(options = {}) {
     const onDemand = remote.contextMode(context) === 'intent-first-on-demand-export';
     // Public remote admission also applies to standard demands in this context mode.
     const needsPolicy = selectedMode === 'connected' && onDemand;
-    if (needsPolicy) assertPhysical(context, policyFile);
-    const policy = needsPolicy ? readObject(policyFile) : null;
+    let policyState;
+    if (needsPolicy) {
+        try { policyState = configuration.inspect(context, 'irisRemotePolicy'); }
+        catch (error) { if (error instanceof SyntaxError) fail('invalid-development-config'); throw error; }
+    }
+    const policy = policyState?.value;
     const entries = [{path: developmentFile, value: declaration, exists: existing !== null}];
     if (needsPolicy) {
-        const initialPolicy = policy || readObject(path.join(__dirname, '../../templates/iris-remote-policy.template.json'));
+        const initialPolicy = policy || readObject(path.join(__dirname, '../../templates/iris-remote-policy.template.jsonc'));
         if (!initialPolicy) fail('remote-policy-template-missing');
-        entries.push({path: policyFile, exists: policy !== null, value: initialPolicy});
+        entries.push({path: policyState.legacy !== null ? policyState.file : policyState.main.file,
+            exists: !!policy, value: initialPolicy, section:'irisRemotePolicy'});
     }
     const missing = entries.filter(entry => !entry.exists);
     assertIgnored(context, entries.map(entry => entry.path).concat(development.old === null ? [] : [development.legacy]));
@@ -107,12 +106,16 @@ function configure(options = {}) {
     if (mode === 'Write' && (missing.length || !development.canonical)) {
         if (development.old !== null) require('../../../../scripts/lib/iris-development-settings').validate(existing);
         fs.mkdirSync(directory, {recursive: true});
-        for (const entry of missing) if (entry.path !== developmentFile) createFile(entry.path, entry.value);
+        for (const entry of missing) if (entry.section) {
+            configuration.update(context, value => Object.hasOwn(value,entry.section) ? [] : [{path:[entry.section],value:entry.value}]);
+        }
         require('../../../../scripts/lib/iris-development-settings').save(context,existing ? {} : declaration);
     }
     const configurationGaps = [];
     if (!Object.hasOwn(declaration, 'developmentMode')) configurationGaps.push('development-mode-confirmation-required');
-    if (mode !== 'Write') for (const entry of missing) configurationGaps.push(path.basename(entry.path) + '-missing');
+    if (mode !== 'Write') for (const entry of missing) {
+        configurationGaps.push((entry.section || path.basename(entry.path)) + '-missing');
+    }
     let kind = options.kind;
     if (selectedMode === 'connected' && onDemand) {
         try { kind = sync.demandKind(context, options).kind; }
@@ -128,12 +131,12 @@ function configure(options = {}) {
         try { remote.loadRemotePolicy(context); remoteAdmission = 'locally-configured'; }
         catch (error) {
             remoteAdmission = 'pending';
-            remoteReason = fs.existsSync(policyFile) && error.code === 'remote-policy-required' ? 'remote-policy-disabled' : error.code || error.message;
+            remoteReason = (policy || mode === 'Write') && error.code === 'remote-policy-required' ? 'remote-policy-disabled' : error.code || error.message;
         }
     }
     return {mode, contextRoot: context.contextRoot, developmentMode: selectedMode,
         files: entries.map(entry => ({path: path.relative(context.workspaceRoot, entry.path).replace(/\\/g, '/'),
-            status: entry.path === developmentFile && development.old !== null ? (mode === 'Write' ? 'created' : 'missing') : entry.exists ? 'preserved' : mode === 'Write' ? 'created' : 'missing'})),
+            status: !entry.section && development.old !== null ? (mode === 'Write' ? 'created' : 'missing') : entry.exists ? 'preserved' : mode === 'Write' ? 'created' : 'missing'})),
         configurationReady: configurationGaps.length === 0, configurationGaps,
         remoteAdmission, remoteReason, baseline: 'not-established-by-configure'};
 }

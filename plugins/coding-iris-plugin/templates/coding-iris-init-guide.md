@@ -33,28 +33,15 @@
 
 内容从 `templates/iris_project_profile.template.md` 填写。
 
-随后按 bootstrap skill 的[本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)运行 `source-sync.js configure` 的 Write/Check，创建缺失的 `project.jsonc` 的 `irisDevelopment` 节；connected＋按需上下文同时生成禁用、资格 pending 的 `iris-remote-policy.json`。已有项目可以只执行此步骤补齐，已有文件保留；环境使用已确认事实，缺字段定点补齐。先确认文件受 Git 忽略，再生成。配置初始化不连接医院、不创建 Git、不建立基线；`work/source-sync/` 留给首次同步任务创建。
+按[本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)运行 `source-sync.js configure` 的 Write/Check。开发方式写入 `irisDevelopment`，connected 加按需上下文时同时生成缺失的 `irisRemotePolicy`。连接和源码基线沿各自任务接入。
 
 已启用项目也可直接走正常 Write 更新，现有配置迁移会自动补缺文件；旧模式缺省与已有字节保持，无法确认的模式/环境及资格集中报告，由 Agent 根据事实补齐。available/disabled、DryRun/Check 不写入；不要求使用者手改 JSON 或每次重跑初始化。
 
 5. 准备 IRIS 开发主力脚本配置：
 
-`.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源。两者共存但 `.mcp.json` 优先。
+标准工程可在工作台「编辑工程连接」承接已有目标或录入新的连接，再读回生成的宿主入口。
 
-**若 `.mcp.json` 已存在**：从 `.mcp.json` 提取已知值填充 `project-env.json`，无需运行 `sync-env-config.js`。
-
-**若 `.mcp.json` 不存在**：
-
-```powershell
-New-Item -ItemType Directory -Force .agents/config
-Copy-Item .agents/plugins/coding-iris-plugin/templates/project-env.template.json .agents/config/project-env.json
-notepad .agents/config/project-env.json
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
-```
-
-模板默认把 `mcp.serverPath` 指向内置 Windows x64 可执行文件 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`。如果目标工程使用其他平台或自定义版本，只改目标工程本地 `project-env.json` 或 `.mcp.json`。
-
-`.agents/config/project-env.json` 和 `.mcp.json` 可能包含敏感信息，不应提交到业务项目版本库。
+命令行初始化时，参考 `templates/project-connections.template.jsonc`，把已核实的档案和绑定合入当前 `ContextRoot/config/project.jsonc`。通过本机私有配置入口设置档案所用凭据；主配置仅保存引用。已有 `.mcp.json` 先核对目标及受管字段。获授权生成后，运行 `sync-env-config.js --check-profile` 复查实际绑定。
 
 XML 导出有两个准备选项：部署能力包 `templates/DHCDoc/Util/XmlPackage.cls`（有经验证安装 XML 时一并提供），或选用默认受管 WS terminal 的系统 Export 通道（IRIS 2023.2+／Atelier API v7+ 预检）；HTTP MCP 是接受其内部重试的显式资格选项。初始化时会提示选择；启用插件不会自动导入编译服务器类，未部署可选类也不阻断其它编码能力。目标已有同名类先比对接口和内容，具体步骤见 [XML 协议](../references/iris-xml-export.md)。
 

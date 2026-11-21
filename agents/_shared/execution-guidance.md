@@ -8,7 +8,7 @@
 
 ## guidanceMode: auto | concise | assisted
 
-当前用户明确选择优先于项目 project_context_profile.md，缺省 auto；不能按厂商、国别、模型名或自称能力强弱判断。不自动写回配置。
+按当前用户选择、项目 `project.jsonc` 的 `projectContext.guidanceMode`、缺省 `auto` 的顺序取值。旧工程通过配置读取器取得 profile 中的值。沿当前选择执行，保存配置须有授权。
 
 - auto：精简入口开始。领域陌生、证据不足、工具失败或漏检时，只补读对应辅助章节；失败仍按风险规则处理，不靠辅助模式绕过门禁。
 - concise：减少教学说明，仍读取全部命中硬约束、调查缺失事实并验证。

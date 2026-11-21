@@ -4,21 +4,37 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const mainPath = '.agents/config/project.jsonc';
-const privatePath = '.agents/config/iris-profile-credentials.json';
+const bundledEnvironment = path.join(__dirname,'project-environment-data.js');
+const environment = require(fs.existsSync(bundledEnvironment) ? bundledEnvironment : '../../scripts/lib/project-environment-data');
 const publicKeys = ['host','port','scheme','namespace','alias','tlsVerify'];
 const idPattern = /^[A-Za-z][A-Za-z0-9_-]{0,39}$/;
 const reject = message => { throw new Error(message); };
+
+function projectFiles(root) {
+  const standard = path.join(root,'.agents');
+  let context = {mode:'standard',contextRoot:standard,capabilityRoot:standard};
+  if (fs.existsSync(path.join(standard,'capability.json'))) {
+    const bundled = path.join(__dirname,'workspace-context.js');
+    const runtime = require(fs.existsSync(bundled) ? bundled : '../../scripts/lib/workspace-context');
+    context = runtime.resolveWorkspaceContext(root);
+    if (context.mode!=='workspace-overlay' || runtime.workspaceContextBlockers(context).length) {
+      reject('工作区的配置根或共享能力声明未就绪。');
+    }
+  }
+  const config = path.join(context.contextRoot,'config');
+  return {config,context,main:path.join(config,'project.jsonc'),private:path.join(config,environment.credentialFile),
+    env:path.join(config,'project-env.json'),backend:path.join(config,'iris-session-backend.json')};
+}
 
 function validId(id) {
   if (typeof id !== 'string' || !idPattern.test(id) || Object.hasOwn(Object.prototype,id) || id === 'prototype')
     reject('档案标识应以字母开头，仅使用字母、数字、下划线和短横线。');
   return id;
 }
-function checkSessionCompatibility(root,io) {
-  const client=io.snapshot(path.join(root,'.agents/scripts/lib/iris-session-client.js'));
+function checkSessionCompatibility(capabilityRoot,io) {
+  const client=io.snapshot(path.join(capabilityRoot,'scripts/lib/iris-session-client.js'));
   if (!client.exists) return;
-  const host=io.snapshot(path.join(root,'.agents/scripts/iris-session-host.js'));
+  const host=io.snapshot(path.join(capabilityRoot,'scripts/iris-session-host.js'));
   if (!client.text.includes('session-target-changed-reconnect') || !host.text.includes('boundTargets:1'))
     reject('当前工程的会话组件尚未支持跨库目标绑定。请通过框架更新入口更新，再切换开发库。');
   return legacyHostRunning(io);
@@ -45,18 +61,37 @@ function publicProfile(input, credentialRef) {
   if (typeof input.tlsVerify !== 'boolean') reject('请选择是否验证 TLS 证书。');
   return {...Object.fromEntries(publicKeys.map(k=>[k,input[k]])),credentialRef};
 }
+function projectEnvironment(root, io, data) {
+  const files = projectFiles(root);
+  const main = data ?? io.object(io.snapshot(files.main).text);
+  const legacy = io.snapshot(files.env);
+  const canonical = environment.canonical(main);
+  const credentials = canonical ? io.object(io.snapshot(files.private).text) : {};
+  return {canonical,config:environment.read(main,legacy.exists ? io.object(legacy.text) : null,credentials) || {}};
+}
+function sessionBackend(root, io, data) {
+  const files = projectFiles(root);
+  const main = io.snapshot(files.main);
+  const canonical = (data ?? io.object(main.text)).irisSessionBackend;
+  const legacy = io.snapshot(files.backend);
+  if (canonical && legacy.exists) reject('受管 MCP 后端待完成 JSONC 迁移。');
+  return {canonical:!!canonical,source:canonical ? main : legacy,value:canonical || io.object(legacy.text)};
+}
 function readState(root, io) {
   const read = file => io.snapshot(path.join(root,file));
-  const main = read(mainPath);
-  const stored = io.object(main.text).irisConnections;
+  const files = projectFiles(root);
+  const main = io.snapshot(files.main);
+  const data = io.object(main.text);
+  const stored = data.irisConnections;
   if (stored && (!stored.profiles || !Object.hasOwn(stored.profiles,validId(stored.active)))) reject('工程连接档案结构异常。');
   const settings = io.object(read('.vscode/settings.json').text);
   const conn = settings['objectscript.conn'];
   const server = conn && settings['intersystems.servers']?.[conn.server];
-  const projectEnv=io.object(read('.agents/config/project-env.json').text);
+  const centralState=projectEnvironment(root,io,data);
+  const projectEnv=centralState.config;
   const name=projectEnv.mcp?.serverName || stored?.serverName || 'iris-agentic-dev';
   const entry = io.object(read('.mcp.json').text).mcpServers?.[name];
-  const backend = io.object(read('.agents/config/iris-session-backend.json').text);
+  const backend = sessionBackend(root,io,data).value;
   const config = read('.iris-agentic-dev.toml');
   const t = io.toml(config.text);
   const central = projectEnv.iris;
@@ -102,7 +137,7 @@ function readState(root, io) {
     }
     if (stored.serverName!==name) conflicts.push('project-env.json / mcp.serverName');
     const ref=/^private:([\w-]+)$/.exec(current.credentialRef);
-    const credentials=stored.bindings?.central ? projectEnv.irisProfileCredentials : io.object(read(privatePath).text);
+    const credentials=stored.bindings?.central ? projectEnv.irisProfileCredentials : io.object(io.snapshot(files.private).text);
     const expected=ref && credentials?.[ref[1]];
     if (expected) for (const [source,row] of [['project-env.json',central],['.mcp.json',{username:env.IRIS_USERNAME,password:env.IRIS_PASSWORD}],['.iris-agentic-dev.toml',t]]) {
       for (const key of ['username','password']) if (row?.[key]!==undefined && row[key]!==expected[key]) conflicts.push(source+' / '+key);
@@ -113,7 +148,7 @@ function readState(root, io) {
   if (stored?.serverName && stored.serverName!==name) consistent=false;
   if (conn && !server) consistent=false;
   if (stored?.bindings && Object.keys(bindings).some(k=>bindings[k]!==stored.bindings[k])) consistent=false;
-  return {main,stored,live,bindings,name,servers:settings['intersystems.servers'] || {},consistent:consistent && !conflicts.length,conflicts,
+  return {main,stored,live,bindings,name,centralCanonical:centralState.canonical,servers:settings['intersystems.servers'] || {},consistent:consistent && !conflicts.length,conflicts,
     credentials:[central || {},{username:env.IRIS_USERNAME,password:env.IRIS_PASSWORD},t]};
 }
 function describe(root,io) {
@@ -124,8 +159,10 @@ function describe(root,io) {
     bindings:s.bindings,consistent:s.consistent,conflicts:s.conflicts,verification:'configuration-only'};
 }
 function prepare(root,request,io) {
-  if (!fs.existsSync(path.join(root,'.agents/.git')) || fs.existsSync(path.join(root,'.agents/capability.json')))
-    reject('开发库切换当前支持 standard 工程。');
+  const files = projectFiles(root);
+  if (!fs.existsSync(path.join(files.context.capabilityRoot,'.git'))) reject('开发库档案需要已部署框架。');
+  if (files.context.manifest?.projectEnvFallback && !io.snapshot(files.env).exists &&
+      !environment.canonical(io.object(io.snapshot(files.main).text))) reject('请在当前连接来源所属工程维护继承的连接。');
   const s=readState(root,io);
   if (!s.consistent) reject('各入口的当前目标不一致，请核对 '+(s.conflicts.join('、') || '档案绑定')+'。');
   if (!s.live.host || !s.live.namespace || !s.live.port) reject('当前工程缺少可承接的生效连接。');
@@ -133,10 +170,14 @@ function prepare(root,request,io) {
   const active=s.stored?.active || 'current';
   const profiles=s.stored?.profiles || {[active]:publicProfile(s.live,'private:'+active)};
   const known=Object.hasOwn(profiles,id);
-  if (known && request.connection) reject('切换已有档案时只需选择档案标识。');
+  const editing=request.edit===true;
+  if (editing && (!s.stored || id!==active || !request.connection)) reject('请先切换到要编辑的档案。');
+  if (known && request.connection && !editing) reject('切换已有档案时只需选择档案标识。');
   if (!known && !request.connection) reject('新档案需要填写目标连接。');
   const activeRef=profiles[active].credentialRef;
-  const selectedRef=known ? profiles[id].credentialRef : request.useCurrentCredentials===true ? activeRef : 'private:'+id;
+  const replacement=editing && (request.credentials?.username || request.credentials?.password);
+  const shared=replacement && Object.entries(profiles).some(([other,profile])=>other!==id && profile.credentialRef===activeRef);
+  const selectedRef=shared ? 'private:'+id+'-local' : known ? profiles[id].credentialRef : request.useCurrentCredentials===true ? activeRef : 'private:'+id;
   function privateKey(ref) {
     if (typeof ref!=='string' || !ref.startsWith('private:')) reject('档案凭据引用无法识别。');
     return validId(ref.slice(8));
@@ -144,21 +185,24 @@ function prepare(root,request,io) {
   const activeKey=privateKey(activeRef), selectedKey=privateKey(selectedRef);
   if (request.useCurrentCredentials && (request.credentials?.username || request.credentials?.password))
     reject('请选择沿用当前凭据或提供独立凭据。');
-  const selected=publicProfile(known ? profiles[id] : {...s.live,...request.connection},selectedRef);
+  const selected=publicProfile(editing ? {...profiles[id],...request.connection} :
+    known ? profiles[id] : {...s.live,...request.connection},selectedRef);
   if (!known && s.bindings.vscode) {
     if (!selected.alias || selected.alias===s.live.alias) selected.alias=id;
     if (Object.values(profiles).some(profile=>profile.alias===selected.alias)) reject('该 VS Code 服务器名已被其他开发库档案使用。');
   }
-  const reuseVscode = s.bindings.vscode && Object.hasOwn(s.servers,selected.alias);
+  const reuseVscode = s.bindings.vscode && Object.hasOwn(s.servers,selected.alias) && !(editing && selected.alias===s.live.alias);
   const vscodeServer = reuseVscode ? s.servers[selected.alias] : null;
   if (reuseVscode && ['host','port','scheme'].some(key=>String(vscodeServer?.webServer?.[key])!==String(selected[key]))) {
     reject('已有 VS Code 服务器的主机、端口或协议与目标档案不一致，请核对服务器名称和目标。');
   }
-  const legacyHost=s.bindings.mcp && publicKeys.some(key=>selected[key]!==s.live[key]) && checkSessionCompatibility(root,io);
-  const privateFile=io.snapshot(path.join(root,s.bindings.central?'.agents/config/project-env.json':privatePath));
-  const prefix=s.bindings.central?['irisProfileCredentials']:[];
+  const legacyHost=s.bindings.mcp && publicKeys.some(key=>selected[key]!==s.live[key]) && checkSessionCompatibility(files.context.capabilityRoot,io);
+  const useLegacySecrets=s.bindings.central && !s.centralCanonical;
+  const privateFile=io.snapshot(useLegacySecrets?files.env:files.private);
+  const prefix=useLegacySecrets?['irisProfileCredentials']:[];
   const contents=io.object(privateFile.text);
-  const secrets=s.bindings.central?(contents.irisProfileCredentials || {}):contents;
+  const secrets=useLegacySecrets?(contents.irisProfileCredentials || {}):contents;
+  if (shared && Object.hasOwn(secrets,selectedKey)) reject('该档案的独立凭据标识已占用，请核对私有配置。');
   const edits=[];
   const needsCredentials=s.bindings.central || s.bindings.mcp || s.bindings.toml;
   let pair;
@@ -169,19 +213,23 @@ function prepare(root,request,io) {
       if (values.length!==1) reject('当前凭据缺失或多处不一致，请先核对私有来源。');
       original[key]=values[0];
     }
-    edits.push({path:[...prefix,activeKey],value:original});
-    pair=selectedKey===activeKey ? original : known ? secrets[selectedKey] : request.credentials;
+    if (selectedKey!==activeKey || !replacement) edits.push({path:[...prefix,activeKey],value:original});
+    pair=replacement ? request.credentials : selectedKey===activeKey ? original : known ? secrets[selectedKey] : request.credentials;
     if (!pair?.username || !pair?.password) reject('目标档案需要独立的私有凭据。');
     if (reuseVscode && ['username','password'].some(key=>vscodeServer[key] && vscodeServer[key]!==pair[key])) {
       reject('已有 VS Code 服务器的私有凭据与目标档案不一致，请核对凭据来源。');
     }
-    if (selectedKey!==activeKey) edits.push({path:[...prefix,selectedKey],value:{username:pair.username,password:pair.password}});
+    if (selectedKey!==activeKey || replacement) edits.push({path:[...prefix,selectedKey],value:{username:pair.username,password:pair.password}});
   }
   const mainEdits=[{path:['irisConnections','active'],value:id}];
   if (!s.stored) mainEdits.push({path:['irisConnections','bindings'],value:s.bindings},{path:['irisConnections','serverName'],value:s.name});
   if (!s.stored) mainEdits.push({path:['irisConnections','profiles',active],value:profiles[active]});
   if (!known) mainEdits.push({path:['irisConnections','profiles',id],value:selected});
-  return {bindings:s.bindings,connection:{...selected,...pair,writeCredentials:!!pair},id,legacyHost,reuseVscode,
+  if (editing) for (const [key,value] of Object.entries({...selected,
+    ...(request.connection.description !== undefined ? {description:request.connection.description} : {})})) {
+    if (profiles[id][key]!==value) mainEdits.push({path:['irisConnections','profiles',id,key],value});
+  }
+  return {bindings:s.bindings,connection:{...selected,...pair,writeCredentials:!!pair},id,legacyHost,reuseVscode,centralCanonical:s.centralCanonical,
     main:s.main,mainEdits,privateFile,edits,from:s.live,to:selected};
 }
-module.exports={mainPath,privatePath,describe,prepare,awaitLegacyExit};
+module.exports={projectFiles,describe,prepare,awaitLegacyExit,projectEnvironment,sessionBackend};

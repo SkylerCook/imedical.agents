@@ -819,6 +819,7 @@ function Write-UpdateSummary {
     "config-migration-review-required",
     "config-migration-conflict",
     "config-migration-failed",
+    "project-config-review-required",
     "submodule-init-required",
     "script-conflict",
     "thin-index-script-missing",
@@ -845,6 +846,9 @@ function Write-UpdateSummary {
   )
 
   $configStatuses = @(
+    "project-config-applied",
+    "project-config-planned",
+    "project-config-review-required",
     "config-missing-file",
     "config-created",
     "config-missing-key",
@@ -1695,6 +1699,21 @@ elseif (@($results | Where-Object { $_.status -eq "skill-owner-migration-conflic
 if ($Mode -eq "Write" -and -not $completionFailure) {
   Write-PluginProfile -AgentsRoot $agentsRoot -Plugins $allPlugins -ExistingProfile $pluginProfile -ExplicitPluginNames $Plugin -RetainedRequirements $retainedRequirements
   $results.Add((Write-UpdateResult -Status "plugin-profile-written" -Target (Get-RelativePathPortable -From $projectRootFull -To (Get-PluginProfilePath -AgentsRoot $agentsRoot)) -Reason "plugin states recorded" -Phase "plugin"))
+}
+
+$configService = Join-Path $capabilityRoot "scripts/configure-agents.js"
+if ((Test-Path -LiteralPath $configService -PathType Leaf) -and -not $completionFailure) {
+  $configMigrationOutput = & node $configService migrate $ProjectRootFull $Mode | Out-String
+  if ($LASTEXITCODE -ne 0) {
+    $results.Add((Write-UpdateResult -Status "project-config-review-required" -Target "config/project.jsonc" -Reason "Configuration migration could not inspect the project context" -Phase "project-configuration"))
+  }
+  else {
+    $configMigrationEntries = $configMigrationOutput | ConvertFrom-Json
+    foreach ($entry in $configMigrationEntries) {
+      if ($null -eq $entry) { continue }
+      $results.Add((Write-UpdateResult -Status ("project-config-" + $entry.status) -Target ("config/project.jsonc / " + $entry.id) -Source $entry.source -Reason $entry.reason -Phase "project-configuration"))
+    }
+  }
 }
 
 if ($Detailed) {

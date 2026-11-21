@@ -68,6 +68,25 @@ function Set-DeliveryType {
   return $Text.TrimEnd() + [Environment]::NewLine + [Environment]::NewLine + "## 通用配置" + [Environment]::NewLine + [Environment]::NewLine + $line + [Environment]::NewLine
 }
 
+$jsoncPath = Join-Path $agentsRootFull "config/project.jsonc"
+if (Test-Path -LiteralPath $jsoncPath -PathType Leaf) {
+  $configurationReader = Join-Path $PSScriptRoot "../../../scripts/lib/project-context-settings.js"
+  if (Test-Path -LiteralPath $configurationReader -PathType Leaf) {
+    $readCanonical = 'const p=require(process.argv[1]); const root=process.argv[2]; try {const value=p.demandSettings(root).values.defaultDemandKind; if(value)process.stdout.write(value)} catch {process.exitCode=1}'
+    $canonical = & node -e $readCanonical ([System.IO.Path]::GetFullPath($configurationReader)) $agentsRootFull
+    if ($LASTEXITCODE -ne 0) {
+      Add-Result -Status "config-migration-conflict" -Reason "请核对 project.jsonc 与旧配置的默认需求交付类型。"
+      Write-Output (ConvertTo-Json @($results | ForEach-Object { $_ }) -Depth 4 -Compress)
+      exit 0
+    }
+    if ($canonical -in @('standard','project')) {
+      Add-Result -Status "config-migration-unchanged" -Reason "已读取当前工程的默认需求交付类型。"
+      Write-Output (ConvertTo-Json @($results | ForEach-Object { $_ }) -Depth 4 -Compress)
+      exit 0
+    }
+  }
+}
+
 if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
   Add-Result -Status "config-migration-review-required" -Reason "iris_project_profile.md 缺失；$prompt"
   Write-Output (ConvertTo-Json @($results | ForEach-Object { $_ }) -Depth 4 -Compress)

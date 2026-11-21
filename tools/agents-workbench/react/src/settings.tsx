@@ -17,6 +17,7 @@ const labels: Record<string, string> = {
   "web.basePath": "Web 根路径", "web.cspBasePath": "CSP 根路径",
   "web.brokerPath": "Broker 相对路径", "web.cookie": "Web Cookie",
   "sftp.host": "SFTP 主机", "sftp.port": "SFTP 端口", "sftp.username": "SFTP 账号",
+  "sftp.enabled": "启用 SFTP",
   "sftp.password": "SFTP 密码", "sftp.localPath": "本地前端目录", "sftp.remotePath": "远端 Web 目录",
   connectionMode: "连接方式", url: "自定义 HTTPS 地址", access_key: "统一访问 Key",
   "X-Gateway-Upstream-BOS-MCP-TOKEN": "查询个人 Token",
@@ -47,7 +48,7 @@ function groupFields(model: SettingsModel) {
     const title = names[section] ?? (model.id === "project" ? "IRIS 开发连接" : "默认提供方");
     let source = model.id === "bos" ? "BOS_MCP_CONFIG" : "KNOWLEDGE_RAG_CONFIG";
     if (model.id === "project") {
-      source = (section === "deployment" || section === "irisDevelopment" || section === "irisConnections") ? (fields[0]?.source ?? "ContextRoot/config/project.jsonc") : section ? `.agents/config/project-env.json · ${section}` : ".agents/config/project-env.json · VS Code · MCP/TOML";
+      source = fields[0]?.source ?? ((section === "deployment" || section === "irisDevelopment" || section === "irisConnections") ? "ContextRoot/config/project.jsonc" : section ? `.agents/config/project-env.json · ${section}` : ".agents/config/project-env.json · VS Code · MCP/TOML");
     }
     return { title, source, fields };
   });
@@ -139,7 +140,7 @@ function SettingsFields({ model, draft, handoff }: { model: SettingsModel; draft
     <div className="grid gap-4 sm:grid-cols-2">
       {group.fields.map(field => {
         const label = fieldLabel(field);
-        if (field.id==="irisConnections.status") return <VerifyConnection key={field.id} handoff={handoff} initial={String(field.value || "")} />;
+        if (field.id==="irisConnections.status" && model.scope!=="当前工作区") return <VerifyConnection key={field.id} handoff={handoff} initial={String(field.value || "")} />;
         if (field.readOnly) return <div key={field.id}><p>{label} · {field.type === "boolean" ? (field.value ? "是" : "否") : String(field.value ?? "")}（只读）</p>
           </div>;
         const initial = draft[field.id] ?? String(field.value ?? "");

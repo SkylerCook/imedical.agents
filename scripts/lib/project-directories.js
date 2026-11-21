@@ -47,12 +47,13 @@ function contextFor(root) {
 }
 function configFor(context) {
   if (!fs.existsSync(context.contextRoot)) return null;
-  const file = safePath(context.contextRoot, 'config/documentation-layout.json');
-  if (!fs.existsSync(file)) return null;
-  const config = json(file);
-  if (config.schema !== SCHEMA || typeof config.enabled !== 'boolean' || !same(config.workspaceRoot || '', context.workspaceRoot) || !Array.isArray(config.extensions)) throw Error('Invalid documentation layout config; preserve and review');
+  const config = require('./project-configuration').inspect(context, 'documentationLayout').value;
+  return config && validateConfig(context, config);
+}
+function validateConfig(context, config) {
+  if (config.schema !== SCHEMA || typeof config.enabled !== 'boolean' || !Array.isArray(config.extensions)) throw Error('Invalid documentation layout config; preserve and review');
   for (const item of config.extensions) {
-    if (!item || typeof item.purpose !== 'string' || !item.purpose.trim() || !item.path.startsWith('docs/')) throw Error('Extension needs docs path and purpose');
+    if (!item || typeof item.purpose !== 'string' || !item.purpose.trim() || typeof item.path !== 'string' || !item.path.startsWith('docs/')) throw Error('Extension needs docs path and purpose');
     safePath(context.workspaceRoot, item.path);
     description(item);
   }
@@ -108,4 +109,4 @@ function fingerprint(context) {
   }
   return digest(JSON.stringify(files.map(file => [file, fs.existsSync(file) ? digest(fs.readFileSync(file)) : null])));
 }
-module.exports = { SCHEMA, digest, slash, same, within, relative, safePath, json, description, contextFor, configFor, enabledPlugins, inventory, resolveDirectory, fingerprint };
+module.exports = { SCHEMA, digest, slash, same, within, relative, safePath, json, description, contextFor, configFor, validateConfig, enabledPlugins, inventory, resolveDirectory, fingerprint };

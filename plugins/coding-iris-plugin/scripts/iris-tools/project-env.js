@@ -1,39 +1,14 @@
 'use strict';
-const fs = require('node:fs');
-const path = require('node:path');
+const environment = require('../../../../scripts/lib/project-environment');
 
 // Resolve only the explicitly declared file; never change WorkspaceRoot or MCP ownership.
 function readProjectEnv(context, {optional = false} = {}) {
-  let configPath = path.join(context.contextRoot, 'config', 'project-env.json');
-  let inherited = false;
   try {
-    fs.lstatSync(configPath);
+    return environment.read(context,{optional});
   } catch (error) {
-    if (error.code !== 'ENOENT') throw error;
-    const fallback = context.mode === 'workspace-overlay' ? context.manifest?.projectEnvFallback : undefined;
-    if (fallback !== undefined) {
-      if (typeof fallback !== 'string' || !fallback.trim()) throw new Error('project-env-fallback-invalid');
-      configPath = path.resolve(context.workspaceRoot, fallback);
-      inherited = true;
-    } else if (optional) {
-      return {config: {}, configPath, inherited};
-    }
+    if (error.message.startsWith('project-env-') || error.message.startsWith('project-config-conflict:')) throw error;
+    throw new Error('project-env-invalid', {cause:error});
   }
-  let config;
-  try {
-    config = JSON.parse(fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, ''));
-    if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('invalid object');
-  } catch (error) {
-    throw new Error(error.code === 'ENOENT' ? 'project-env-missing' : 'project-env-invalid');
-  }
-  if (inherited) {
-    for (const field of ['host', 'port', 'scheme', 'namespace']) {
-      if (!config.iris?.[field] || String(config.iris[field]).startsWith('TODO')) {
-        throw new Error(`project-env-target-missing: ${field}`);
-      }
-    }
-  }
-  return {config, configPath, inherited};
 }
 
 function validateTarget(config, env) {

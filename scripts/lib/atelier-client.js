@@ -21,7 +21,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
   remote.assertRemoteAllowed(context || {});
   const conn = normalizeConnection(connection);
   const transport = !managedHost && !qualification && !sharedOwner && context?.contextRoot &&
-    require('node:fs').existsSync(require('node:path').join(context.contextRoot, 'config', 'iris-session-backend.json'))
+    require('./project-configuration').inspect(context, 'irisSessionBackend').value
     ? require('./iris-session-client').createAtelierTransport({context, connection: conn}) : null;
   const selected = managedHost || transport ? {enabled:false} : remote.loadRemotePolicy(context || {}, { connection: conn, policy, qualification });
   const owner = sharedOwner || remote.createRemoteOperation({ policy: selected, connection: conn, channel: 'atelier' });

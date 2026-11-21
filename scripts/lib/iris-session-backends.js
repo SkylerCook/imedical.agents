@@ -2,6 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const remote = require('./iris-remote-operations');
+const configuration = require('./project-configuration');
 const {hash, failure} = require('./iris-session-manager');
 const mcp = require('../iris-mcp');
 const verifiedBinaries=new Map();
@@ -24,8 +25,7 @@ function verifyVendor(executable) {
 function configuredServerName(context) {
   const profile=require('./iris-selected-target').selection(context);
   if (profile) return profile.serverName;
-  const localEnv=path.join(context.contextRoot,'config','project-env.json');
-  return (fs.existsSync(localEnv)?JSON.parse(fs.readFileSync(localEnv,'utf8').replace(/^\uFEFF/,'')).mcp?.serverName:null) || 'iris-agentic-dev';
+  return require('./project-environment').read(context,{optional:true,inherit:false}).config.mcp?.serverName || 'iris-agentic-dev';
 }
 function describe(projectRoot, serverName, {localOnly=false} = {}) {
   const context = require('./workspace-context').resolveWorkspaceContext(path.resolve(projectRoot));
@@ -44,10 +44,8 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
     namespace: env.IRIS_NAMESPACE, username: env.IRIS_USERNAME, password: env.IRIS_PASSWORD,
     rejectUnauthorized: String(env.IRIS_TLS_VERIFY ?? 'false').toLowerCase() !== 'false'};
   const instance = remote.instanceIdentity(connection);
-  const policyFile = path.join(context.contextRoot, 'config', 'iris-remote-policy.json');
-  let policy;
-  if (fs.existsSync(policyFile)) {
-    policy = JSON.parse(fs.readFileSync(policyFile, 'utf8').replace(/^\uFEFF/, ''));
+  let policy = configuration.inspect(context, 'irisRemotePolicy').value;
+  if (policy) {
     if (!localOnly && policy.enabled !== true) throw failure('session-policy-explicitly-disabled');
     if (policy.schema !== 'iris-remote-policy/v1') throw failure('session-policy-invalid');
     remote.frameworkSessionLimit(policy);
@@ -58,9 +56,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
       remote.poolStatus({policy:{...policy,coordinationRoot:policy.legacyCoordinationRoot || policy.coordinationRoot}});
     }
   }
-  const backendFile = path.join(context.contextRoot, 'config', 'iris-session-backend.json');
-  let backend;
-  if (fs.existsSync(backendFile)) backend = JSON.parse(fs.readFileSync(backendFile, 'utf8'));
+  let backend = configuration.inspect(context, 'irisSessionBackend').value;
   if (!backend && /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(server.command || '')) {
     backend = {schema: 'iris-session-backend/v1', serverName, command: server.command,
       args: server.args || ['mcp']};

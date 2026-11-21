@@ -42,6 +42,7 @@
         "imedicalxc-doctor-codegraph",
         "imedicalxc-doctor-data-extraction",
         "imedicalxc-doctor-extend-engineer",
+        "imedicalxc-doctor-graylog-error-triage",
         "imedicalxc-doctor-perf-analysis-engineer",
         "imedicalxc-doctor-print-template-design"
       ]
@@ -61,7 +62,7 @@
       "directory": "agent-context-kit",
       "manifest": {
         "name": "agent-context-kit",
-        "version": "0.11.4",
+        "version": "0.11.5",
         "displayName": "Agent Context Kit",
         "description": "Reusable project context, on-demand capability group selection, local task handoff and cross-session continuation, plus schema 2.0 agent run templates and separate demand and framework-maintenance lifecycles.",
         "entry": "AGENTS.md",
@@ -187,7 +188,7 @@
           }
         ]
       },
-      "manifestHash": "7be89542398f36d1af4ccc612e1daf3f9e35b1fb8c4eb3ed7efb51a967b1f7e5"
+      "manifestHash": "ad409816c74852d480044c3ca2af54da5f9ec9e18bf858e54bc50abefbe91e91"
     },
     {
       "directory": "agent-framework-evolution",
@@ -362,7 +363,7 @@
       "directory": "coding-iris-plugin",
       "manifest": {
         "name": "coding-iris-plugin",
-        "version": "0.34.4",
+        "version": "0.34.5",
         "displayName": "IRIS Coding Plugin",
         "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
         "entry": "AGENTS.md",
@@ -547,7 +548,7 @@
           "vendor/xml-parser"
         ]
       },
-      "manifestHash": "4e90ff97abe0bf833eb97ab4494c39906070379ebfa5afe65be9388e0164ccbd"
+      "manifestHash": "096c787a40d8e9fdc779b71f25b6ed2dc98225e47be65b25883885ebcb473d3a"
     },
     {
       "directory": "demand-delivery-plugin",
@@ -1000,6 +1001,77 @@
         ]
       },
       "manifestHash": "e2c26cca34f7871597d29c212111dcb135a08cb90e9f80b733deb401d4059305"
+    },
+    {
+      "directory": "imedicalxc-doctor-graylog-error-triage",
+      "manifest": {
+        "name": "imedicalxc-doctor-graylog-error-triage",
+        "version": "1.0.0",
+        "displayName": "iMedicalXC Doctor Graylog Error Triage",
+        "description": "HIS 医生站 Graylog 报错巡检：30 分钟水位线增量采集 ERROR 日志，按堆栈自校准归属（本组/基础设施/他组/待定），前端界面操作穿透，生成本组修正清单与他组通知文档，并按 errorHash 去重推送 QQ 群。",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "initSkill": "imedicalxc-doctor-graylog-error-triage-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "imedicalxc-doctor-graylog-error-triage-init"
+          ]
+        },
+        "availableDependencies": [
+          {
+            "plugin": "imedicalxc-doctor-codegraph",
+            "stage": "frontend-penetration",
+            "trigger": "需要把报错请求 URL 穿透到具体页面、操作元素与 JS 方法行号时",
+            "entries": [
+              "scripts/query_front_back_chain.py",
+              "skills/imedicalxc-doctor-codegraph-front-gen/SKILL.md"
+            ]
+          }
+        ],
+        "requiresProjectFiles": [
+          "AGENTS.md"
+        ],
+        "defaultPrompt": [
+          "巡检 Graylog 报错",
+          "补上次巡检的本组修正方案",
+          "生成他组报错通知文档",
+          "安装/卸载报错巡检计划任务",
+          "校准报错归属分类"
+        ],
+        "projectDirectories": [
+          {
+            "id": "graylog-triage-reports",
+            "base": "workspace",
+            "path": "docs/agent-reports/graylog-triage",
+            "role": "delivery",
+            "create": "task",
+            "purpose": "每轮巡检产物：原始日志 JSON、分类明细、前端链路、汇总/本组/他组通知 md",
+            "examples": [
+              "87/2026-11-19/raw-errors-1430.json",
+              "87/2026-11-19/classified-1430.json",
+              "87/2026-11-19/report-summary-1430.md",
+              "87/2026-11-19/notify-药房药库-1430.md"
+            ],
+            "boundary": "只含脱敏后的报错事实与分析结论；禁止写入主机地址、凭据、患者数据",
+            "lifecycle": "按轮次追加，文件名含 HHmm 与 run 标记；他轮次文件拒绝覆盖"
+          },
+          {
+            "id": "graylog-triage-runlog",
+            "base": "workspace",
+            "path": ".agents/plugins/imedicalxc-doctor-graylog-error-triage/config/logs",
+            "role": "runtime",
+            "create": "task",
+            "purpose": "计划任务每轮编排日志（追加写入 triage-<yyyyMMdd>.log）",
+            "examples": [
+              "triage-20261119.log"
+            ],
+            "boundary": "本机运行态，不入库；由 config/.gitignore 的 logs/ 规则排除。目前无自动清理，需定期手工删除",
+            "lifecycle": "按日追加写入，不自动轮转"
+          }
+        ]
+      },
+      "manifestHash": "b9a45a0d88d351d4380fbcfce1ef7c1830fc8f4fcff06f80dc96a1a6962bd508"
     },
     {
       "directory": "imedicalxc-doctor-perf-analysis-engineer",

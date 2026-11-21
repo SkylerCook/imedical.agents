@@ -99,7 +99,7 @@ export type SettingsDraftResult = {
 };
 export type SettingsPlan = {
   planId: string; scope: string; warning: string; warnings?: string[];
-  changes: { field: string; action: string }[];
+  changes: { field: string; action: string; label?: string; before?: string | number | boolean; after?: string | number | boolean }[];
 };
 
 export async function settingsRequest<T>(path: string, signal: AbortSignal, body?: object): Promise<T> {

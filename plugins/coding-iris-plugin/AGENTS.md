@@ -1,5 +1,7 @@
 # AGENTS.md
 
+连接、会话、菜单和目录编码迁移见[工程配置迁移](../../docs/update-agents.md#工程配置迁移)。新增读取者使用共享配置入口，核对旧来源与本地宿主的有效值。
+
 会话错误按[统一会话指南](../../docs/guides/iris-managed-sessions.md#诊断与自动恢复证据0290)读取当前阻断、失败归因与恢复缺口，复用原授权核实写结果并使用自动本地退出证据。编码确认可附带本地文件提前核实目标可表示性。
 
 0.28.3 同时兼容需求类型和导出覆盖表的单 CR，已确认服务器编码的前端导出通过原字节保持末尾换行，具体边界见[编码契约](references/frontend-encoding.md)。
@@ -134,7 +136,7 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 
 初始化/迁移在目标工程 `.agents/scripts/` 生成薄 wrapper，转发到插件内编码脚本。已知历史复制版本可自动迁移；用户定制版本只报告冲突，不得静默覆盖。
 
-`scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含部署清单生成、导出、编译、Broker 调试和环境配置同步。已有活动开发库档案时，沿 coding-iris-init 核对所选目标。无档案工程的真实连接信息由本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。
+`scripts/iris-tools/` 提供导出、编译、Broker 调试和环境同步。连接初始化、活动开发库及宿主绑定按 [coding-iris-init](skills/coding-iris-init/SKILL.md) 核对。工程档案使用 `project.jsonc`，凭据走本机私有来源。
 
 `scripts/iris-tools/source-sync.js` 管理项目按需导出、现场保护、服务器层与需求层的独立提交及复审冻结；操作参数以 `--help` 为准。共享远端准入与 Atelier client 位于能力包根 `scripts/lib/`，本地状态检查/显式恢复使用根 `scripts/iris-remote.js`，具体边界归上述项目协议。
 

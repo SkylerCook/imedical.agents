@@ -101,14 +101,14 @@ description: Initialize, maintain, or optimize project context and local docs kn
 
 ## 上下文模式
 
-仅在初始化、模式缺失或用户明确变更工程定位时，按下列顺序判定上下文模式，并在授权范围内记录到 `.agents/config/project_context_profile.md` 或等价位置。已有模式的维护与优化沿用既有值，不因重组范围较大而重新判定或重复落盘。
+仅在初始化、模式缺失或用户明确变更工程定位时重新判定。把核实的模式写到当前 `ContextRoot/config/project.jsonc` 的 `projectContext.contextMode`。用能力根 `scripts/configure-agents.js read <WorkspaceRoot>` 读取有效值和迁移状态。
 
 ### 机械判定顺序
 
 按以下顺序判定，命中即停止，不要自由发挥：
 
 1. 用户明确说“后续按需导出文件”“需求处理中再导出”“刚新建”“空工程”“只有零散文件”“需求处理工作区”时，直接设为 `intent-first-on-demand-export`。
-2. 已存在 `.agents/config/project_context_profile.md` 且写明 `contextMode` 时，沿用该值；除非用户明确更新，否则不要改。
+2. 已有明确 `contextMode` 时沿用。旧 profile 的有效值由配置读取器兼容，更新器负责迁移。
 3. 目标工程缺少可识别构建/运行入口，且业务代码文件很少或分散时，设为 `intent-first-on-demand-export`。
 4. 只有在本地同时具备较完整源码目录、构建或运行配置、项目文档或用户确认“本地就是主要工程”时，才设为 `codebase-complete`。
 5. 如果无法判断，默认使用 `intent-first-on-demand-export`。保守默认比错误总结架构更安全。
@@ -128,7 +128,7 @@ description: Initialize, maintain, or optimize project context and local docs kn
 - 本地已有文件最多列为“当前已导出/已存在文件”，不得写“系统由这些文件组成”“核心模块是这些文件”“调用链如下”等结论。
 - `.agents/rules/project.md` 记录稳定业务定位、按需导出流程和禁止推断规则。
 - `.agents/memory/project-memory.md` 记录当前状态、已导出文件范围和仍有效决策，不把零散文件扩写成架构说明。
-- `.agents/config/project_context_profile.md` 保存非敏感语义配置，如项目用途、上下文模式、代码来源、本地文件完整性和禁止项。
+- `config/project.jsonc` 保存可校验的工程配置。项目用途、代码来源、源码覆盖说明和项目约束写入现有项目说明与规则。
 
 ### 最小输出模板
 

@@ -79,21 +79,31 @@ function observeKnowledgeCaches(root, context, overlay) {
 }
 
 module.exports=function inspect(root,signRecovery){
+ const context=inspectProjectContext(root);
  const sources=[['IRIS / Web / SFTP','.agents/config/project-env.json','当前工程'],['MCP 服务','.mcp.json','当前工程'],['受管 MCP backend','.agents/config/iris-session-backend.json','当前工程'],['BOS 查询与日志',process.env.BOS_MCP_CONFIG,'共享个人配置'],['知识提供方与 Key',process.env.KNOWLEDGE_RAG_CONFIG,'共享个人配置']];
  const domains=sources.map(([name,file,scope])=>{
   const out={name,scope,source:scope==='当前工程'?file:name.startsWith('BOS')?'BOS_MCP_CONFIG':'KNOWLEDGE_RAG_CONFIG',fields:[]};
   if(!file)return {...out,status:'当前进程未绑定来源'};
   try{
    const full=path.isAbsolute(file)?file:path.join(root,file);
-   const data=scope==='共享个人配置'
-    ? configuration.parse(configuration.readText(full))
-    : JSON.parse(fs.readFileSync(full,'utf8').replace(/^\uFEFF/,''));
+   let data;
+   if (context && name==='IRIS / Web / SFTP') {
+    const env=require('../../../scripts/lib/project-environment').read(context);
+    const {irisProfileCredentials,...publicView}=env.config;
+    out.source=path.basename(env.configPath)+(env.inherited?' · 继承配置':'');
+    data=publicView;
+   } else if (context && name==='受管 MCP backend') {
+    const state=require('../../../scripts/lib/project-configuration').inspect(context,'irisSessionBackend');
+    if (!state.value) return {...out,status:'尚未接入受管后端'};
+    if (state.canonical) out.source='config/project.jsonc · irisSessionBackend';
+    data=state.value;
+   } else data=scope==='共享个人配置'
+     ? configuration.parse(configuration.readText(full)) : JSON.parse(fs.readFileSync(full,'utf8').replace(/^\uFEFF/,''));
    function walk(v,p){if(v&&typeof v==='object'){for(const [k,x]of Object.entries(v))walk(x,p?p+'.'+k:k)}else out.fields.push({key:p,status:v===null||v===''?'未填写':'已设置',sensitive:/password|token|key|cookie|secret/i.test(p)});}
    walk(data,'');
    return {...out,status:'已真实读取'};
-  }catch(e){return {...out,status:e.code==='ENOENT'?'来源文件不存在':'读取或格式解析失败，未改动原文件'}}
+  }catch(e){return {...out,status:e.code==='ENOENT' || e.message==='project-env-missing'?'来源文件不存在':'读取或格式解析失败，未改动原文件'}}
  });
- const context=inspectProjectContext(root);
  const configIssue=context ? checkProjectConfig(context.contextRoot) : '工程声明无法安全读取，请先核对当前工程 .agents/capability.json。';
  const declaration=readDevelopment(context?.contextRoot,configIssue);
  domains.push({name:'开发方式',scope:'当前工程',source:declaration.source || (declaration.canonical?'config/project.jsonc · irisDevelopment':'config/iris-development.json'),status:declaration.issue?'待核对':declaration.value?'已真实读取':'未声明',issue:declaration.issue,fields:Object.keys(declaration.value||{}).map(key=>({key,status:'已设置',sensitive:false}))});

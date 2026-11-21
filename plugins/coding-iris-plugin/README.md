@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.34.5 通过[工程配置迁移](../../docs/update-agents.md#工程配置迁移)接管开发库、Web／SFTP、远程策略、会话后端、需求交付、目录编码及菜单设置。初始化沿项目配置入口填写，框架消费者从当前 ContextRoot 解析。旧来源冲突时保留文件并报告字段。
+
 开发复用覆盖 iris-coding、前端与后端直接入口，按[通用规则](rules/iris_coding_general.md#开发复用)自动查找候选、核对契约并复核最终 diff。已有项目使用正常能力包更新同时取得插件、agents/ 与 workflows/；Overlay 更新共享 CapabilityRoot 后按现有流程刷新 ContextRoot。规则随下一次任务读取生效，配置迁移和旧文件清理均无需执行。
 
 0.29.0 增加状态下一步指引、失败发送阶段和自动本地退出证据，旧配置可直接读取，实际更新步骤见[统一会话指南](../../docs/guides/iris-managed-sessions.md#诊断与自动恢复证据0290)。编码 confirm 可附带 --files 在写配置前校验目标可表示性。
@@ -248,16 +250,8 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 
 首次使用前先确认配置事实来源：
 
-- 已有活动档案时，以 `project.jsonc#irisConnections.active` 为准，运行 `sync-env-config.js --check-profile` 核对绑定。以下两种初始化路径适用于无档案工程。
-- 已有 `.mcp.json`：从 `.mcp.json` 反向生成或补齐 `.agents/config/project-env.json`，不要运行 `sync-env-config.js` 覆盖现有 `.mcp.json`。
-- 没有 `.mcp.json`：复制模板并填写真实环境；模板默认使用内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 作为 `mcp.serverPath`，再运行 `sync-env-config.js` 生成 `.mcp.json`。
-
-```powershell
-New-Item -ItemType Directory -Force .agents/config
-Copy-Item .agents/plugins/coding-iris-plugin/templates/project-env.template.json .agents/config/project-env.json
-notepad .agents/config/project-env.json
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
-```
+- 已有活动档案时，从 `project.jsonc` 的 `irisConnections.active` 读取目标，再用 `sync-env-config.js --check-profile` 核对绑定。
+- 首次配置或接管既有连接，沿[工程连接初始化](templates/coding-iris-init-guide.md)承接本机连接、凭据引用和目标宿主。
 
 常用调用：
 

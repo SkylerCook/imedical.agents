@@ -28,7 +28,7 @@
 
 1. 核对测试/正式各自的本地 Git。无仓库时先获得初始化授权，再使用 `source-sync.js init`；不把初始化或阶段提交权限推导为任意后续提交权限。
 2. 按 [coding-iris-init 的本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)执行 `source-sync.js configure`，默认创建被忽略的 `ContextRoot/config/project.jsonc` 的 `irisDevelopment` 节，声明已确认的开发方式、`environmentAlias` 与 `environmentType`（`test`、`development` 或 `production`）并 Check。已有文件保留，缺字段由 Agent 按明确事实局部补齐；不能套用示例环境代替真实声明。连接事实继续由项目已有 `.mcp.json` 与 `project-env.json` 承载，冲突停止，不在新配置复制连接或凭据。
-3. 同一步骤从 `templates/iris-remote-policy.template.json` 创建缺失的私有远端准入配置，模板在缺少连接事实时保持禁用，不创建资格登记；受管会话迁移根据现有连接自动生成必要协调配置。配置生成与实际连接结果分开报告，Agent 按已授权连接事实完成接入；缺失或显式禁用的有效配置仍需处理，但普通操作不要求 License 资格证据。
+3. 同一步骤从 `templates/iris-remote-policy.template.jsonc` 创建缺失的 `irisRemotePolicy`。待核实目标时保持禁用。受管会话迁移从已有连接生成协调设置，配置读回与实际连接分别验收。
 4. 将 `ContextRoot/work/source-sync/`、准入协调目录、私有配置及资格证据保持 Git 忽略。`work/source-sync/` 由实际同步任务创建，初始化无此目录不代表漏配，建空目录也不能证明基线成立。它保存计划、内容快照、索引/HEAD 归属与恢复断点，不作为业务交付目录。首次按 TXT 清单采集批量基线须先验证持久落盘、读回与中断恢复，确认 License 增量与结束回落后才扩大批次。
 
 Node.js 是 Agent 工具链依赖，不是 HIS 生产运行依赖。当前工具链版本及平台验证沿能力包更新说明，不以本机测试宣称所有平台或旧 Caché 版本已支持。

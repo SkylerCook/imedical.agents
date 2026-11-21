@@ -6,6 +6,25 @@ Windows standard 工程可从工作台首页首装或只读检查。已有工程
 
 切回只识别旧配置的运行时前，先执行新版 `plugin-deploy.js rollback-project --project-root <工程目录>`。确认部署策略、插件启停和 IRIS 开发方式分别恢复到适用的 `config/plugin-deployment.json`、`config/plugin_profile.md` 和 `config/iris-development.json`。随后用目标旧版工具读回。离线工程用旧版 `source-sync.js configure --project-root <工程目录> --mode Check` 确认 `developmentMode` 为 `offline`，让命令从恢复后的文件读取开发方式。重新升级时按本页的原更新流程迁移。
 
+## 工程配置迁移
+
+工程运行配置由当前 `ContextRoot/config/project.jsonc` 维护。原安装器生成带注释的主配置。已有工程先取版，再用 `DryRun -NoPull` 核对迁移。经授权的 `Write -NoPull` 迁移已确认的设置，最后用 `Check -NoPull` 复查。
+
+- `project-config-planned` 列出待接管的分节。迁移覆盖工程上下文、需求交付、目录布局、开发库及 Web／SFTP、远程策略、会话后端、前端编码覆盖和菜单来源。
+- `project-config-applied` 表示已写入主配置并读回。迁出的独立配置原件放在当前工程的 `config/.migrations/`。混合 Markdown 中可确认的设置改由 JSONC 提供，人工说明留在原文。
+- `project-config-review-required` 指向具体分节。核对该分节的有效值、旧配置和宿主绑定后重跑预演。校验通过前保留旧来源。凭据在现有私有实例中维护，主配置中使用引用。
+
+工作台 0.5.0 的「工程配置」页面读取分节和迁移状态。执行配置切换的工作台和离线环境配置工具应使用支持这些分节的版本。Overlay 共用框架代码，各成员沿原入口刷新独立的 `ContextRoot`。
+
+```powershell
+node "$CapabilityRoot/scripts/configure-agents.js" read "$WorkspaceRoot"
+node "$CapabilityRoot/scripts/configure-agents.js" verify "$WorkspaceRoot"
+```
+
+`verify` 核对本节覆盖的本地配置与已登记绑定。返回 `verified` 表示已通过复查，`migration-pending` 表示仍有待迁项，`review-required` 表示对应分节待核对。服务器身份和客户端实际加载分别从对应入口验证。回退到旧版前，先检查 `config/.migrations/` 的原件是否仍能表示当前有效配置，再沿该域恢复兼容格式。已有新的档案或人工改动时，在同一份工程配置中核实差异后再恢复。
+
+目录布局、远程策略和会话后端可用 `configure-agents.js restore <WorkspaceRoot> <分节名> DryRun` 预演。原件与有效配置一致时，经授权改为 `Write` 恢复旧来源。
+
 ## 使用工作台安装与更新
 
 在 Windows x64 上按发行记录校验并解压 `agents-workbench-react.zip`，双击 `start-workbench.cmd` 并选择工程根目录。自 0.4.0 起，双击启动后命令窗口自动关闭，关闭最后一个工作台标签页后服务自动收尾退出。需要保留启动输出时，可在现有终端指定工程目录。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。在线检测与首装访问框架源，离线操作使用团队批准的完整能力包。
@@ -686,7 +705,7 @@ enabled 插件的 availableDependencies 复用只读检查，输出 plugin-avail
 
 `coding-iris-plugin` 引入的 `iris-agentic-dev-skills` 属于 optional vendor skill：更新脚本会把 v1.5.0 固定提交的 8 个 skill 快照同步到 `.agents/vendor/iris-agentic-dev-skills/`，但不会自动生成 `.agents/skills` thin-index。需要直接使用这些官方 skill 时，可从 vendor 路径读取，或由目标 runtime 的显式同步选项生成入口；`objectscript-tdd` 仍受任务级编译/测试授权约束，`iris-mcp-lookup` 本身仍由插件 canonical skill 提供。
 
-新建目标工程从 `project-env.template.json` 生成 `.mcp.json` 时默认写入 `--no-skills` / `IRIS_NO_SKILLS=true`。已有工程更新能力包时，仅按下节规则收敛 MCP server 路径；其它 `.mcp.json` 和 `project-env.json` 字段保持不变。如需采用该默认值，应人工在本地 `mcp.includeBuiltInSkills=false` 后重新生成，或在既有 MCP 配置中显式加入 `--no-skills`。确需上游 skill registry、KB 或学习工具时可本地设置 `mcp.includeBuiltInSkills=true`，不得把连接事实一并提交。
+新工程从 `project.jsonc` 生成 `.mcp.json` 时默认写入 `--no-skills` 和 `IRIS_NO_SKILLS=true`。需要上游内置能力时，在本机工程配置设置 `mcp.includeBuiltInSkills=true`，再由现有生成入口更新受管配置。
 
 用户级目录已有同名 SKILL.md 时，同步器报告 vendor-skill-reused 并保留原内容，不比较版本或覆盖旧副本。需要新版时优先直接读取项目 vendor；确需替换用户级副本，应先核对来源和用户修改，再单独执行明确授权的更新。
 

@@ -1,7 +1,9 @@
 {
+  // 会话协调由维护入口按实际连接生成。未核实目标时保持禁用。
   "schema": "iris-remote-policy/v1",
   "enabled": false,
   "maxFrameworkSessions": 12,
+  // 本机协调目录和池标识沿现有会话登记填写。
   "coordinationRoot": "<absolute-private-coordination-directory>",
   "poolKey": "instance-pool-alias"
 }

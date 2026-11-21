@@ -75,8 +75,8 @@ function loadWorkspaceContext() {
   workspaceRoot = findWorkspaceRoot();
   const mcpConfig = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.mcp.json'), 'utf8').replace(/^\uFEFF/,''));
   const context=require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot);
-  const localEnv=path.join(context.contextRoot,'config','project-env.json');
-  if(fs.existsSync(localEnv))selectedServerName=JSON.parse(fs.readFileSync(localEnv,'utf8').replace(/^\uFEFF/,'')).mcp?.serverName || selectedServerName;
+  const {config}=require('./lib/project-environment').read(context,{optional:true,inherit:false});
+  selectedServerName=config.mcp?.serverName || selectedServerName;
   const selected=require('./lib/iris-selected-target').selected(context);
   selectedServerName=selected?.serverName || selectedServerName;
   server = mcpConfig.mcpServers && mcpConfig.mcpServers[selectedServerName];
