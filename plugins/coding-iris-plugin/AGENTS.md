@@ -30,7 +30,7 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 
 最终 Review 按 CLS 规范的「CLS 本地检查」检查本次变更的类，复用任务评审基线。
 
-Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/cls-coding-format.md)：修改前加载、最终 diff 后复核。独立 Review 接收该规范路径与项目显式覆盖，格式规范只用于本次新增代码，已有代码的功能修改不附带格式化；共用清单包含提取后的业务规则复用、稳定标识归属及 Parameter 声明/引用核对；格式自检仅提示，不替代 IRIS 编译或作为提交门禁。
+Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/cls-coding-format.md)：首次写入前执行[CLS 落笔前检查](rules/iris_coding_backend.md#cls-落笔前检查)，按适用 OS 条款设计实现；最终 diff 后复核。独立 Review 接收该规范路径与项目显式覆盖，格式规范只用于本次新增代码，已有代码的功能修改不附带格式化；共用清单包含提取后的业务规则复用、稳定标识归属及 Parameter 声明/引用核对；格式自检仅提示，不替代 IRIS 编译或作为提交门禁。
 
 新增注册类/非表模型、表类、成员或变量时，加载同一规范的 [ObjectScript 注释约定](references/cls-coding-format.md#注释与空行)，由 Agent 核对职责、业务标签、参数/返回契约及结构引用；现有格式脚本不承担注释语义校验或表/接口文档生成。
 

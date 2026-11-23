@@ -2,6 +2,8 @@
 
 本协议统一处理人工交接的实际源码和完整源码 XML：确认材料与范围 → 保存基线 → 修改 → 本地检查 → Code Review → Pack → 独立 Verify → 用户现场验证。代码只从接收材料或已核对的本地事实取得，不连接医院补源码。
 
+修改实际源码或 XML 中的 ObjectScript 实现前执行[CLS 落笔前检查](../rules/iris_coding_backend.md#cls-落笔前检查)。正式 Review 用同一规范、适用 OS 条款和冻结差异复核。
+
 ## 开发方式与完成边界
 
 - 唯一机器事实源是当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节：`developmentMode` 取 `connected` 或 `offline`。缺少文件或字段保持旧 `connected` 行为；非法值停止 IRIS 流程，不能降级为 direct。profile 只引用该配置，不维护另一份值。

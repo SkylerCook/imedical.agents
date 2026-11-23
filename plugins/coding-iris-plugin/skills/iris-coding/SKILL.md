@@ -26,6 +26,8 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 
 ## 修改前
 
+任务涉及后端 ObjectScript 时，首次写代码前执行[CLS 落笔前检查](../../rules/iris_coding_backend.md#cls-落笔前检查)，涵盖 CLS 全文和适用 OS 条款。
+
 新增、替换或复制实现前，以及最终 diff 后，执行[通用规则的开发复用](../../rules/iris_coding_general.md#开发复用)，将候选依据和采用方式随现有交付或 Review 输入传递，完成重复实现与消费者兼容性复核。
 
 先读取当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节：`developmentMode: offline` 直接按[离线开发协议](../../references/iris-offline-development.md)处理人工源码或完整 XML，本地修改/检查/Review/交付后等待用户现场验证；禁止医院远端读取、执行与部署，也不调用原生 IRIS MCP。缺省或 `connected` 才执行下面的在线条件；未知值停止核对，普通更新不自动切换模式。

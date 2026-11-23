@@ -32,7 +32,7 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 1. 先读取目标工程 `.agents/config/iris_project_profile.md`。
 2. 再读取 `rules/iris_coding_index.md`、`rules/iris_coding_general.md`、`rules/iris_coding_backend.md`。
 3. 仅当任务涉及上传、编译、远程读取或只读 SQL 时，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
-4. 本地搜索现有实现和同类代码，复用业务实现与接口契约；命名与格式按 CLS 规范的适用顺序执行，不从历史代码推断默认风格。
+4. 首次写入前执行[CLS 落笔前检查](../../rules/iris_coding_backend.md#cls-落笔前检查)，将适用 OS 条款用于本次实现。本地搜索现有实现和同类代码，复用业务实现与接口契约；命名与格式按 CLS 规范的适用顺序执行，不从历史代码推断默认风格。
 5. 新建类先完成[后端规则的基类核对](../../rules/iris_coding_backend.md#三层架构)，再适配模板的 `Extends`；按实际职责分层修改，不把项目专属类名写回通用规则。
 6. 默认只做本地修改；用户明确要求后再上传或编译。
 
@@ -42,7 +42,7 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 - 最终 diff 已按 CLS 规范检查命名、格式、改动范围和兼容性；脚本检查与 Agent 审查结果分别说明。
 - 对新增表、字段、类和方法执行现有 CLS 本地检查（OS006），缺失适用说明须补齐。对本次新增注册类/非表模型、表类、成员及变量，按 [ObjectScript 注释约定](../../references/cls-coding-format.md#注释与空行) 核对适用标签、参数/返回契约、结构引用和自然语言说明；SQL 投影或返回结构不明时报告缺口，Debug 仅作为文档内容，不自动编译、调试或改写历史注释。
-- 调用独立 review-agent 时传入冻结 diff、需求、范围、项目显式规范和 CLS 规范路径；新增类附基类选择及 profile/源码依据，按共用清单审查继承。不要求额外安装 formatter skill，无子 Agent 时按同一清单串行复核。
+- 调用独立 review-agent 时传入冻结 diff、需求、范围、项目显式规范、CLS 规范路径及命中的 OS 条款；新增类附基类选择及 profile/源码依据，按共用清单审查继承。不要求额外安装 formatter skill，无子 Agent 时按同一清单串行复核。
 - 标版新增 Global 写入时，按[业务数据与业务配置存储](../../rules/iris_coding_backend.md#标版业务数据与业务配置存储os005)检查写入及消费路径；确认 OS005 违规即返修，临时用途放行。
 - 最终 diff 涉及传统错误陷阱时按 [OS007](../../rules/iris_coding_backend.md#传统错误处理os007) 核对原始错误与陷阱收尾；涉及命名空间切换时按 [OS008](../../rules/iris_coding_backend.md#命名空间切换os008) 核对恢复路径与跨空间资源。
 - SQL 写入层返回格式稳定。
