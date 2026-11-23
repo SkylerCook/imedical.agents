@@ -23,13 +23,31 @@ const execFileAsync = promisify(execFile);
 
 const SEP = '\u001f'; // git pretty 格式字段分隔符（避免与 message 中的字符冲突）
 
-const USAGE = `用法: node collect-commits.js [--months N | --since YYYY-MM-DD [--until YYYY-MM-DD]] [--label LABEL]
-  --months N   汇总最近 N 个完整自然月（默认取配置 window.value）
-  --since      自定义起始时间 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（--until 缺省为现在）
-  --until      自定义结束时间 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（不含，缺省为现在）
-  --label      期号（产物文件名后缀），缺省取 since 所在月份 YYYY-MM
+const USAGE = `用法: node collect-commits.js [--months N | --since YYYY-MM-DD [--until YYYY-MM-DD]] [--label LABEL] [--allow-stale]
+  --months N     汇总最近 N 个完整自然月（默认取配置 window.value）
+  --since        自定义起始时间 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（--until 缺省为现在）
+  --until        自定义结束时间 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（不含，缺省为现在）
+  --label        期号（产物文件名后缀），缺省取 since 所在月份 YYYY-MM
+  --allow-stale  远程跟踪分支落后于远端时仅告警、不中止（补登历史窗口用，产物会标注 stale）
 输出: <outputDir>/<YYYY-MM>/raw-commits-<label>.json（UTF-8 无 BOM）+ 控制台摘要
-配置 ref: config 的 "ref" 字段（如 "origin/master"）指定采集源分支，缺省 HEAD`;
+配置 ref: config 的 "ref" 字段（如 "origin/master"）指定采集源分支，缺省 HEAD
+前置检查: ref 为远程跟踪分支时，逐仓库比对本地 tip 与 git ls-remote 的远端 tip；
+          不一致即判定「未 fetch」并中止采集（本脚本不代替用户 fetch）。`;
+
+// 需求号：[BOS7621028] / 【需求7621028】 / 需求 7621028 —— 用于把跨仓库的同一变更归并成一个评估单元
+const UNIT_PATTERNS = [
+  { kind: 'BOS', re: /\bBOS\s*(\d{6,})/i },
+  { kind: 'REQ', re: /【\s*需求\s*[:：]?\s*(\d{6,})\s*】/ },
+  { kind: 'REQ', re: /需求\s*[:：]\s*(\d{6,})/ },
+];
+
+function extractUnitId(subject) {
+  for (const { kind, re } of UNIT_PATTERNS) {
+    const m = re.exec(subject || '');
+    if (m) return `${kind}${m[1]}`;
+  }
+  return null;
+}
 
 // ---------- 时间窗 ----------
 
@@ -155,11 +173,13 @@ function parseGitLog(stdout) {
 // ---------- 命令行参数 ----------
 
 function parseArgs(argv) {
-  const opts = { months: null, since: null, until: null, label: null, help: false };
+  const opts = { months: null, since: null, until: null, label: null, allowStale: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') {
       opts.help = true;
+    } else if (arg === '--allow-stale') {
+      opts.allowStale = true;
     } else if (arg === '--months') {
       const v = argv[++i];
       opts.months = Number(v);
@@ -212,6 +232,109 @@ function discoverRepos(repoRoot) {
   if (fs.existsSync(path.join(frontend, '.git'))) found.push(frontend);
   return found.map((p) => path.relative(repoRoot, p).replace(/\\/g, '/')).sort();
 }
+
+// ---------- 采集源新鲜度预检 ----------
+// 2026-11-W4 的「前端 0 提交」不是脚本逻辑错，而是 origin/master 自 10-26 起没再 fetch，
+// 采集窗口内的 24 条前端提交对 git log 不可见。远程跟踪分支是否落后，只有远端本身知道，
+// 因此按 SHA 比对（quiet 仓库不会误报）；远端不可达时降级为告警，不阻断离线补登。
+
+function splitRef(ref) {
+  const i = String(ref || '').indexOf('/');
+  if (i <= 0) return null;
+  return { remote: ref.slice(0, i), branch: ref.slice(i + 1) };
+}
+
+async function gitAsync(repoAbs, args, timeoutMs) {
+  const { stdout } = await execFileAsync('git', ['-C', repoAbs, ...args], {
+    maxBuffer: 8 * 1024 * 1024,
+    encoding: 'utf8',
+    timeout: timeoutMs,
+  });
+  return stdout;
+}
+
+async function checkRepoFreshness(repoRel, repoRoot, ref, timeoutMs) {
+  const repoAbs = path.join(repoRoot, repoRel);
+  const parts = splitRef(ref);
+  const row = { repo: repoRel, ref, localSha: '', localDate: '', remoteSha: '', status: 'ok' };
+  let local;
+  try {
+    local = (await gitAsync(repoAbs, ['log', '-1', `--format=%H${SEP}%cI`, ref], timeoutMs)).trim();
+  } catch (err) {
+    row.status = 'ref-missing';
+    row.error = String((err && err.message) || err).split('\n')[0];
+    return row;
+  }
+  if (!local) {
+    row.status = 'ref-missing';
+    return row;
+  }
+  const [sha, date] = local.split(SEP);
+  row.localSha = sha;
+  row.localDate = date;
+  try {
+    const out = (await gitAsync(repoAbs, ['ls-remote', '--heads', parts.remote, parts.branch], timeoutMs)).trim();
+    row.remoteSha = out ? out.split('\t')[0].trim() : '';
+  } catch (err) {
+    row.status = 'unverified';
+    row.error = String((err && err.message) || err).split('\n')[0];
+    return row;
+  }
+  if (!row.remoteSha) {
+    row.status = 'unverified';
+    row.error = `远端 ${parts.remote} 未找到分支 ${parts.branch}`;
+  } else if (row.remoteSha !== row.localSha) {
+    row.status = 'stale';
+  }
+  return row;
+}
+
+async function checkFreshness(repos, repoRoot, ref, concurrency) {
+  const timeoutMs = 20000;
+  const rows = [];
+  for (let i = 0; i < repos.length; i += concurrency) {
+    const slice = repos.slice(i, i + concurrency);
+    rows.push(...await Promise.all(
+      slice.map((r) => checkRepoFreshness(r, repoRoot, ref, timeoutMs))));
+  }
+  return rows;
+}
+
+function summarizeFreshness(rows, allowStale) {
+  const by = (s) => rows.filter((r) => r.status === s);
+  const stale = by('stale');
+  const missing = by('ref-missing');
+  const unverified = by('unverified');
+  const blocking = [...stale, ...missing];
+  if (blocking.length > 0) {
+    const head = allowStale ? '[警告] 采集源落后于远端（--allow-stale 已放行）:' : '[错误] 采集源落后于远端，采集会漏提交，已中止:';
+    console.error(`${head} 共 ${blocking.length} 个仓库`);
+    for (const r of blocking) {
+      const why = r.status === 'stale'
+        ? `本地 ${r.localSha.slice(0, 8)}（${r.localDate}）≠ 远端 ${r.remoteSha.slice(0, 8)}`
+        : (r.error || '远程跟踪分支不存在');
+      console.error(`  - ${r.repo}: ${why}`);
+    }
+    if (!allowStale) {
+      console.error('请先执行: for d in <上述仓库>; do git -C "$d" fetch --all --prune; done');
+      console.error('（本脚本不代替 fetch；确认接受过期数据时加 --allow-stale 重试）');
+    }
+  }
+  if (unverified.length > 0) {
+    console.error(`[提示] ${unverified.length} 个仓库无法核对远端（离线或无凭证），按现有引用继续采集:`);
+    for (const r of unverified) console.error(`  - ${r.repo}: ${r.error}`);
+  }
+  return {
+    checkedAt: new Date().toISOString(),
+    allowStale: !!allowStale,
+    ok: by('ok').length,
+    stale: stale.map((r) => ({ repo: r.repo, localSha: r.localSha, localDate: r.localDate, remoteSha: r.remoteSha })),
+    refMissing: missing.map((r) => ({ repo: r.repo, error: r.error })),
+    unverified: unverified.map((r) => ({ repo: r.repo, error: r.error })),
+    tips: rows.map((r) => ({ repo: r.repo, sha: r.localSha, date: r.localDate, status: r.status })),
+  };
+}
+
 
 // ---------- 单仓库采集 ----------
 
@@ -277,6 +400,21 @@ async function main() {
   const repos = discoverRepos(repoRoot);
   const ref = config.ref || 'HEAD';
 
+  const freshnessCfg = config.freshness || {};
+  let freshness = null;
+  if (freshnessCfg.enabled !== false && splitRef(ref)) {
+    const concurrency = Number(freshnessCfg.concurrency) || 8;
+    console.error(`[预检] 比对 ${repos.length} 个仓库的 ${ref} 与远端 tip ...`);
+    const rows = await checkFreshness(repos, repoRoot, ref, concurrency);
+    freshness = summarizeFreshness(rows, opts.allowStale);
+    const blocking = freshness.stale.length + freshness.refMissing.length;
+    if (blocking > 0 && !opts.allowStale) {
+      throw new Error(`采集源未同步（${blocking} 个仓库落后或引用缺失），已中止采集`);
+    }
+  } else if (!splitRef(ref)) {
+    console.error(`[预检] 采集源为 ${ref}（非远程跟踪分支），跳过远端新鲜度比对`);
+  }
+
   const commits = [];
   const errors = [];
   let reposWithCommits = 0;
@@ -296,6 +434,7 @@ async function main() {
           authorRaw: { name: c.authorName, email: c.authorEmail },
           date: c.date,
           subject: c.subject,
+          unitId: extractUnitId(c.subject),
           files: c.files,
           fileCount: c.files.length,
           additions,
@@ -315,9 +454,13 @@ async function main() {
 
   const byPerson = {};
   const byRepo = {};
+  const units = {};
   for (const c of commits) {
     byPerson[c.author] = (byPerson[c.author] || 0) + 1;
     byRepo[c.repo] = (byRepo[c.repo] || 0) + 1;
+    if (c.unitId) {
+      (units[c.unitId] = units[c.unitId] || []).push(c.hash.slice(0, 8));
+    }
   }
 
   const output = {
@@ -328,6 +471,11 @@ async function main() {
       reposWithCommits,
       totalCommits: commits.length,
       sourceRef: ref,
+      sourceStale: freshness ? freshness.stale.length + freshness.refMissing.length > 0 : null,
+      freshness,
+      units: Object.entries(units)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([unitId, hashes]) => ({ unitId, commits: hashes.length, hashes })),
       byPerson,
       byRepo,
       excludeMerges: config.excludeMerges !== false
@@ -344,6 +492,7 @@ async function main() {
   console.log(`时间窗: ${win.since} ~ ${win.until}`);
   console.log(`扫描仓库: ${repos.length} 个（有名单内提交: ${reposWithCommits}）`);
   console.log(`提交总数: ${commits.length}（已排除 merge，仅限名单内 ${reporters.length} 人）`);
+  console.log(`变更单元: ${output.meta.units.length} 个带需求号（覆盖 ${output.meta.units.reduce((s, u) => s + u.commits, 0)} 条提交）`);
   for (const [person, count] of Object.entries(byPerson)) {
     console.log(`  ${person}: ${count}`);
   }
@@ -361,4 +510,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { pad2, toLocalYMD, toLocalISO, parseTimestamp, monthWindow, filterWindow, buildAuthorIndex, matchReporter, parseGitLog, parseArgs, discoverRepos };
+module.exports = { pad2, toLocalYMD, toLocalISO, parseTimestamp, monthWindow, filterWindow, buildAuthorIndex, matchReporter, parseGitLog, parseArgs, discoverRepos, extractUnitId, splitRef };

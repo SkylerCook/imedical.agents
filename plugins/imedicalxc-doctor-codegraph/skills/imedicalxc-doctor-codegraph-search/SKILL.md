@@ -231,11 +231,14 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 ```json
 {
   "meta": {"label": "...", "generatedAt": "...", "index": {"path": "...", "builtAt": "..."},
-           "stats": {"commits": 3, "methodsAnalyzed": 5, "withGraphEvidence": 2, "skippedFiles": 4},
+           "stats": {"commits": 3, "methodsAnalyzed": 5, "withGraphEvidence": 2, "skippedFiles": 4,
+                     "reverseProbeCommits": 1, "reverseProbeEntrypoints": 17},
+           "units": [{"unitId": "BOS7621028", "commits": 2, "hashes": ["a740bf0c...", "d6ddd2ad..."]}],
            "boundaries": ["..."]},
   "commits": [{
     "hash": "...", "shortHash": "...", "repo": "...", "author": "...", "date": "...", "subject": "...",
-    "indexFresh": true, "source": "graph|fallback", "confidence": "graph|partial|none",
+    "unitId": "BOS7621028|null",
+    "indexFresh": true, "source": "graph|fallback", "confidence": "graph|partial-reverse|partial|none",
     "methods": [{"classMethod": "Class.method", "file": "...", "changedLines": 12,
                  "entrypoints": 1, "workspaceCallers": 4, "externalCallers": 11, "downstream": 3337}],
     "entrypoints": [{"kind": "controller", "controller": "...", "service": "ipcare",
@@ -298,6 +301,16 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
                                        "depth": 4}]},
     "downstream": {"count": 3337, "aggregate": "workspace_reachable_methods",
                    "services": ["comoe", "..."]},
+    "reverseProbe": {
+      "constants": [{"file": ".../constant/oe/entryCM/OeEntryCMBindOrdConfigConstants.java",
+                     "class": "OeEntryCMBindOrdConfigConstants", "stCode": "oe.entryCM.bindOrd",
+                     "fields": ["CM_COOK_MODE_ADD_ORD_INSU_CHARGE_TYPE_ENABLE"], "consumers": 1}],
+      "consumers": [{"file": ".../OeOrdAppendItemCMAbstract.java",
+                     "method": "OeOrdAppendItemCMAbstract.getAppendOrdItemCMArr",
+                     "line": 233, "inGraph": true}],
+      "analyzedMethods": 1, "entrypoints": 17,
+      "unmatchedConsumers": [".../PisSpecStandardtypeItemVO.java"]
+    },
     "skippedFiles": [{"file": "...", "reason": "frontend|type_contract|public_layer|not_in_graph|no_method_change|resource|parse_failed|binary|repo_unavailable|commit_unavailable"}],
     "truncatedMethods": []
   }]
@@ -318,10 +331,12 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 - `entrypoints[].indirect=true` = 该入口不是直调契约，而是「页面 → 本地 Controller → BLH → Feign」间接链路的上游；`indirect` 且 `heuristic` 的入口是兜底候选，`commit-impact` 不会据此产出 `uiEntries`，不能当界面证据。外部 Maven 调用方入口是 `heuristic=false` 的真实 Controller 端点，可以交给 `commit-impact` 反查页面；反查不到页面时归入 `no-front-call`，它只说明前端链路没有可绑定到该 URL 的按钮/回调，不等于该组没有页面。外部服务的 Controller 不在 `controller_endpoints.json` 里，`commit-impact` 对 URL 命中但 backend 为空的链路用入口自带的类.方法补全（`uiEntries[].backend.source=entrypoint`）。
 - `contract.feignInterfaces` = 方法级入口对应的 Feign 契约与类型签名命中的 Feign 接口合集
 - `downstream.count` = 各改动方法可达工作区方法数的最大值（已按 `WORKSPACE_SERVICES` 过滤），仅作规模参考，不是并集、也不等于回归范围
-- `confidence`：`graph` 有方法级证据；`partial` 仅契约文件（DTO/VO/PO）命中；`none` 无可入图方法
+- `unitId` = 从提交 subject 提取的需求号（`BOSxxxx` / `【需求xxxx】` / `需求：xxxx`），同一需求号跨仓库的提交即同一评估单元；`meta.units` 只列跨提交单元。周报按单元合并评级与测试建议，但报告仍逐提交展示（兄弟证据在查询 8.1 的 `siblingUi` 里互通）
+- `reverseProbe` = 常量类反查（案例 53）：变更文件路径含 `/constant/` 且 `skippedFiles.reason` 为 `public_layer` / `not_in_graph` 时，解析本次变更的常量字段（含 `CommonConfigItemUtil<T>` 等泛型包装）、`ST_CODE` 与项名字面量，grep 工作区消费点，对消费方法跑影响分析，把入口并入 `entrypoints[]`（入口行带 `reverse=<消费方法>`）。`stCode` 供【联调】段定位「基础配置 > 系统标准配置」维护入口。`unmatchedConsumers` 是引用了常量但方法不在图内（如 VO 字段声明）的文件，属预期噪声
+- `confidence`：`graph` 有方法级证据；`partial-reverse` 仅靠常量反查（`reverseProbe`）补出入口；`partial` 仅契约文件（DTO/VO/PO）命中；`none` 无可入图方法且无反查结果
 - `via` 将聚合项回溯到 `methods[]`，保证结论可追溯
 
-> 不是所有改动都能入图：前端（hisfront）、DTO/VO/PO、public 基础设施不在图内；BLH 反射断链以同名覆写 + 启发式补链（`heuristic=true`）。消费方（周报）必须在结论中标注「无调用图证据」，不得把空结果解读为「无影响」。
+> 不是所有改动都能入图：前端（hisfront）、DTO/VO/PO、public 基础设施不在图内；BLH 反射断链以同名覆写 + 启发式补链（`heuristic=true`）。常量类例外：`reverseProbe` 会按消费点补出入口，报告应引用这些页面并注明「配置由 <消费方法所在功能> 读取」。消费方（周报）必须在结论中标注「无调用图证据」，不得把空结果解读为「无影响」。
 
 **从证据落到前端页面**（消费方写【必测】/【回归】/【联调】前执行）：
 
@@ -422,10 +437,19 @@ python query_front_back_chain.py commit-impact \
            "matchedEntrypoints": 309, "pages": 74, "pagesWithMenu": 25,
            "pagesWithParentMenu": 11, "pagesNoMenu": 38,
            "unmatchedEntrypoints": 607, "unmatchedUnique": 321,
+           "commitsAfterFrontIndex": 0, "commitsWithSiblingUi": 11,
            "unmatchedReasons": {"client-controller": 179, "cross-service-same-name": 5,
-                                "feign-interface-mapping": 4, "no-front-call": 419}}},
+                                "feign-interface-mapping": 4, "no-front-call": 419}},
+           "frontChainIndex": {"builtAt": "...", "coveredUntil": "2026-11-20T16:49:23+08:00",
+                               "checkoutStale": false,
+                               "source": {"repo": "src/frontend/hisfront",
+                                          "head": {"sha": "...", "date": "..."},
+                                          "originMaster": {"sha": "...", "date": "..."}},
+                               "commitsAfterIndex": 0, "commitsUndetermined": 0}},
   "commits": [{
-    "hash": "...", "shortHash": "...", "subject": "...", "entrypoints": 8,
+    "hash": "...", "shortHash": "...", "subject": "...", "date": "...",
+    "unitId": "BOS7621028|null", "entrypoints": 8,
+    "frontIndexFresh": true, "uiGapReason": "" ,
     "uiEntries": [{
       "page": "comoe/exam/html/doc.examapply.html", "pageTitle": "检查申请单集成界面", "module": "comoe",
       "source": "inline",
@@ -448,12 +472,25 @@ python query_front_back_chain.py commit-impact \
     }],
     "unmatchedEntrypoints": [{"controller": "...", "http": "...", "httpResolved": false,
                               "kind": "controller|feign",
-                              "reason": "client-controller|feign-interface-mapping|indirect-heuristic|cross-service-same-name|front-orphan|no-front-call"}]
+                              "reason": "client-controller|feign-interface-mapping|indirect-heuristic|cross-service-same-name|front-orphan|no-front-call"}],
+    "siblingUi": [{"hash": "...", "shortHash": "d6ddd2ad", "subject": "...", "repo": "...",
+                   "uiEntries": [{"page": "ipcare/oeord/html/doc.oeorder.cmlistcustom.html",
+                                  "pageTitle": "...", "element": "审核医嘱(S)", "source": "config_bar",
+                                  "confidence": "menu",
+                                  "menus": [{"name": "医嘱录入", "parentPath": "...", "mode": "..."}],
+                                  "parentPages": []}]}]
   }]
 }
 ```
 
 `jsPath[]` 的命名口径：普通函数 `name` 为源码中的方法名；扫描器合成的匿名 handler / 页面顶层代码没有源码同名函数，此时 `name` 为空、`kind` 为 `handler` 或 `top_level`，只保留真实文件与行号。展示时用「匿名事件处理」「页面顶层代码」，不得把 `__handler_N` / `__top_level__` 当作 JS 方法名写进报告。`kind="callback"` 表示这一步经回调实参推进（如 `ShowChangeCookType(win, DoExchange, prescNo)` 后的 `DoExchange`），方法名是真实函数，照常展示。
+
+链路覆盖与兄弟证据（链路探索缺陷 2b/2c 的整改口径）：
+
+- `meta.frontChainIndex` 记录链路库扫的是哪一份前端代码（`builtAt` / `source.head` / `coveredUntil` / `checkoutStale`），构建时 `html_scan` / `js_scan` / `build_front_chain_db` 三者都会打印同一指纹；`front_scan_stats.json` 里同名平铺字段（`source_head` / `source_head_date` / `source_checkout_stale`）便于核对。
+- `commits[].frontIndexFresh=false` 表示提交晚于链路库扫描的检出，`uiGapReason=index-stale`；`meta.stats.commitsAfterFrontIndex > 0` 或 `source=null`（旧库）时脚本会向 stderr 报警——此时**不得**把 `uiEntries` 为空写成「无页面入口证据」，应先 fetch 前端并重建链路库。
+- `siblingUi` 只在 `uiEntries` 为空且提交有 `unitId`（同需求号）时出现，内容是同需求号兄弟提交的页面摘要（页面 / 标题 / 元素 / 菜单 / 父页面）；此时 `uiGapReason=sibling-only`。周报可据此写「同需求变更影响页面」并注明来自兄弟提交；兄弟证据不能改写本提交自己的入口命中数。
+- 常量反查入口（`entrypoints[].reverse`）与普通入口一样参与页面反查；它证明「配置项被哪个功能读取」，不证明常量本身被页面直接引用。
 
 `access.confidence` 的消费口径：
 
@@ -476,6 +513,7 @@ python query_front_back_chain.py commit-impact \
 - `code-impact` 的入口可能只有「控制器 + 方法」没有 `http`（映射声明在父类 / 接口或注解未被调用图采集）。此时按端点索引的 `控制器短名 + 方法` 补全 URL 再匹配，命中的条目 `entrypoint.httpResolved=true`；仍无命中则照常列入 `unmatchedEntrypoints`。
 - 实测（2026-11-pentest4 窗口 2026-11-02~11-09，2026-11-10 复跑）：157 个提交、1,907 个入口，命中前端 557 个，得到 122 个页面；菜单登记 66 个、父页面可达 22 个、34 个无菜单登记；1,317 个未命中入口（唯一 controller+http 561）按原因分为 ClientController 450 / 跨服务同名 18 / Feign 接口映射 4 / 未装载脚本 24 / 页面未调用 821。登记表只覆盖真实存在的 HTML 页面，多数业务子页面通过弹窗 / 内嵌承载，属于预期口径，不是脚本漏匹配。
 - 间接链路（`indirect=true`）只有在 Feign 调用方上溯到真实入口（`depth>=0`）时才产出界面证据；`indirect+heuristic`（`depth=-1` 的同名兜底候选）会命中大量无关必填下拉/配置页，`commit-impact` 直接丢弃这些命中，只保留在 `entrypoints` 里供复核。
+- 外部系统页面（如 msup 药房 `msup/herb/*`）经服务总线调用 `*ClientController`，静态前端链路库只能证明「ClientController 未出现在任何页面请求里」（`client-controller`），不能反证药房页面不存在。这类交叉系统的页面证据查服务总线绑定索引（aggregation）或运行期日志，不在本查询范围内。
 
 ## 数据格式
 

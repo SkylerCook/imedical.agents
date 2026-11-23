@@ -95,7 +95,7 @@ function determineModule(ev, mapping) {
   return '（待确认）';
 }
 
-function buildImpactRows(evaluations, rawCommits, mapping) {
+function buildImpactRows(evaluations, rawCommits, mapping, wsByHash) {
   if (!evaluations || evaluations.length === 0) return [];
   const filesByHash = {};
   if (rawCommits) {
@@ -105,11 +105,14 @@ function buildImpactRows(evaluations, rawCommits, mapping) {
   }
   const rows = evaluations.map((ev) => {
     const system = REPO_TO_SYSTEM[ev.repo] || '（未分类）';
-    const workstation = determineWorkstation(ev.repo, system, ev);
+    // 工作站以分类产物为准（与报告同口径）；仓库映射只在分类缺失时兜底
+    const classified = wsByHash ? wsByHash[ev.hash] : '';
+    const workstation = classified || determineWorkstation(ev.repo, system, ev);
     const funcModule = determineModule(ev, mapping);
     const funcPoint = ev.funcPoint || ev.impactScope || ev.subject || '（待分析）';
     return {
       workstation,
+      workstationSource: classified ? 'classification' : 'repo-map',
       funcModule,
       funcPoint,
       impactRating: Number(ev.impactRating) || 0,
@@ -491,7 +494,7 @@ function main() {
   const argv = process.argv.slice(2);
   const input = argv.find((a) => !a.startsWith('--'));
   if (!input) {
-    console.error('Usage: node build-db-email.js <db-changes-<label>.json> [--note=<更正说明>] [--subject-suffix=<标题后缀>] [--evaluations=<evaluations-<label>.json>] [--raw-commits=<raw-commits-<label>.json>]');
+    console.error('Usage: node build-db-email.js <db-changes-<label>.json> [--note=<更正说明>] [--subject-suffix=<标题后缀>] [--evaluations=<evaluations-<label>.json>] [--raw-commits=<raw-commits-<label>.json>] [--classification=<classification-<label>.json>]');
     process.exit(1);
   }
   const opt = (name) => {
@@ -504,6 +507,9 @@ function main() {
   // 加载影响表数据
   const evalPath = opt('evaluations');
   const rawCommitsPath = opt('raw-commits');
+  const label = (path.basename(input).match(/^db-changes-(.+)\.json$/) || [])[1] || '';
+  const clsPath = opt('classification')
+    || path.join(path.dirname(input), `classification-${label}.json`);
   let impactRows = [];
   if (evalPath && fs.existsSync(evalPath)) {
     const evalsRaw = JSON.parse(fs.readFileSync(evalPath, 'utf8'));
@@ -513,7 +519,20 @@ function main() {
       const rawRaw = JSON.parse(fs.readFileSync(rawCommitsPath, 'utf8'));
       rawCommits = rawRaw.commits || (Array.isArray(rawRaw) ? rawRaw : []);
     }
-    impactRows = buildImpactRows(evalList, rawCommits, {});
+    const wsByHash = {};
+    if (fs.existsSync(clsPath)) {
+      const cls = JSON.parse(fs.readFileSync(clsPath, 'utf8'));
+      for (const c of cls.commits || cls.classification || (Array.isArray(cls) ? cls : [])) {
+        if (c.hash && c.workstation) wsByHash[c.hash] = c.workstation;
+      }
+    } else {
+      console.warn(`[提示] 未找到分类产物 ${clsPath}，工作站按仓库映射兜底`);
+    }
+    impactRows = buildImpactRows(evalList, rawCommits, {}, wsByHash);
+    const fallback = impactRows.filter((r) => r.workstationSource === 'repo-map').length;
+    if (fallback > 0) {
+      console.warn(`[提示] ${fallback}/${impactRows.length} 条评估在分类产物中无工作站，已按仓库映射兜底`);
+    }
     opts.impactRows = impactRows;
     opts.impactRatingStage = !Array.isArray(evalsRaw) && evalsRaw.impactRatingStage ? String(evalsRaw.impactRatingStage) : null;
   }

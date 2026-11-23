@@ -150,6 +150,110 @@ def load_front_db():
     return json.loads(FRONT_DB_FILE.read_text(encoding="utf-8"))
 
 
+def _ts(value):
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError):
+        return None
+
+
+def front_index_summary(db):
+    """链路库扫的是哪一份前端代码。旧库没有 meta.source，返回 None 让调用方降级。"""
+    meta = db.get("meta") or {}
+    src = meta.get("source") or {}
+    if not src:
+        return {"builtAt": meta.get("generated_at") or "", "source": None,
+                "checkoutStale": False, "coveredUntil": ""}
+    head = src.get("head") or {}
+    return {
+        "builtAt": meta.get("generated_at") or "",
+        "source": src,
+        "checkoutStale": bool(src.get("checkoutStale")),
+        "coveredUntil": head.get("date") or "",
+    }
+
+
+def front_index_fresh(summary, commit_date):
+    """提交是否落在链路库已扫描的代码范围内；None 表示无法判定（旧库/日期缺失）。"""
+    covered = _ts(summary.get("coveredUntil"))
+    commit = _ts(commit_date)
+    if covered is None or commit is None:
+        return None
+    return commit <= covered
+
+
+# 需求号归并（与 collect-commits.js / query_commit_impact.py 同一口径）：
+# 同一需求号的兄弟提交共享业务链路，单条提交自身 0 页面时以兄弟证据补位，
+# 但不能改写该提交自己的入口命中数，避免虚报
+_UNIT_PATTERNS = (
+    ("BOS", re.compile(r"\bBOS\s*(\d{6,})", re.I)),
+    ("REQ", re.compile(r"【\s*需求\s*[:：]?\s*(\d{6,})\s*】")),
+    ("REQ", re.compile(r"需求\s*[:：]\s*(\d{6,})")),
+)
+
+
+def unit_id_of(commit):
+    value = (commit.get("unitId") or "").strip()
+    if value:
+        return value
+    for kind, pattern in _UNIT_PATTERNS:
+        m = pattern.search(commit.get("subject") or "")
+        if m:
+            return f"{kind}{m.group(1)}"
+    return ""
+
+
+def _ui_digest(entry, limit):
+    """把兄弟提交的界面证据压成评估可引用的摘要（页面 + 菜单 + 触发元素）。"""
+    access = entry.get("access") or {}
+    menus = access.get("menus") or []
+    parents = access.get("parents") or []
+    element = entry.get("element") or {}
+    return {
+        "page": entry.get("page") or "",
+        "pageTitle": entry.get("pageTitle") or "",
+        "element": element.get("label") or element.get("id") or "",
+        "source": entry.get("source") or "",
+        "confidence": access.get("confidence") or "",
+        "menus": [
+            {"name": m.get("name") or "", "parentPath": m.get("parentPath") or "",
+             "mode": m.get("mode") or ""}
+            for m in menus[:limit]
+        ],
+        "parentPages": [p.get("page") or "" for p in parents[:limit]],
+    }
+
+
+def attach_sibling_ui(commits):
+    """按需求号把有界面证据的兄弟提交摘要挂到 0 界面提交的 siblingUi 上。"""
+    members = defaultdict(list)
+    for item in commits:
+        if item.get("unitId"):
+            members[item["unitId"]].append(item)
+    attached = 0
+    for item in commits:
+        group = members.get(item.get("unitId") or "") or []
+        if item.get("uiEntries") or len(group) < 2:
+            continue
+        siblings = []
+        for other in group:
+            if other is item or not other.get("uiEntries"):
+                continue
+            siblings.append({
+                "hash": other.get("hash") or "",
+                "shortHash": other.get("shortHash") or "",
+                "subject": other.get("subject") or "",
+                "repo": other.get("repo") or "",
+                "uiEntries": [_ui_digest(e, 2) for e in other["uiEntries"][:3]],
+            })
+        if not siblings:
+            continue
+        item["siblingUi"] = siblings
+        item["uiGapReason"] = "sibling-only"
+        attached += 1
+    return attached
+
+
 def request_paths(req):
     """一条请求可能对应多个 URL 变体（运行时分支二选一），旧库只有 url_path。"""
     paths = [p for p in (req.get("url_paths") or []) if p]
@@ -557,6 +661,7 @@ def cmd_commit_impact(records, index, db, args):
     loose_index = build_loose_index(records)
     orphan_keys = set(db.get("orphan_request_keys") or ())
     method_index = build_method_index(index.get("endpoints") or {})
+    front_cov = front_index_summary(db)
 
     out_commits = []
     totals = {"commits": 0, "commitsWithUi": 0, "entrypoints": 0,
@@ -693,15 +798,22 @@ def cmd_commit_impact(records, index, db, args):
         if ui:
             totals["commitsWithUi"] += 1
         totals["matchedEntrypoints"] += len(matched)
+        fresh = front_index_fresh(front_cov, commit.get("date"))
         out_commits.append({
             "hash": commit.get("hash") or "",
             "shortHash": commit.get("shortHash") or "",
             "repo": commit.get("repo") or "",
             "subject": commit.get("subject") or "",
+            "date": commit.get("date") or "",
+            "unitId": unit_id_of(commit),
+            "frontIndexFresh": fresh,
+            "uiGapReason": "" if ui else ("index-stale" if fresh is False else ""),
             "entrypoints": len(entrypoints),
             "uiEntries": ui,
             "unmatchedEntrypoints": unmatched,
         })
+
+    sibling_attached = attach_sibling_ui(out_commits)
 
     output = {
         "meta": {
@@ -710,6 +822,11 @@ def cmd_commit_impact(records, index, db, args):
             "source": str(impact_path),
             "registry": str(args.registry),
             "frontChainDb": str(FRONT_DB_FILE),
+            "frontChainIndex": {
+                **front_cov,
+                "commitsAfterIndex": sum(1 for c in out_commits if c.get("frontIndexFresh") is False),
+                "commitsUndetermined": sum(1 for c in out_commits if c.get("frontIndexFresh") is None),
+            },
             "endpointIndex": str(ENDPOINT_FILE),
             "endpointMeta": index.get("meta") or {},
             "stats": {
@@ -724,6 +841,9 @@ def cmd_commit_impact(records, index, db, args):
                 "unmatchedEntrypoints": totals["unmatchedEntrypoints"],
                 "unmatchedUnique": len(unmatched_keys),
                 "unmatchedReasons": dict(sorted(totals["unmatchedReasons"].items())),
+                "commitsAfterFrontIndex": sum(
+                    1 for c in out_commits if c.get("frontIndexFresh") is False),
+                "commitsWithSiblingUi": sibling_attached,
             },
         },
         "commits": out_commits,
@@ -741,6 +861,19 @@ def cmd_commit_impact(records, index, db, args):
     reasons = " / ".join(f"{k} {v}" for k, v in stats["unmatchedReasons"].items())
     print(f"  未命中 {stats['unmatchedEntrypoints']}（唯一 controller+http "
           f"{stats['unmatchedUnique']}）：{reasons or '无'}")
+    if sibling_attached:
+        print(f"  兄弟证据补位 {sibling_attached} 个提交（同需求号其它提交有页面证据）")
+    stale = stats["commitsAfterFrontIndex"]
+    if front_cov.get("source") is None:
+        print("[警告] 前端链路库未记录来源指纹（旧版索引），无法判断是否覆盖本期提交；"
+              "请按 front-gen 的 fetch 前置流程重建", file=sys.stderr)
+    elif stale:
+        head = (front_cov.get("source") or {}).get("head") or {}
+        print(f"[警告] {stale} 个提交晚于链路库扫描的检出 "
+              f"{head.get('sha', '')[:8]}（{front_cov.get('coveredUntil')}）："
+              f"这些提交的界面证据可能缺失（uiGapReason=index-stale），"
+              f"需 fetch 前端并重建 html_scan → js_scan → build_front_chain_db",
+              file=sys.stderr)
 
 
 def _external_url_key(controller_id):

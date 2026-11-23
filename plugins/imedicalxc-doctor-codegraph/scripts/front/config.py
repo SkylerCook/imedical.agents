@@ -1,6 +1,8 @@
 """前端界面-操作-JS 方法-HTTP 请求链路索引配置。"""
 import json
 import re
+import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
 # front/config.py → front → scripts → 插件目录 → plugins → .agents → 工作区根
@@ -8,6 +10,8 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[5]
 
 FRONT_ROOT = WORKSPACE_ROOT / "src" / "frontend" / "hisfront" / "static"
 FRONT_ROOT_REL = "src/frontend/hisfront/static"
+FRONT_REPO = WORKSPACE_ROOT / "src" / "frontend" / "hisfront"
+FRONT_REPO_REL = "src/frontend/hisfront"
 
 # 第三方/构建产物目录，不参与链路抽取
 SKIP_DIR_NAMES = {
@@ -92,6 +96,59 @@ def to_workspace_relative(path) -> str:
 
 def module_of(rel_path: str) -> str:
     return rel_path.split("/", 1)[0] if "/" in rel_path else ""
+
+
+# ── 索引来源指纹（链路探索缺陷 2c：索引静默扫描过期前端检出） ─────
+# 2026-11-W4 的「前端影响 0 命中」不是解析错，而是 hisfront 本地检出停在
+# 10-26，窗口内 24 条前端提交根本没有被扫进去。链路库必须记录它扫的是哪
+# 一份代码，查询侧再与提交日期比对，过期就告警而不是静默返回空结果。
+
+def _git_out(args, cwd=None, timeout=20):
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(cwd or FRONT_REPO), *args],
+            capture_output=True, text=True, encoding="utf-8", timeout=timeout,
+        )
+        return proc.stdout.strip() if proc.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _ref_tip(ref):
+    out = _git_out(["log", "-1", "--format=%H%x1f%cI", ref])
+    sha, _, date = out.partition("\x1f")
+    return {"sha": sha, "date": date} if sha else None
+
+
+def source_fingerprint():
+    """记录构建索引时的前端仓库检出位置；fetch 之后须重建索引。"""
+    head = _ref_tip("HEAD")
+    origin = _ref_tip("origin/master")
+    return {
+        "repo": FRONT_REPO_REL,
+        "head": head,
+        "originMaster": origin,
+        "checkoutStale": bool(head and origin and head["sha"] != origin["sha"]),
+        "capturedAt": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+    }
+
+
+def warn_if_stale(tag="[前置检查]"):
+    fp = source_fingerprint()
+    head, origin = fp["head"], fp["originMaster"]
+    if not head:
+        print(f"{tag} 无法读取 {FRONT_REPO_REL} 的 HEAD，索引来源未知", flush=True)
+    elif fp["checkoutStale"]:
+        print(
+            f"{tag} [警告] {FRONT_REPO_REL} 检出 {head['sha'][:8]}（{head['date']}）"
+            f" ≠ 本地 origin/master {origin['sha'][:8]}（{origin['date']}）\n"
+            f"{tag} 索引会缺该窗口内的前端改动：先 git -C {FRONT_REPO_REL} fetch，"
+            f"核对 origin/master 与远端一致后再重建（git ls-remote 校验）",
+            flush=True,
+        )
+    elif origin and head["sha"] == origin["sha"]:
+        print(f"{tag} 前端检出与本地 origin/master 一致：{head['sha'][:8]}（{head['date']}）", flush=True)
+    return fp
 
 
 # ── 工具类（非业务）JS 识别规则 ─────────────────────────────────

@@ -20,6 +20,10 @@
   ],
   "window": { "mode": "months", "value": 1 },
   "ref": "origin/master",
+  "freshness": {
+    "enabled": true,
+    "concurrency": 8
+  },
   "excludeMerges": true,
   "outputDir": "docs/agents/commit-reports",
   "codegraph": {

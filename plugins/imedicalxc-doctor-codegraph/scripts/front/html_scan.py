@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from config import (
     ELEMENTS_FILE, HTML_EXTS, MAX_HTML_FILE_MB, OUTPUT_DIR, PAGES_FILE, PREFIX_VARS,
     is_probably_minified, iter_front_files, module_of, normalize_router,
-    read_text, to_front_relative,
+    read_text, to_front_relative, warn_if_stale,
 )
 
 _EVENTS = {
@@ -342,6 +342,7 @@ def _write_jsonl(path, records):
 
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    warn_if_stale("[html_scan]")
     files = [(str(p), rel) for p, rel in iter_front_files(HTML_EXTS)]
     print(f"扫描 {len(files)} 个 HTML 页面...")
     results = []

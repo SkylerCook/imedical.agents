@@ -39,6 +39,24 @@ cd .agents/plugins/imedicalxc-doctor-codegraph/scripts/front
 python -c "from config import OUTPUT_DIR, FRONT_ROOT; print('前端根:', FRONT_ROOT); print('输出:', OUTPUT_DIR)"
 ```
 
+## 前置：源码新鲜度
+
+构建前先确认前端工作区已是最新，否则整库会把「已修复的页面问题」重新固化进索引：
+
+```bash
+git -C src/frontend/hisfront fetch origin master
+git -C src/frontend/hisfront log -1 --format='%h %cI' HEAD
+git -C src/frontend/hisfront log -1 --format='%h %cI' origin/master
+```
+
+脚本**不自动 fetch**（只读边界），只在构建期比对 `HEAD` 与本地 `origin/master` 引用并打印警告：
+
+- `html_scan.py` / `js_scan.py` 启动时各做一次前置检查（`[html_scan]` / `[js_scan]` 标签）。
+- `build_front_chain_db.py` 构建时再查一次（`[构建]` 标签），并把源指纹写入 `front_chain_db.json` 的 `meta.source`：`repo`、`head{sha,date}`、`originMaster{sha,date}`、`checkoutStale`、`capturedAt`。
+- `front_scan_stats.json` 同时落扁平字段 `source_head` / `source_head_date` / `source_origin_master` / `source_origin_master_date` / `source_checkout_stale`，查询侧据此判断某提交是否晚于索引覆盖点。
+
+看到「落后 origin/master」警告时先 fetch + 更新工作区再重建；确认只能用旧代码索引时才带说明继续。
+
 ## 初始化：全量构建
 
 ```bash
@@ -106,6 +124,8 @@ find src/frontend/hisfront/static -name '*.html' -o -name '*.js' \
 find src/frontend/hisfront/static \( -name '*.html' -o -name '*.js' \) \
   -newer docs/agents/imedicalxc-doctor-front-codegraph/front_chain_db.json -print -quit
 ```
+
+mtime 比对只覆盖本地改动；提交级新鲜度以库内源指纹为准：`front_chain_db.json` 的 `meta.source.head.date` 即索引覆盖到的最后提交时间（`coveredUntil`），查询侧用它判断哪些提交未进索引（`frontIndexFresh=false` → `uiGapReason=index-stale`），此时不得把「查不到页面入口」当成「没有页面入口」。
 
 ## 输出文件总览
 

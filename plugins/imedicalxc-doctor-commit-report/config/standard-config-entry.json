@@ -1,0 +1,15 @@
+{
+  "purpose": "配置类提交（code-impact 的 reverseProbe.constants 非空）在【联调】段给出维护入口；stCode 未登记具体模块时按 rule 描述",
+  "environment": "信创标准环境",
+  "page": "bsp/prdlinemodule/html/standard.type.mgr.html",
+  "menu": "基础配置 > 系统标准配置",
+  "known": {
+    "oe.entryCM.bindOrd": {
+      "module": "医嘱录入 > 附加医嘱绑定",
+      "itemName": "CmCookModeAddOrdInsuChargeTypeEnable",
+      "note": "草药附加医嘱是否按医保可用费别回填费别；未取到可用费别时沿用处方费别"
+    }
+  },
+  "rule": "stCode 形如 <业务域>.<子域>.<配置组>：在系统标准配置左侧模块树按业务域展开，再用配置项名称（itemName）检索定位",
+  "fallback": "系统标准配置左侧模块树按业务域展开，按配置项名称检索"
+}

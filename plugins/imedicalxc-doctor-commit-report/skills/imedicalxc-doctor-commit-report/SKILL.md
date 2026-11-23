@@ -57,7 +57,9 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js 
 node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js --since <上一期 until> --until <当前时间-ISO> --label <YYYY-MM-W<N>>
 ```
 
-产出 `<outputDir>/<label>/raw-commits-<label>.json`，每条提交含 repo / hash / author（映射后中文名）/ authorRaw / date / subject / files / additions / deletions。检查 `meta.errors`：非空时先向用户报告错误仓库（错误不阻断整体），再继续。
+产出 `<outputDir>/<label>/raw-commits-<label>.json`，每条提交含 repo / hash / author（映射后中文名）/ authorRaw / date / subject / files / additions / deletions，另带 `unitId`（需求号归并键，见步骤 ③）。检查 `meta.errors`：非空时先向用户报告错误仓库（错误不阻断整体），再继续。
+
+**新鲜度 preflight**（采集即校验）：脚本启动时对每个仓库比较采集 `ref` 的 tip 与本地远程跟踪引用，`meta.freshness` 逐仓库记录 `ref` / `sha` / `date` / `daysBehind` / `stale`，`meta.sourceStale` 汇总是否整体落后。存在落后仓库时**中止采集**并列出仓库名与落后天数——采集读的是本地 `origin/<ref>` 引用，长期未 fetch 会静默漏提交（W4 前端漏 24 条就是本地引用停在 10-26）。脚本不自动 fetch（只读边界），按提示对报出的仓库执行 `git fetch` 并更新工作区后重跑；确认只能用旧数据时才加 `--allow-stale`，并在报告中写明数据截止点。
 
 > 提交人邮箱属个人信息，不入库；需邮箱匹配时从环境变量 `COMMIT_REPORT_REPORTER_EMAILS`（JSON：`{"姓名":["邮箱",...]}`）补充。缺失时脚本打印维护位置提示，仅按姓名/别名匹配（不阻断）。
 
@@ -173,6 +175,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 - 后端前置数据：`docs/agents/imedicalxc-doctor-codegraph/impact_db.json` + `penetration_db.json` + `feign_interfaces.json`
 - 前端前置数据：`docs/agents/imedicalxc-doctor-front-codegraph/front_chain_db.json` + 前端入口登记表
 - 后端索引缺失时先执行 `imedicalxc-doctor-codegraph-gen`；前端链路库缺失时先执行 `imedicalxc-doctor-codegraph-front-gen`
+- **前端链路库新鲜度**：界面证据只在「提交时间 ≤ 索引覆盖时间」时成立。维护前端仓库（`src/frontend/hisfront`）后必须 `git fetch origin master` + 按 front-gen 全量重建，再跑本步骤；判断覆盖点读输出 `meta.frontChainIndex`（`builtAt` / `coveredUntil` / `checkoutStale` / `source`）。提交晚于 `coveredUntil` 时该条 `frontIndexFresh=false`、`uiGapReason=index-stale`（索引是旧版前端建的），此时**不得**把 `uiEntries` 为空写成「无页面入口证据」，应写「页面证据落后于索引覆盖点（索引重建于 …），需重建后复核」；`source` 为 `null` 说明链路库是旧版脚本产物（无源指纹），一律按不可判定处理
 - 仍缺失 → 告警并跳过对应命令，步骤 ④ 统一写「无调用图证据（索引缺失）」或「无界面证据（链路库缺失）」，**不阻断**
 
 **证据结构**（提交级聚合，方法级明细并列；一个提交改多个方法不会拆成多份结论）：
@@ -180,15 +183,18 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 | 字段 | 含义 |
 |---|---|
 | `commits[].methods[]` | 改动方法定位：`classMethod` / `file` / `changedLines` |
-| `commits[].entrypoints[]` | 入口端点：`controller` / `service` / `feign` / `http` / `depth` / `heuristic` / `via`；契约类型经 Feign 调用方上溯得到的入口另带 `indirect=true`（`via` 含 `feign:<接口>.<方法>`）。Maven 外部调用方中 `rootType=controller` 的调用方 Controller 也会带 `indirect=true` 并入入口（药房、护理、医保等非工作区服务由此进入前端反查），`via` 同时保留改动方法与 Feign 标签；`rootType=method` 的方法根没有 URL 不并入 |
+| `commits[].entrypoints[]` | 入口端点：`controller` / `service` / `feign` / `http` / `depth` / `heuristic` / `via`；契约类型经 Feign 调用方上溯得到的入口另带 `indirect=true`（`via` 含 `feign:<接口>.<方法>`）。常量反查补出的入口另带 `reverse=<消费方法>`。Maven 外部调用方中 `rootType=controller` 的调用方 Controller 也会带 `indirect=true` 并入入口（药房、护理、医保等非工作区服务由此进入前端反查），`via` 同时保留改动方法与 Feign 标签；`rootType=method` 的方法根没有 URL 不并入 |
 | `commits[].workspaceCallers[]` | 工作区经 Feign 的调用方：`service` / `module` / `caller` / `sameService` / `via` |
 | `commits[].externalCallers[]` | Maven 外部调用方：`service` / `module` / `caller` / `controller` / `path` / `via` |
 | `commits[].downstreamFeigns[]` | 本方法跨出的 Feign 调用：`feign` / `method` / `caller` / `via` |
 | `commits[].contract` | `feignInterfaces`（方法级入口 + 类型签名命中的 Feign 接口）+ `typeFiles`（DTO/VO/PO 契约文件）+ `typeFeignMatches`（类型 → Feign 方法签名明细：`type` / `typeFqn` / `feign` / `method` / `http` / `usage` / `service` / `file`）+ `typeFeignCallers`（Feign 契约方法 → 工作区调用方方法：`caller` / `service` / `types` / `feigns` / `entrypoints`）+ `typeControllerMatches`（类型 → Controller 方法签名明细：`type` / `typeFqn` / `controller` / `controllerFqn` / `method` / `http` / `usage` / `file`；字段嵌套命中的行另有 `matchFqn` / `nestedVia`） |
+| `commits[].reverseProbe` | 常量类反查（`skippedFiles` 路径含 `/constant/` 且未入图时触发）：`constants[]`（`file` / `class` / `stCode` / `fields[]` / `items{}`——字段→配置项名字面量）、`consumers[]`（`file` / `method` / `line` / `inGraph`）、`analyzedMethods` / `entrypoints` / `unmatchedConsumers[]`。消费方法已跑调用图上溯，入口并入 `entrypoints` 并带 `reverse=<消费方法>`，与直接入口同一口径用于前端衔接 |
+| `commits[].unitId` | 需求号归并键：subject 匹配 `BOS\s*(\d{6,})` → `BOS<数字>`；`【需求:?\s*(\d{6,})】` / `需求[:：]\s*(\d{6,})` → `REQ<数字>`；无需求号为空。`meta.units` 列出窗口内同需求号的多提交单元（`unitId` / `commits` / `hashes`），供兄弟证据互通 |
 | `commits[].downstream` | `count` / `services`：入口可达工作区方法数，**仅作规模参考，不等于回归范围** |
 | `commits[].skippedFiles[]` | 未入图原因：frontend / type_contract / public_layer / not_in_graph / no_method_change / resource / parse_failed / binary / repo_unavailable / commit_unavailable |
-| `commits[].confidence` | `graph`（有方法级证据）/ `partial`（仅契约文件）/ `none` |
+| `commits[].confidence` | `graph`（有方法级证据）/ `partial-reverse`（仅常量反查补出入口）/ `partial`（仅契约文件）/ `none` |
 | `commits[].indexFresh` | 索引构建时间是否晚于提交时间 |
+| `meta.stats` | 除方法/入口计数外含 `reverseProbeCommits` / `reverseProbeEntrypoints` |
 
 `front-chains-<label>.json` 的界面证据（与 `code-impact` 按 hash 对齐）：
 
@@ -197,11 +203,22 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 | `commits[].uiEntries[]` | 界面证据：`page`（HTML 路径）/ `pageTitle` / `module` / `source`（inline / js_binding / config_bar / page_load 等）/ `element`（id / label / event）/ `request`（method / paths）/ `backend`（controller / method / path / file / line；`source` = `endpoint-index` 表示工作区端点索引解析，`entrypoint` 表示外部服务不在索引内、用入口自带的类.方法补全）/ `jsPath`（name / kind / file / line；`name` 为空表示匿名 handler 或页面顶层代码，`kind` 为 handler / top_level / callback；`callback` 表示该步是把函数当实参传出后继续推进） |
 | `commits[].uiEntries[].access` | 菜单访问位置：`confidence` = `menu` / `parent` / `none`；`via` = `html`（直接登记，且页面 HTML 真实存在）；`menus[]` = name / parentPath / mode / groups；`parents[]` = page / type（弹出 / 跳转 / 内嵌 / 包含）/ linkSource（element / page_load）/ element / elementLabel / elementEvent / elementSource / opener / via / menus。`.csp` 菜单行不参与归并 |
 | `commits[].unmatchedEntrypoints[]` | 没有前端链路的入口，`reason` 互斥：`client-controller`（服务间门面）/ `feign-interface-mapping`（映射在 Feign 接口，`http` 为空）/ `cross-service-same-name`（前端同名但有效服务不同）/ `no-front-call`（页面未调用） |
-| `meta.stats` | commits / commitsWithUi / entrypoints / matchedEntrypoints / pages / pagesWithMenu / pagesWithParentMenu / pagesNoMenu / unmatchedEntrypoints / unmatchedUnique / unmatchedReasons |
+| `commits[].date` / `unitId` | 提交时间与需求号归并键（口径同 `code-impact`） |
+| `commits[].frontIndexFresh` | 提交时间是否 ≤ 前端链路库覆盖点（`meta.frontChainIndex.coveredUntil`）：`true` / `false` / `null`（索引无源指纹，不可判定） |
+| `commits[].uiGapReason` | `uiEntries` 为空时的归因：`index-stale`（提交晚于索引覆盖点，页面证据不可信）/ `sibling-only`（本提交无页面，证据来自同需求号兄弟提交，即 `siblingUi`）/ 空串（真的没有页面调用） |
+| `commits[].siblingUi[]` | 兄弟证据（本提交 `uiEntries` 为空且存在同 `unitId` 的其他提交时注入）：`hash` / `page` / `pageTitle` / `element` / `source` / `confidence` / `menus[]` / `parentPages[]`，口径同 `uiEntries` 摘要 |
+| `meta.frontChainIndex` | 索引覆盖信息：`builtAt` / `coveredUntil` / `checkoutStale` / `source`（无源指纹时为 `null`）/ `commitsAfterIndex` / `commitsUndetermined` |
+| `meta.stats` | commits / commitsWithUi / entrypoints / matchedEntrypoints / pages / pagesWithMenu / pagesWithParentMenu / pagesNoMenu / unmatchedEntrypoints / unmatchedUnique / unmatchedReasons / `commitsAfterFrontIndex` / `commitsWithSiblingUi` |
 
 **取证边界**（写进评估结论，不得越界解读）：调用图只覆盖 Java 方法级静态调用；DTO/VO/PO、前端、public 基础设施不在图内；BLH 反射断链以同名覆写与启发式补链（`heuristic=true` 必须标注）；Maven 侧只保留直调医生站 Feign 的服务，未命中不等于无交互。`contract.typeFeignMatches` 按类型**全限定名**扫描 Feign 方法签名的 `return_type` / `parameters`（Feign 接口侧解析源码 package / 显式 import / 通配 import，`typeFqn` 记录实际命中类型），跨模块同名 DTO 不会串号；签名里没有的类型再按 `type_nesting.json` 沿字段组合向上展开（最多 4 层），命中明细带 `matchFqn` / `nestedVia`，写报告时必须说明是字段嵌套命中而非直接签名命中（例：综合诊疗 `FeignDiagnoseVO` 经 `FeignEncounterVO` → `FeignOrderLisReturnVO` → `FeignIBUSLisBaseReturnVO` 命中 `AggcareLisInfoClient`）。局部变量、方法体内临时类型仍不在范围内。`contract.typeFeignCallers` 再把命中的 Feign 方法沿工作区调用边上溯到入口（`indirect=true`），补出「页面 → 本地 Controller → BLH → Feign」的间接链路；这类入口只在该上溯非启发式（`depth>=0`）时才作为界面证据，`indirect+heuristic`（`depth=-1` 的兜底候选）只保留在 `entrypoints` 供复核，`commit-impact` 不会据此输出 `uiEntries`。`contract.typeControllerMatches` 按类型**全限定名**扫描工作区 Controller 方法签名（Controller 侧解析显式 import / 同包 / 通配 import，`typeFqn` 记录实际命中类型），命中时在 `entrypoints` 里合成 `heuristic=true`、`via=["type:<类型>"]` 的契约入口，供前端链路衔接页面；它代表该类型的接口影响面，不是方法级可达证据；字段嵌套命中同样按上述 4 层展开，`via` 追加 `nested:<变更类型>><…>><外层类型>`。跨模块同名 DTO（如 ipcare/opcare 各自的 `FeignOeStopMultiDTO`）不会互相命中。命中综合诊疗 `Aggcare*InfoClientController` 这类对外集成接口时，只说明外部系统调用面受影响，不代表有医生站页面。`contract.typeUsageEntrypoints` / `typeUsageMatches` 处理「DTO 只当 BLH/Service 方法入参」的链路（读 `type_usage.json`）：变更类型 + 字段嵌套 1 级外壳作 seed，反向 BFS ≤6 跳追 Controller（节点上限 500、每提交至多 40 个 Controller），只登记有注解 URL 的 Controller，入口同为 `heuristic=true`+`indirect=true`、`via` 带 `usedBy:<Class.method>`。链式 builder（`new FeignPaPatMedicalInfoDTO().setBirthTime(..)`）在方法图里没有调用边，DTO 不因此可追踪，必须靠这条反查；典型如 `FeignPaPatMedicalInfoDTO` → `FeignPCAInfoDTO` 入参 `SaveIhdPaPatDataAbstract#setPatientInfo` → `PaPatIhdDataSaveClientController#save`。这类入口同样不进 `uiEntries`，报告按「对外集成接口 / 契约影响面」表述，不得写成医生站页面受影响。外部 Maven 调用方 Controller 反查到的 `indirect` 入口是真实注解 URL，可以直接交给前端链路；但前端链路只登记「页面元素 handler 可达」的请求，回调函数（如 `ShowChangeCookType(win, DoExchange, prescNo)` 内的 `DoExchange`）和配置注入外的按钮绑定仍会漏，`unmatchedEntrypoints.reason=no-front-call` 不能解读成「该组没有页面」。
 
 界面证据的边界：只覆盖落到工作区 Controller 的链路，URL 属于工作区外产品时不会有界面证据；前端入口登记表当前覆盖 2,903 个真实存在的 HTML 页面（安全组菜单 38 个快照 + 标准配置菜单 + 系统标准配置 + `hos_sys_resource` 直出的菜单资源表），`.csp` 行与不存在的 HTML 不输出。`menus[].mode=菜单资源表` 的行只证明该页面在 87 库菜单资源表中有登记，`groups` 固定为 `—`，**不表示可见安全组**；需要安全组归属时只能引用 `安全组菜单` 行。多数业务子页面通过弹窗 / 内嵌承载，`access.confidence=none` 是正常口径而非漏匹配；`page_load` 条目只证明「打开页面会触发」，不等于用户点击。
+
+**两类「查不到」不得写成「不存在」**：
+- **索引落后**：`frontIndexFresh=false` 表示该提交晚于链路库覆盖点，页面可能在旧版前端里根本不存在于索引（W4 转介页 `doc.referral.apply` 即此例）。先 fetch + 重建再复核，未重建前写「页面证据待重建后确认」，不写「无页面入口证据」。
+- **兄弟证据**：`uiGapReason=sibling-only` 时报告用兄弟提交的页面作为该属性 / 配置的验证入口（如配置常量提交引用消费端的「草药录入」页面），评级与测试建议按需求单元整体给，不再逐提交打「无页面」。
+
+**常量反查的边界**：`reverseProbe` 是「配置常量被谁读 → 读取方法上溯入口 → 前端页面」的静态反查，只能证明常量在代码里被消费；`unmatchedConsumers`（含 `inGraph=false` 的消费点）仍按接口验证。`consumers[]` 中的配置项名字面量（`items`）就是「系统标准配置」里的维护项，联调段用它定位维护入口（见步骤 ④）。外部系统页面（如 msup 药房 `msup/herb/*`）经服务总线调 `*ClientController`，静态链路库只能证明「ClientController 未出现在任何页面请求里」（`client-controller`），不能反证药房页面不存在；这类跨系统页面证据查服务总线绑定索引或运行期日志，不在本步骤范围内。
 
 ## 步骤 ④：评估（仅【流程修改 / 业务调整】类提交，混合式）
 
@@ -218,7 +235,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 **第二层：轻量评估全覆盖**（每条都做）。用 `git -C <repo> show <hash>` 读 diff，对照模块现有实现与步骤 ③.5 的证据，产出（**提交级一份结论**，不按方法分别出报告）：
 
 1. **影响范围**：先写一句中文业务功能点（保留「医嘱 / 诊断 / 检查 / 病历 / 配置 / 排班」等模组关键词——邮件影响表的 `determineModule()` 依赖这些词判定功能模组），再按证据分四项输出——
-   - 入口：`entrypoints`（Controller / Feign / HTTP；`heuristic=true` 标注 `[启发式]`，`depth=-1` 标注不确定）
+   - 入口：`entrypoints`（Controller / Feign / HTTP；`heuristic=true` 标注 `[启发式]`，`depth=-1` 标注不确定；带 `reverse=<消费方法>` 的标注「配置常量消费点反查」）
    - 工作区调用方：`workspaceCallers`（`sameService=false` 需点名跨服务）
    - 外部 Maven 调用方：`externalCallers`（服务 + 模块）
    - 跨出 Feign：`downstreamFeigns`（接口 + 方法）
@@ -263,6 +280,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
      - 预期结果从 diff 方法语义提炼（如「只填诊断名称未选标准 ICD 码保存，应提示并阻止」），不照抄方法名
    - **【回归】** `uiEntries` 中同一页面的其他操作元素 / 页面加载链路对应的既有功能、`workspaceCallers` 中调用方的原有业务场景（跨服务调用方逐个点名其业务场景）；无回归范围时写「无」
    - **【联调】** `externalCallers` 或 `downstreamFeigns` 非空时给出跨服务联调项，必须写**调用方的业务场景**（如「门诊挂号取号时读取号别职称」），不得只写契约名；调用方能在 `uiEntries` 找到界面时附「界面 + 访问位置」，找不到时只写服务 / 模块并注明「无页面入口证据（调用方在工作区外）」；为空时写「无」，不臆造
+   - **【联调】——配置类提交补维护入口**：`reverseProbe.constants` 非空或步骤 ② 命中 `newStCodes` / `configItems` 时，在【联调】追加「系统标准配置维护入口」：读 `config/standard-config-entry.json`，按 stCode 命中 `known` 时写具体模块路径（如 `oe.entryCM.bindOrd` → 基础配置 > 系统标准配置 > 医嘱录入 > 附加医嘱绑定 > `CmCookModeAddOrdInsuChargeTypeEnable`），未命中时写 `fallback` 的通用路径（基础配置 > 系统标准配置，页面 `bsp/prdlinemodule/html/standard.type.mgr.html`，按「配置项名」检索）。维护项名取 `reverseProbe.constants[].items` 的配置项名字面量；联调动作写「在该环境确认配置项存在且取值为…」，不写「需登记/需维护」这类步骤 ⑥ 已承接的措辞
    - **【边界】** 用业务语言描述空值/未传/并发/状态扭转/分页等边界（如「未停止医嘱的停止时间为空」「单页过滤后条数不足需继续翻页」）
    - **可追溯**：每条建议必须能对应一条证据（`uiEntries` 的页面 / 元素 / 请求 / Controller，或入口 / 调用方 / Feign 名）；`unmatchedEntrypoints` 覆盖的入口写「无页面入口证据，按接口验证」；`front-chains` 缺失或不可用时，在【必测】末尾写「（按变更内容推断，无界面证据）」，并在 `impactScope` / `impactEvidence` 标注，**不得编造界面、菜单路径或调用方**
    - **页面覆盖**：【必测】+【回归】合并至少逐字引用 1 个 `uiEntries.pageTitle`；`uiEntries` 覆盖多个业务页面时，【必测】写主页面 1-2 个，其余页面按业务场景在【回归】点名 2-4 个，不得只测单页而忽略证据中的其他页面；【联调】按 `externalCallers` / `downstreamFeigns` 的服务逐个点名业务场景。`render-report.js` 对「有页面证据但四段均未引用页面」「声称无界面证据但存在页面证据」输出告警，须逐条核对
@@ -273,6 +291,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
    - **邮件改造方案同口径**：邮件「改造方案」取 `changeSummary`（缺失时回退 `evaluation`），只写「改了什么」，用业务语言描述变更内容；**不得写「工作区内未发现活动调用方」「无方法级调用证据」等取证结论或测试安排**——这些内容属于 `testSuggestion` 的【必测】或 `impactScope`；除变更本身外没有其他有效内容时，直接写「无业务逻辑变更」
 8. **页面级证据定位**（写【必测】/【回归】/【联调】前执行，避免臆测页面）：
    - **以 `front-chains-<label>.json` 为准**：按提交 hash 读 `uiEntries`，优先 `match=controller`、元素触发、`access.confidence` 从高到低（menu > parent > none）。一个提交有多个界面时，按与 `funcPoint` 最接近的业务场景选 1-2 条写【必测】，其余放【回归】。
+   - **先看索引覆盖，再看兄弟证据**：`frontIndexFresh=false`（`uiGapReason=index-stale`）时本提交的「无页面」不可信，写「页面证据落后于索引覆盖点（索引重建于 <coveredUntil> 之前），重建后复核」，不写「无页面入口证据」；`uiEntries` 为空但 `siblingUi` 非空（`uiGapReason=sibling-only`）时，用兄弟提交的页面写【必测】/【回归】，并在 `impactEvidence` 标注「页面证据来自同需求 <unitId> 的兄弟提交 <hash>」。配置常量提交（`confidence=partial-reverse`）按 `reverseProbe` 补出的入口继续反查页面；反查不到时写「配置消费点存在但未定位到页面，按接口验证」，配合【联调】的维护入口说明配置生效方式。
    - **访问位置只取登记表字段**：`access.menus[].parentPath` + `name` 组成访问位置；`access.parents[].menus` 是父页面的菜单，必须配合 `element` / `linkSource` 还原打开路径。`confidence=none` 时只写页面标题与元素，措辞固定为「无菜单登记（内嵌 / 弹窗页）」，**不得**用页面标题猜一个菜单路径。
    - **`page_load` 不作为点击步骤**：它只证明打开页面会触发请求；【必测】需要用户可执行的操作时，选 `inline` / `js_binding` / `config_bar` 条目。
    - **没有界面证据的处理**：先确认契约反查已执行——`contract.typeControllerMatches` 非空即说明该类型被 Controller 签名使用，必须按命中的 Controller 方法继续查 `uiEntries`（或写「页面未登记，按接口验证：<Controller>.<方法>」）；`contract.typeFeignCallers` 非空说明契约方法被工作区调用方使用，必须检查 `entrypoints[]` 中 `indirect=true` 的入口能否衔接到页面（如 opreg 排班契约经 opalloc 分诊调用方上溯到「护士分诊」页），**不得**因为 `methods[]` 为空就写「无页面入口证据」。`unmatchedEntrypoints` 非空且没有可用 `uiEntries` 时，【必测】写「无页面入口证据，按接口验证」；`reason=feign-interface-mapping` 说明映射声明在 Feign 接口、前端不直调，不作页面；`client-controller` 是服务间门面，同样不作页面；`indirect=true` 且 `heuristic=true` 的入口只是兜底候选，`commit-impact` 已不据此输出界面证据，不得手工补成页面证据；只有在 `contract.typeFeignMatches`、`contract.typeFeignCallers`、`contract.typeControllerMatches` 均为空且 `entrypoints` 为空时，纯契约提交才写「未发现活动调用方，代码审阅即可」。
@@ -280,7 +299,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
    - **手工兜底**（仅 `front-chains` 缺失 / 不可用时）：证据中出现 Controller 方法名或 HTTP 路径时，才允许到 `src/frontend/hisfront/static/` 检索；必须用完整路径或「方法名 + 服务 / 目录前缀」消歧，并在 `impactEvidence` 记录命中的前端文件与行号（如「前端证据：`static/opreg/opreg-pat/scripts/doc.reportloss.js:9` 卡挂失 / 启用」）。仅凭 `getScheduleInfo`、`getDrugList` 这类通用方法名命中即下结论视为无效证据。Feign 名不能直接搜前端，必须先追消费方 Controller。
    - **禁止推断**：任何「与 XX 页面联调」的表述都必须能回指一条 `uiEntries` 条目或 Controller/页面证据；回指不到就删除该表述，改用「无页面入口证据」。
 
-评估结果落盘为同目录 `evaluations-<label>.json`（同月多期必须带期号后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / funcPoint——面向测试/交付的业务功能点标题，不出现类名、方法名、Feign 名（邮件与影响表的章节标题） / highRiskCategory / highRiskAuto——证据机械触发的类别，供复核 / impactScope——按证据四段式撰写 / impactEvidence——该提交在 `code-impact-<label>.json` 中的计数摘要：methods / entrypoints / workspaceCallers / externalCallers / downstreamFeigns / contract（`feignContracts` / `typeFiles` / `typeFeignMatches` / `typeFeignCallers` / `typeControllerMatches`） / downstream / confidence / indexFresh / skipped 原因；并附 `ui`——该提交在 `front-chains-<label>.json` 中的界面证据摘要：uiEntries / pages / withMenu / withParentMenu / noMenu / unmatchedEntrypoints（未命中入口数，取该提交 `unmatchedEntrypoints[]` 的长度） / compliance / complianceReason / rating——质量星级 / impactRating——影响范围评级（1-5★，邮件与影响表标题前缀、排序依据） / impactRatingReason——影响范围判定依据一句话 / impactRatingInitial——回评调整时记录的原初评星级（仅调整过的条目） / impactDowngrade——非核心备用系统的降级说明（含为何不深度评估），非此类提交可省略 / changeSummary——面向交付的改造方案（只写变更内容，不写调用方/取证/测试信息；无业务逻辑变更时写「无业务逻辑变更」，缺失时回退 evaluation） / evaluation——评价描述 / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——四段式测试建议），作为步骤 ⑥ 低星问题登记的数据源。
+评估结果落盘为同目录 `evaluations-<label>.json`（同月多期必须带期号后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / `unitId`——需求号归并键（同需求多提交共用一个；有兄弟证据时必填） / funcPoint——面向测试/交付的业务功能点标题，不出现类名、方法名、Feign 名（邮件与影响表的章节标题） / highRiskCategory / highRiskAuto——证据机械触发的类别，供复核 / impactScope——按证据四段式撰写 / impactEvidence——该提交在 `code-impact-<label>.json` 中的计数摘要：methods / entrypoints / workspaceCallers / externalCallers / downstreamFeigns / contract（`feignContracts` / `typeFiles` / `typeFeignMatches` / `typeFeignCallers` / `typeControllerMatches`） / reverseProbe（常量反查：stCode / 消费方法 / 补出入口数） / downstream / confidence / indexFresh / skipped 原因；并附 `ui`——该提交在 `front-chains-<label>.json` 中的界面证据摘要：uiEntries / pages / withMenu / withParentMenu / noMenu / unmatchedEntrypoints（未命中入口数，取该提交 `unmatchedEntrypoints[]` 的长度） / frontIndexFresh / uiGapReason / siblingEvidence——兄弟提交页面证据的来源（`unitId` / `hash` / 页面） / compliance / complianceReason / rating——质量星级 / impactRating——影响范围评级（1-5★，邮件与影响表标题前缀、排序依据） / impactRatingReason——影响范围判定依据一句话 / impactRatingInitial——回评调整时记录的原初评星级（仅调整过的条目） / impactDowngrade——非核心备用系统的降级说明（含为何不深度评估），非此类提交可省略 / changeSummary——面向交付的改造方案（只写变更内容，不写调用方/取证/测试信息；无业务逻辑变更时写「无业务逻辑变更」，缺失时回退 evaluation） / evaluation——评价描述 / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——四段式测试建议），作为步骤 ⑥ 低星问题登记的数据源。
 
 ## 步骤 ⑤：归档（确定性渲染）
 
@@ -376,7 +395,8 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 
 数据变更通知邮件（正文为正式排版的 HTML，另存 Markdown 存档），流程：
 
-1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<label>/db-changes-<label>.json [--evaluations=<outputDir>/<label>/evaluations-<label>.json] [--raw-commits=<outputDir>/<label>/raw-commits-<label>.json]`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + **背景与目标**（背景/目标/阅读说明）+ **第一章功能变更影响**（含本期数量与评级分布；当提供 `--evaluations` 参数时生成：子章节格式，每条提交独立展示并标注岗位工作站/功能模组/需求类型/提交人/仓库/改造功能点/测试方式建议 7 项，其中前 6 项为两列表格：左列岗位工作站、功能模组、需求类型，右列提交人、仓库（仓库路径不得在词中断行），基于 IT形态汇总.xlsx 映射；测试方式建议取自 evaluations JSON 的 `testSuggestion` 字段——由步骤 ④ LLM 基于 diff 实际改动生成，非关键词匹配）+ **第二章数据变更**（含两个子章节：2.1 数据变更明细表（变更类型/变更内容/变更负责人）+ 2.2 数据变更操作说明四子项：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提示信息维护、系统标准配置导出导入、代码表缓存管理维护）+ 自动生成页脚，全部内联样式）。
+1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<label>/db-changes-<label>.json [--evaluations=<outputDir>/<label>/evaluations-<label>.json] [--raw-commits=<outputDir>/<label>/raw-commits-<label>.json] [--classification=<outputDir>/<label>/classification-<label>.json]`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + **背景与目标**（背景/目标/阅读说明）+ **第一章功能变更影响**（含本期数量与评级分布；当提供 `--evaluations` 参数时生成：子章节格式，每条提交独立展示并标注岗位工作站/功能模组/需求类型/提交人/仓库/改造功能点/测试方式建议 7 项，其中前 6 项为两列表格：左列岗位工作站、功能模组、需求类型，右列提交人、仓库（仓库路径不得在词中断行），基于 IT形态汇总.xlsx 映射；测试方式建议取自 evaluations JSON 的 `testSuggestion` 字段——由步骤 ④ LLM 基于 diff 实际改动生成，非关键词匹配）+ **第二章数据变更**（含两个子章节：2.1 数据变更明细表（变更类型/变更内容/变更负责人）+ 2.2 数据变更操作说明四子项：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提示信息维护、系统标准配置导出导入、代码表缓存管理维护）+ 自动生成页脚，全部内联样式）。
+   - **岗位工作站以分类产物为准**：`--classification` 省略时自动读同目录 `classification-<label>.json`；命中该提交的分类工作站即用它（`workstationSource=classification`），缺失才回退仓库映射（`workstationSource=repo-map`，脚本告警）。报告与邮件的岗位工作站由此对齐，不用 `REPO_TO_SYSTEM` 猜测覆盖分类结果。
 2. 解析收件人/抄送人：`PYTHONIOENCODING=utf-8 python .agents/plugins/imedicalxc-doctor-commit-report/scripts/resolve-email-recipients.py`。
    - 收件人 = 腾讯文档【信创版HIS数据库升级脚本汇总表格】「脚本执行负责人」页签「负责人邮箱」列去重（`email.recipientSource`：bookId/sheetId/emailColumn）
    - 抄送人 = 通讯录分组「信创-研发-医生站」「信创-研发-监督人」成员邮箱去重（`email.ccSource.groups`）

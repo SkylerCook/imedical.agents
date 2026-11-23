@@ -899,6 +899,213 @@ def analyze_method(db, nid, depth, with_maven):
 
 
 # ────────────────────────────────────────────────────────────────
+#  常量类反查（docsconfig 等 public 常量不在方法图）
+#  案例 53：hiscfsv 只新增配置常量，变更方法为 0 个入口；真正跑业务的是
+#  comoe 里读取该常量的消费方法。解析常量字段 → 工作区 grep 消费点 →
+#  对消费方法跑影响分析，把入口补回本提交（confidence=partial-reverse）。
+# ────────────────────────────────────────────────────────────────
+
+CONSTANT_PATH_RE = re.compile(r"/constant/", re.I)
+ST_CODE_RE = re.compile(r'\bST_CODE\s*=\s*"([^"]+)"')
+# 常量字段不止 String：docsconfig 用 CommonConfigItemUtil<T> 之类泛型包装，
+# 只按 String 匹配会漏掉真正的配置项（案例 53 的 CM_COOK_MODE_... 即是此形态）
+CONST_FIELD_RE = re.compile(
+    r"static\s+final\s+(?:[\w$.]+\s*)?(?:<[^;=]*?>\s*)?([A-Z][A-Z0-9_]{1,})\s*=")
+CONST_FIELD_SKIP = {"ST_CODE"}
+MAX_CONST_FIELDS = 8          # 单个常量文件最多反查的字段数（取本次提交变更的常量）
+MAX_REVERSE_CONSUMERS = 20    # 单提交最多分析的消费方法数
+_CONSUMER_INDEX = {}          # needle -> [(repo_abs, rel, line)]，整期复用
+
+
+def backend_repos():
+    """后端 git 仓库列表（与 collect-commits.js 的发现规则一致：src/backend 深度 ≤2）。"""
+    root = REPO_ROOT / "src" / "backend"
+    found = []
+
+    def walk(directory, depth):
+        try:
+            entries = sorted(p for p in directory.iterdir() if p.is_dir())
+        except OSError:
+            return
+        for entry in entries:
+            if entry.name.startswith(".") or entry.name == "node_modules":
+                continue
+            if (entry / ".git").exists():
+                found.append(entry)
+                continue
+            if depth < 2:
+                walk(entry, depth + 1)
+
+    if root.exists():
+        walk(root, 0)
+    return found
+
+
+def field_item_name(field):
+    """CM_COOK_MODE_ADD_ORD_INSU_CHARGE_TYPE_ENABLE → CmCookModeAddOrdInsuChargeTypeEnable"""
+    return "".join(part[:1].upper() + part[1:].lower() for part in field.split("_") if part)
+
+
+def grep_consumers(repos, needle):
+    if needle in _CONSUMER_INDEX:
+        return _CONSUMER_INDEX[needle]
+    hits = []
+    for repo in repos:
+        r = git(repo, "grep", "-n", "-I", "--fixed-strings", "-e", needle)
+        if r.returncode != 0:
+            continue
+        for line in r.stdout.splitlines():
+            rel, _, rest = line.partition(":")
+            lineno = rest.partition(":")[0]
+            if rel.endswith(".java") and lineno.isdigit():
+                hits.append((repo, rel, int(lineno)))
+    _CONSUMER_INDEX[needle] = hits
+    return hits
+
+
+def changed_constant_fields(repo_abs, commit_hash, const_files):
+    """取本次提交在常量文件里新增/修改的字段；无法定位行号时退回文件内全部字段。"""
+    diff = git(repo_abs, "show", "-U0", "--pretty=format:", "--no-color",
+               commit_hash, "--", *const_files).stdout
+    ranges = parse_diff(diff)
+    plan = []
+    for rel in const_files:
+        src = git_show(repo_abs, f"{commit_hash}:{rel}")
+        if not src:
+            continue
+        st_codes = ST_CODE_RE.findall(src)
+        added = set((ranges.get(rel) or {}).get("new") or ())
+        lines = src.splitlines()
+        all_fields, changed = {}, {}
+        for lineno, line in enumerate(lines, 1):
+            m = CONST_FIELD_RE.search(line)
+            if not m or m.group(1) in CONST_FIELD_SKIP:
+                continue
+            name = m.group(1)
+            # 声明可能跨行（泛型包装构造器常换行），取到语句结束符为止的字符串字面量作为项名
+            tail = "\n".join(lines[lineno - 1:lineno + 3])
+            decl = tail[:tail.find(";") + 1] if ";" in tail else tail
+            items = [s for s in re.findall(r'"([A-Za-z][\w.-]{3,})"', decl)
+                     if s not in st_codes]
+            all_fields.setdefault(name, items)
+            if lineno in added:
+                changed.setdefault(name, items)
+        # 字段声明行未落在 diff（如只改注释）时退回整文件字段，仍受上限约束
+        picked = list((changed or all_fields).items())[:MAX_CONST_FIELDS]
+        plan.append({
+            "file": rel,
+            "class": Path(rel).stem,
+            "stCode": st_codes[0] if st_codes else "",
+            "fields": [name for name, _ in picked],
+            "items": {name: items for name, items in picked},
+        })
+    return plan
+
+
+def consumer_rows(repos, const, by_file, source_file):
+    """常量字段 / stCode / 驼峰项名 在 Java 源码里的读取点 → (仓库, 文件, 行)。"""
+    needles = []
+    if const.get("stCode"):
+        needles.append(const["stCode"])
+    for field in const.get("fields") or []:
+        needles.append(field)
+        needles.append(field_item_name(field))
+        needles.extend((const.get("items") or {}).get(field) or [])
+    rows = {}
+    for needle in dict.fromkeys(needles):
+        for repo, rel, line in grep_consumers(repos, needle):
+            key = (str(repo), rel)
+            if rel == source_file:
+                continue
+            rows.setdefault(key, set()).add(line)
+    out = []
+    for (repo, rel), lines in rows.items():
+        path = Path(repo) / rel
+        try:
+            content = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        _, cls, _ = class_info(content)
+        if not cls:
+            continue
+        methods = parse_methods(content)
+        graph_methods = by_file.get(normalize(to_repo_relative(path)), {})
+        for line in sorted(lines):
+            enclosing = [m for m in methods if m["start"] <= line <= m["end"]]
+            if not enclosing:
+                out.append({"file": to_repo_relative(path), "method": "", "line": line,
+                            "inGraph": False, "id": ""})
+                continue
+            for m in enclosing:
+                cm = f"{cls}.{m['name']}"
+                out.append({
+                    "file": to_repo_relative(path), "method": cm, "line": line,
+                    "inGraph": bool(graph_methods.get(cm)),
+                    "id": graph_methods.get(cm) or "",
+                })
+    unique = {}
+    for row in out:
+        unique.setdefault((row["file"], row["method"]), row)
+    return sorted(unique.values(), key=lambda r: (r["file"], r["method"]))
+
+
+def reverse_probe_constants(repo_abs, commit, skipped, by_file, db, depth, with_maven):
+    """返回 (reverseProbe, entrypoints)；无常量变更时返回 (None, [])。"""
+    const_files = sorted({
+        s["file"] for s in skipped
+        if CONSTANT_PATH_RE.search(s.get("file") or "")
+        and s.get("reason") in {"not_in_graph", "public_layer", "no_method_change"}
+    })
+    if not const_files:
+        return None, []
+    plan = changed_constant_fields(repo_abs, commit["hash"], const_files)
+    if not plan:
+        return None, []
+    repos = backend_repos()
+    constants, consumers, entrypoints = [], [], []
+    analyzed = set()
+    for const in plan:
+        rows = consumer_rows(repos, const, by_file, const["file"])
+        constants.append({
+            "file": const["file"],
+            "class": const["class"],
+            "stCode": const["stCode"],
+            "fields": const["fields"],
+            "consumers": len(rows),
+        })
+        consumers.extend(rows)
+        for row in rows:
+            if not row["inGraph"] or row["id"] in analyzed:
+                continue
+            if len(analyzed) >= MAX_REVERSE_CONSUMERS:
+                break
+            analyzed.add(row["id"])
+            try:
+                ev = analyze_method(db, row["id"], depth, with_maven)
+            except Exception:  # 单点失败不影响其它消费方法
+                continue
+            for e in ev["entrypoints"]:
+                entrypoints.append({
+                    **e,
+                    "reverse": row["method"],
+                    "via": [row["method"]] + [v for v in (e.get("via") or []) if v != row["method"]],
+                })
+    entrypoints = merge_unique(
+        entrypoints,
+        lambda x: (x["kind"], x.get("service", ""), x["controller"], x.get("http", "")))
+    entrypoints.sort(key=lambda x: (
+        x["kind"], x.get("service", ""), x["controller"], x.get("http", "")))
+    probe = {
+        "constants": constants,
+        "consumers": consumers[:MAX_REVERSE_CONSUMERS * 2],
+        "analyzedMethods": len(analyzed),
+        "entrypoints": len(entrypoints),
+        "unmatchedConsumers": sorted({r["file"] for r in consumers if not r["inGraph"]}),
+    }
+    return probe, entrypoints
+
+
+# ────────────────────────────────────────────────────────────────
 #  提交级定位与聚合
 # ────────────────────────────────────────────────────────────────
 
@@ -1046,6 +1253,22 @@ def merge_unique(items, key_fn):
     return list(seen.values())
 
 
+# 需求号归并：同一 BOS/需求号下的多仓库提成一个评估单元，兄弟证据互通
+_UNIT_PATTERNS = (
+    ("BOS", re.compile(r"\bBOS\s*(\d{6,})", re.I)),
+    ("REQ", re.compile(r"【\s*需求\s*[:：]?\s*(\d{6,})\s*】")),
+    ("REQ", re.compile(r"需求\s*[:：]\s*(\d{6,})")),
+)
+
+
+def extract_unit_id(subject):
+    for kind, pattern in _UNIT_PATTERNS:
+        m = pattern.search(subject or "")
+        if m:
+            return f"{kind}{m.group(1)}"
+    return None
+
+
 def index_fresh(index_mtime, commit_date):
     try:
         dt = datetime.fromisoformat(commit_date.replace("Z", "+00:00"))
@@ -1147,7 +1370,19 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
                 x["kind"], x.get("service", ""), x["controller"], x.get("http", ""),
                 x.get("depth", -1), bool(x.get("heuristic")), bool(x.get("indirect"))))
         kept_methods = [m for m in methods if m["inGraph"]]
-        confidence = "graph" if kept_methods else ("partial" if type_files else "none")
+
+        probe, reverse_entrypoints = reverse_probe_constants(
+            repo_abs, commit, skipped, by_file, db, depth, with_maven)
+        if probe and reverse_entrypoints:
+            entrypoints = merge_unique(
+                entrypoints + reverse_entrypoints,
+                lambda x: (x["kind"], x.get("service", ""), x["controller"], x.get("http", "")))
+            entrypoints.sort(key=lambda x: (
+                x["kind"], x.get("service", ""), x["controller"], x.get("http", ""),
+                x.get("depth", -1), bool(x.get("heuristic")), bool(x.get("indirect"))))
+        confidence = ("graph" if kept_methods
+                      else ("partial-reverse" if reverse_entrypoints
+                            else ("partial" if type_files else "none")))
 
         result_commits.append({
             "hash": commit["hash"],
@@ -1156,6 +1391,7 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
             "author": commit.get("author") or commit.get("authorName") or "",
             "date": commit.get("date", ""),
             "subject": commit.get("subject", ""),
+            "unitId": commit.get("unitId") or extract_unit_id(commit.get("subject", "")),
             "indexFresh": index_fresh(index_mtime, commit.get("date", "")),
             "source": "graph" if kept_methods else "fallback",
             "confidence": confidence,
@@ -1174,10 +1410,14 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
                 "typeUsageMatches": type_usage_matches,
             },
             "downstream": {"count": downstream_count, "services": sorted(s for s in downstream_services if s)},
+            "reverseProbe": probe,
             "skippedFiles": skipped,
             "truncatedMethods": truncated,
         })
         stats["commits"] += 1
+        if probe:
+            stats["reverseProbeCommits"] += 1
+            stats["reverseProbeEntrypoints"] += len(reverse_entrypoints)
         stats["methodsAnalyzed"] += len(kept_methods)
         stats["withGraphEvidence"] += 1 if kept_methods else 0
         stats["skippedFiles"] += len(skipped)
@@ -1203,14 +1443,26 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
                 "契约类型的 Controller 使用方按 controller_endpoints.json 的全限定类型名反查（heuristic 入口），字段嵌套同样按 type_nesting.json 展开 4 层并以 nestedVia 记录；仅出现在局部变量或实现类内部时不在签名中，未命中不等于无页面入口",
                 "契约类型出现在 BLH/Service 方法签名入参时，按 type_usage.json 取「变更类型 + 字段嵌套 1 级外壳」作 seed，沿方法图反向 BFS ≤6 跳追到 Controller（节点上限 500、每提交至多 40 个 Controller），只登记有注解 URL 的 Controller（heuristic=true、indirect=true、via 带 usedBy:<方法>）；方法体局部变量中没有该类型签名时不在范围内",
                 "外部 Maven 调用方中 rootType=controller 的调用链根按 maven_controller_endpoints.json 反查注解 URL，作为 indirect 入口参与前端页面反查（药房、护理、医保等服务由此可达）；rootType=method 的方法根没有 URL，不产生入口",
+                "常量类（路径含 /constant/ 且不在方法图）按 reverseProbe 反查：从本次变更的常量字段与 stCode 出发 grep 工作区消费点，对消费方法跑影响分析补入口；该证据 confidence=partial-reverse，入口行带 reverse=<消费方法>，不代表常量本身被页面直接引用",
             ],
         },
         "commits": result_commits,
     }
+    unit_map = defaultdict(list)
+    for c in result_commits:
+        if c.get("unitId"):
+            unit_map[c["unitId"]].append(c["hash"])
+    doc["meta"]["units"] = [
+        {"unitId": unit_id, "commits": len(hashes), "hashes": hashes}
+        for unit_id, hashes in sorted(unit_map.items()) if len(hashes) > 1
+    ]
+    multi = sum(1 for u in doc["meta"]["units"])
     Path(output_path).write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"[OK] {output_path}")
     print(f"  提交: {stats['commits']} | 有图证据: {stats['withGraphEvidence']} | 分析方法: {stats['methodsAnalyzed']} | 跳过文件: {stats['skippedFiles']}")
+    print(f"  常量反查: {stats.get('reverseProbeCommits', 0)} 个提交 / 补入口 {stats.get('reverseProbeEntrypoints', 0)} 个")
+    print(f"  跨提交需求单元: {multi} 个（{sum(u['commits'] for u in doc['meta']['units'])} 条提交）")
     return doc
 
 

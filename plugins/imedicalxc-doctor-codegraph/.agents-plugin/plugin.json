@@ -1,6 +1,6 @@
 {
  "name": "imedicalxc-doctor-codegraph",
- "version": "0.2.0",
+ "version": "0.3.0",
  "displayName": "iMedicalXC Doctor CodeGraph",
  "description": "HIS 医生站代码调用图索引与检索插件。构建工作区方法级调用图、扫描 Maven biz jar 并生成影响分析与两部分穿透索引（impact_db.json / penetration_db.json），提供变更影响分析、调用者与被调用者、Feign 使用方、跨服务依赖与提交级批量取证查询；同时构建前端「界面→操作→JS 方法→HTTP 请求」链路索引，以及服务总线「HIS↔外部系统」生产者/消费者绑定索引。",
  "entry": "AGENTS.md",

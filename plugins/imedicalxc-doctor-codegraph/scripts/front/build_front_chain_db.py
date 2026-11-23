@@ -27,6 +27,7 @@ from config import (
     CHAINS_FILE, CONFIG_INJECTION_FILE, DB_FILE, ELEMENTS_FILE, FRONT_ROOT_REL,
     GRAPHML_FILE, JS_INDEX_FILE, MENU_SNAPSHOT_FILE, OUTPUT_DIR, PAGES_FILE,
     PREFIX_VARS, STATS_FILE, norm_controller_seg, normalize_router, utility_reason,
+    source_fingerprint, warn_if_stale,
 )
 from config_injection import DYNAMIC_SCENARIOS, NO_MERGE_SCENARIOS
 
@@ -861,7 +862,7 @@ class ChainBuilder:
         return links
 
     # ── 主构建 ──────────────────────────────────────────────────
-    def build(self, pages, elements, menu_snapshot, config_snapshot):
+    def build(self, pages, elements, menu_snapshot, config_snapshot, source=None):
         self.load()
         self.resolve_callbacks()
         page_menu = (menu_snapshot or {}).get("page_menu", {})
@@ -1383,8 +1384,9 @@ class ChainBuilder:
             "meta": {
                 "generated_at": dt.datetime.now().replace(microsecond=0).isoformat(),
                 "front_root": FRONT_ROOT_REL,
+                "source": source or source_fingerprint(),
                 "menu_source": (menu_snapshot or {}).get("source", ""),
-                "counts": {k: v for k, v in stats.items() if isinstance(v, int)},
+                "counts": {k: v for k, v in stats.items() if type(v) is int},
             },
             "pages": out_pages,
             "elements": out_elements,
@@ -1612,7 +1614,13 @@ def main():
           f"{f'{config_groups} 组' if config_snapshot else '无'}")
 
     builder = ChainBuilder(args.max_depth, args.max_requests)
-    db, stats = builder.build(pages, elements, menu_snapshot, config_snapshot)
+    source = warn_if_stale("[构建]")
+    db, stats = builder.build(pages, elements, menu_snapshot, config_snapshot, source)
+    stats["source_head"] = ((source.get("head") or {}).get("sha") or "")[:12]
+    stats["source_head_date"] = (source.get("head") or {}).get("date", "")
+    stats["source_origin_master"] = ((source.get("originMaster") or {}).get("sha") or "")[:12]
+    stats["source_origin_master_date"] = (source.get("originMaster") or {}).get("date", "")
+    stats["source_checkout_stale"] = bool(source.get("checkoutStale"))
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     text = json.dumps(db, ensure_ascii=False, sort_keys=True, separators=(",", ":"))

@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from config import (
     JS_INDEX_FILE, JS_EXTS, MAX_JS_FILE_MB, OUTPUT_DIR,
     is_probably_minified, iter_front_files, read_text, to_front_relative,
+    warn_if_stale,
 )
 from js_tokens import KEYWORDS, tokenize
 from config_injection import CALL_BINDINGS, match_endpoint
@@ -1837,6 +1838,7 @@ def _scan_one(args):
 
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    warn_if_stale("[js_scan]")
     files = [(str(p), rel) for p, rel in iter_front_files(JS_EXTS)]
     print(f"扫描 {len(files)} 个 JS 文件...")
     results = []

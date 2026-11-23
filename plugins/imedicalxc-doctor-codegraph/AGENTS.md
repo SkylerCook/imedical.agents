@@ -5,7 +5,7 @@
 ## 插件信息
 
 - **名称**: imedicalxc-doctor-codegraph
-- **版本**: 0.2.0（事实来源为 `.agents-plugin/plugin.json`）
+- **版本**: 0.3.0（事实来源为 `.agents-plugin/plugin.json`）
 - **类型**: skill plugin
 - **入口 skill**:
   - `imedicalxc-doctor-codegraph-gen` — 后端调用图初始化、增量更新
