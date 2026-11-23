@@ -48,13 +48,19 @@ function runCli(args, cwd, allowFailure = false) {
   return run(process.execPath, [cli, ...args], cwd, allowFailure);
 }
 
+function recordReview(plan) {
+  return JSON.parse(runCli(['review','--plan',plan.planPath,'--snapshot',plan.integrity,'--result','no-visible-impact',
+    '--evidence','Reviewed all fixture files against their frozen repository heads; changes affect internal test data.'],plan.projectRoot).stdout);
+}
+
 function plan(repo, kind, modification = '调整模板必填校验，使用字段必填标识替代边界气泡并确保保存后重新聚焦输入框') {
   const result = runCli([
     'plan', '--project-root', repo, '--kind', kind, '--demand', '7060418', '--type', 'fix',
     '--subject', '口腔技工单-模板维护', '--title', '口腔技工单-模板内容的必填提示显示不全',
     '--file', 'target.txt', '--modification', modification,
   ], repo);
-  return JSON.parse(result.stdout);
+  const planned = JSON.parse(result.stdout);
+  return kind === 'standard' ? recordReview(planned) : planned;
 }
 
 function noIdPlan(repo, extra = []) {
@@ -347,6 +353,7 @@ test('two disjoint upstream advances preserve three-file plans and resume with t
     '--type', 'fix', '--subject', '合成功能', '--title', '合成需求', '--modification',
     '通过校验输入内容并保留原始值，确保保存时显示正确结果',
     ...['target.txt', '新增 文件.txt', 'third.txt'].flatMap(file => ['--file', file])], f.root).stdout);
+  planned = recordReview(planned);
   for (let attempt = 1; attempt <= 2; attempt++) {
     fs.writeFileSync(path.join(f.actor, `remote-${attempt}.txt`), `independent update ${attempt}\n`);
     actorCommit(f, `upstream ${attempt}`);
@@ -363,7 +370,7 @@ test('two disjoint upstream advances preserve three-file plans and resume with t
     }
     assert.equal(next.repositories[0].head, after);
     assert.equal(git(f.root, ['log', '-1', '--format=%s']).stdout.trim(), `upstream ${attempt}`);
-    planned = next;
+    planned = recordReview(next);
   }
   const remoteHead = git(f.bare, ['rev-parse', 'refs/heads/main']).stdout.trim();
   runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root);
@@ -613,4 +620,23 @@ test('persisted v1 plan resumes in canonical CLI without IRIS project configurat
   runCli(['apply', '--plan', output, '--confirm-commit', '--verify'], f.root);
   run(process.execPath, [cli, 'verify', '--plan', output], f.root);
   assert.equal(git(f.root, ['status', '--short']).stdout.trim(), '');
+});
+
+test('standard frontend-only new file requires a current i18n decision', () => {
+  const f = withUpstream();
+  const file = path.join(f.root,'page.js');
+  fs.writeFileSync(file,'show(messageKey)\n');
+  const args = ['plan','--project-root',f.root,'--kind','standard','--demand','123','--type','fix',
+    '--title','提示显示','--modification','使用标准消息键生成页面提示，确保修改后的提示能按语言展示','--file','page.js'];
+  const initial = JSON.parse(runCli(args,f.root).stdout);
+  const apply = () => runCli(['apply','--plan',initial.planPath,'--confirm-commit'],f.root,true);
+  assert.match(apply().stderr,/i18n-review-required/);
+  const review = ['review','--plan',initial.planPath,'--snapshot',initial.integrity,'--result','passed','--evidence','Checked messageKey lookup and fallback'];
+  fs.appendFileSync(file,'show(otherKey)\n');
+  assert.notEqual(runCli(review,f.root,true).status,0);
+  const next = JSON.parse(runCli(args,f.root).stdout);
+  assert.notEqual(runCli(review,f.root,true).status,0);
+  review[4] = next.integrity;
+  runCli(review,f.root);
+  assert.equal(apply().status,0);
 });

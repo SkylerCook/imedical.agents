@@ -33,7 +33,7 @@ function fixture(t, keys = ['api'], ids = ['10', '2'], deliveryActions = ['commi
   const hashes = new Map();
   const commit = (id = '10') => {
     const item = state().demands.find(item => item.id === id);
-    return { status: 'verified', demand: id, repositories: item.repositories.map(repo => {
+    const repositories = item.repositories.map(repo => {
       const root = item.claim.worktrees[repo.key], cacheKey = root + ':' + id;
       const git = args => {
         const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true });
@@ -50,7 +50,10 @@ function fixture(t, keys = ['api'], ids = ['10', '2'], deliveryActions = ['commi
       root: item.claim.worktrees[repo.key], files: repo.files,
       message: 'fix(' + id + '): synthetic\n修改说明: preserve scope\n',
       execution: { status: 'verified', commit: hashes.get(cacheKey) }
-    }; }) };
+    }; });
+    return {status:'verified',kind:deliveryActions.includes('bos-log')?'standard':'project',demand:id,repositories,
+      i18nReview:{result:'no-visible-impact',evidence:'Reviewed fixture counters',commits:repositories.map(repo=>({root:repo.root,commit:repo.execution.commit}))}};
+
   };
   const record = (phase, status, receipt, extra = {}) => act('record', { id: '10', owner: 'worker-a', phase, status, receipt, ...extra });
   const commits = () => record('commit', 'succeeded', commit());
@@ -286,7 +289,7 @@ for (const refreshed of [false, true]) test('accepts the actual verified commit-
   fs.writeFileSync(path.join(repo, 'changed.txt'), 'before\n');
   run('git', ['add', 'changed.txt']); run('git', ['commit', '-m', 'fixture baseline']);
   const remote = path.join(f.root, 'commit-remote.git'), actor = path.join(f.root, 'commit-actor');
-  if (refreshed) {
+  {
     run('git', ['init', '--bare', remote]);
     run('git', ['remote', 'add', 'origin', remote]); run('git', ['push', '-u', 'origin', 'dev']);
     run('git', ['clone', '-b', 'dev', remote, actor], f.root);
@@ -298,8 +301,11 @@ for (const refreshed of [false, true]) test('accepts the actual verified commit-
   const officialTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'acceptance-official-plan-'));
   t.after(() => { assert.ok(path.basename(officialTemp).startsWith('acceptance-official-plan-')); fs.rmSync(officialTemp, { recursive: true, force: true }); });
   const commitCli = path.resolve(__dirname, '../scripts/commit-demand.js');
-  const planArgs = [commitCli, 'plan', '--project-root', repo, '--kind', 'project', '--demand', '10', '--type', 'fix', '--title', '编辑框默认值恢复', '--file', 'changed.txt', '--modification', '通过回填初始值恢复编辑框清空后的默认内容，避免保存空字符串并保留初始内容'];
+  const planArgs = [commitCli, 'plan', '--project-root', repo, '--kind', 'standard', '--demand', '10', '--type', 'fix', '--title', '编辑框默认值恢复', '--file', 'changed.txt', '--modification', '通过回填初始值恢复编辑框清空后的默认内容，避免保存空字符串并保留初始内容'];
   let planned = JSON.parse(run(process.execPath, [...planArgs, '--output', path.join(officialTemp, 'plan.json')]));
+  const review = plan => run(process.execPath,[commitCli,'review','--plan',plan.planPath,'--snapshot',plan.integrity,
+    '--result','no-visible-impact','--evidence','Reviewed fixture-only data change']);
+  review(planned);
   f.prepare();
   if (refreshed) {
     fs.writeFileSync(path.join(actor,'independent.txt'),'independent upstream change\n');
@@ -312,6 +318,7 @@ for (const refreshed of [false, true]) test('accepts the actual verified commit-
     assert.equal(next.repositories[0].fingerprint,planned.repositories[0].fingerprint);
     assert.equal(next.repositories[0].message,planned.repositories[0].message);
     planned = next;
+    review(planned);
     assert.equal(f.state().demands[0].delivery.commit.records.length,0);
   }
   run(process.execPath, [commitCli, 'apply', '--plan', planned.planPath, '--confirm-commit', '--verify']);
@@ -361,4 +368,25 @@ test('pending report tracks user decisions independently of automatic gaps', t =
   assert.deepEqual(gapItem.automatic.gaps, ['native scenario pending']);
   api.apply(state, 'decide', { id: state.demands[0].id, actor: 'user', status: 'deferred', quote: 'Defer acceptance' });
   assert.match(api.render(state, 'pending'), /^待用户验收结论共/);
+});
+
+test('standard acceptance rejects a missing or stale review even for existing commits', t => {
+  const f=fixture(t); f.prepare();
+  const receipt=f.commit(), review=receipt.i18nReview;
+  delete receipt.i18nReview;
+  assert.throws(()=>f.record('commit','succeeded',receipt),/i18n-review-required/);
+  receipt.i18nReview={...review,commits:[{...review.commits[0],commit:'0'.repeat(40)}]};
+  assert.throws(()=>f.record('commit','succeeded',receipt),/i18n-review-required/);
+  receipt.i18nReview=review;
+  f.record('commit','succeeded',receipt);
+});
+
+test('pending push of a legacy standard commit resumes after scoped review', t => {
+  const f=fixture(t); f.prepare();
+  const receipt=f.commit();
+  f.record('commit','succeeded',receipt);
+  api.mutate(f.directory,state=>{delete state.demands[0].delivery.commit.i18nReview;});
+  assert.throws(()=>f.record('push','running'),/i18n-review-required/);
+  f.record('commit','succeeded',receipt);
+  f.record('push','running');
 });

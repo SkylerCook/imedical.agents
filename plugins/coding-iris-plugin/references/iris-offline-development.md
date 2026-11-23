@@ -123,3 +123,21 @@ node <iris-tools>/source-delivery.js xml-verify --project-root . --source-direct
 旧任务没有此 Git 记录时，不在已修改目录重新 prepare。保留旧任务及原始输入，在独立任务目录重新冻结原始材料、建立基线、迁移已核对的业务差异，再重新打包。独立 PowerShell 助手仍支持旧包核验，但不代表通过框架 Git 门禁。
 
 XML 输出沿输入的换行、BOM、声明与外层空白，不统一改成 LF。回退覆盖原包全部源码对象且无 Project 元数据时直接复制原始字节；子集回退仅包含修改对象。XML 解析器仍可能规范化节点内部的等价词法形式，不能声称所有输入均逐字节保真；交付核验继续比较对象与载荷。XML 路径只维护对象 XML 为事实源；辅助抽取源码须标明派生、不可独立编辑。用户直接修补交付包时先回填事实源、重新打包并 verify，禁止仅修改交付包后继续沿旧源码出包。
+
+## CLS 源码出包门禁
+
+框架源码 Pack 发布前在临时包内比较 changes 与 rollback，对实际修改的 CLS 行执行内置 Windows x64 解析器的 ObjectScript 错误检查及禁用规则。OS001 拦截 QUIT、CONTINUE、SET 括号后置条件外遗留的 && 或 ||。诊断失败或工具无法执行时终止 Pack，修正后重跑原命令。格式提醒仍沿原入口。XML 对象回包及现场编译另行验证。
+
+维护新的命令禁用规则时，在 cls-delivery-gate.js 的 commandRules 注册唯一编号，并在对应回归文件提供反例、修正版和容易误报的合法对照。注册编号与测试清单必须一致；新增规则沿同一 Pack 调用自动执行。
+
+OS002 从完整 UDL 声明计算类和方法的有效 ProcedureBlock，与冻结原件按声明身份比较。新增关闭、在历史关闭类内新增且未启用过程块的 ObjectScript 方法会阻断 Pack；存量关闭声明仍可保留。见 [CLS 变量作用域](cls-coding-format.md#objectscript-变量作用域os002)。
+
+OS003 比较同一冻结基线，只检查新增 ObjectScript 方法的点号块缩进，命中后改用花括号再出包。
+
+OS004 按变更行检查 [登录科室和用户](cls-coding-format.md#登录科室和用户os004) 的直接读取。
+
+### 正式 Review
+
+受管源码执行 `source-delivery.js review`，沿用 Prepare 的 project-root、source-directory（或 export-directory）和 baseline-directory。工具自动定位原件和对应 Git 提交，检查冻结范围内的最终差异，包括已提交改动。Prepare 从项目配置取得需求类型，任务另有确认时传 `--kind standard|project`。旧基线缺少类型时使用相同配置或显式类型。
+
+标版每次检查所有改动文件，包括纯前端、后端消息、字典和打印。沿需求提交的[标版 i18n 复核](../../demand-delivery-plugin/skills/demand-commit/SKILL.md#标版-i18n-复核)判断是否有可见影响。首次 Review 返回本次差异的 token 和待复核项。审完后在同一 review 命令附加 `--review-token <token> --i18n-result passed|no-visible-impact --i18n-evidence <实际依据>`。OS008 待复核时附加 `--reason <调用入口与退出路径依据>`，可以在同一次调用中记录两项。仍有缺陷时修复后重跑。Pack 在临时包内重新计算文件范围及前后字节摘要，缺少有效结论返回非零。

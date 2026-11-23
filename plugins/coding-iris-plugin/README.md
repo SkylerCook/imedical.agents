@@ -1,5 +1,15 @@
 # coding-iris-plugin
 
+Windows x64 的 CLS Review 检查新增声明的有效 ProcedureBlock，受管源码 Pack 以冻结原件再次检查 OS002。两处同时检查新增 ObjectScript 方法的点号块缩进（OS003）以及变更行直接读取登录科室或用户的调用（OS004）。
+
+标版业务数据与业务配置的新增存储按 [OS005](rules/iris_coding_backend.md#标版业务数据与业务配置存储os005) 使用有结构的表；后端 Review 根据实际用途判定。
+
+新增表、字段、类和方法的文档要求沿用 [CLS 注释规范](references/cls-coding-format.md#注释与空行)，OS006 检查必需标签。
+
+后端 Review 在改动传统错误处理或命名空间切换时，分别执行 [OS007](rules/iris_coding_backend.md#传统错误处理os007) 和 [OS008](rules/iris_coding_backend.md#命名空间切换os008)。
+
+0.34.6 为框架离线源码 Pack 增加 [CLS 禁用写法门禁](references/iris-offline-development.md#cls-源码出包门禁)。
+
 0.34.5 通过[工程配置迁移](../../docs/update-agents.md#工程配置迁移)接管开发库、Web／SFTP、远程策略、会话后端、需求交付、目录编码及菜单设置。初始化沿项目配置入口填写，框架消费者从当前 ContextRoot 解析。旧来源冲突时保留文件并报告字段。
 
 开发复用覆盖 iris-coding、前端与后端直接入口，按[通用规则](rules/iris_coding_general.md#开发复用)自动查找候选、核对契约并复核最终 diff。已有项目使用正常能力包更新同时取得插件、agents/ 与 workflows/；Overlay 更新共享 CapabilityRoot 后按现有流程刷新 ContextRoot。规则随下一次任务读取生效，配置迁移和旧文件清理均无需执行。
@@ -378,3 +388,5 @@ MCP helper 的 `tools` / `call` 已包含配置检查，已知参数可直接调
 按需部署时，由 manifest 的 runtimeResources 与 required skill 依赖取得必需 vendor 资源；可选资料随任务触发补装，流程见[插件按需部署](../../docs/guides/plugin-deployment.md)。
 
 运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.coding-iris-plugin` 节。 现有工程沿原更新器 Write 迁移已识别字段。
+
+受管源码的[正式 Review](references/iris-offline-development.md#正式-review)自动绑定冻结任务范围，标版纯前端包同样核对 i18n 结论。已有工程更新能力包后使用原任务基线。

@@ -140,7 +140,7 @@ Index idxClientBatch On clientBatchId [ Unique ];
 
 缺少适用的必需标签、标签或参数重复、参数名与签名不符，以及注释和实际实现/投影冲突时应报告；核实契约后只修正授权范围内的内容。`Debug` 作为文档内容读取，提取或 Review 时不执行其中调用；远程调试仍按原授权边界处理。
 
-这些是 Agent 编写、Review 及文档提取契约；现有 `check-cls-format.js` 不解析标签、校验业务语义或生成表/接口文档，脚本通过不能替代这些检查。
+OS006 在 Windows x64 的 CLS Review 对本次改动的全部类执行上述命令。未提交改动默认对照 HEAD；评审包含已提交改动时，用已确定的任务起点或评审 diff 的基线提交作为 `--base-ref`，对照当前受审源码。新文件检查全文。变更行的 ObjectScript 语法和 OS001 与 Pack 共用检查器，OS002、OS003、OS004、OS006、OS008 按各自范围检查。确定违规返回非零，普通格式提示返回 0。其他平台按相同评审范围人工核查。
 
 ### 方法体与变量注释
 
@@ -166,13 +166,13 @@ Index idxClientBatch On clientBatchId [ Unique ];
 
 需要独立 Review 时，向通用 [review-agent](../../../agents/review-agent/AGENT.md) 传入冻结 diff、需求、变更范围、项目显式覆盖和本文路径；混合任务附带各语言适用规范。只读 Reviewer 区分功能/语法缺陷、规范不符合项及可选风格建议，给出位置、规则依据和最小修改建议。没有独立 Agent 时由当前 Agent 按相同清单复核，不因格式 Review 创建正式 run。
 
-## 可选本地自检
+## CLS 本地检查
 
 ```text
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/check-cls-format.js <file.cls> ...
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/check-cls-format.js [--base-ref <commit>] <file.cls> ...
 ```
 
-只读比较所属仓库 HEAD 与工作区；新文件检查完整结构，已有文件仅提示变更位置。正常完成时，即使有格式提示也返回 0，不接入 Git hook、compile.js 或 commit-demand.js。文件不可读等执行错误返回非零，不代表业务代码不能提交。
+受管离线正式 Review 使用[任务冻结基线](iris-offline-development.md#正式-review)。以下单文件命令供本地检查。Windows x64 的 CLS Review 对新增类、方法、变更过程块设置或登录上下文读取时运行上述命令，新增声明同时按本文注释规范检查；OS002、OS003、OS004 或 OS006 命中返回非零并返修。其他平台由 Reviewer 按 OS002、OS003、OS004 对照基线核查声明与新增方法实现。只读比较所属仓库 HEAD 与工作区；新文件检查完整结构，已有文件仅提示变更位置。正常完成时，即使有格式提示也返回 0，不接入 Git hook、compile.js 或 commit-demand.js。文件不可读等执行错误返回非零，不代表业务代码不能提交。
 
 复杂结构无法可靠识别时输出 `manual-review`，由 Agent 仅检查本次编辑部分。脚本不写文件、不连接服务器、不自动修复。检查器按 HEAD 变更区间提示，不能区分真正新增与原有代码修改；Agent 对照修改前源码筛选，仅处理新增代码，原有代码提示不作为格式修正要求。
 
@@ -184,3 +184,17 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/check-cls-format.js <
 
 - [@clawhub_yaoxin521123/iris-code-formatter](https://api.skillhub.cn/clawhub_yaoxin521123/iris-code-formatter)，包版本 `3.1.0`：参考命名、空格、控制结构、注释和空行的组织方式。本规范采用自有表述和示例，保留框架的 4 空格缩进与最小改动边界。
 - 上游包未提供明确许可证，本轮不复制或分发原包。其 Global 命名、锁、事务、返回值及完整代码输出要求未纳入本文；使用本规范不依赖 SkillHub、全局 formatter skill 或联网加载。
+
+## ObjectScript 变量作用域（OS002）
+
+新类保持 ProcedureBlock 默认开启。新 ObjectScript 方法必须在过程块内运行。普通类可省略该关键字；历史类声明 Not ProcedureBlock 时，新增方法须显式写 [ ProcedureBlock ] 或 [ ProcedureBlock = 1 ]。禁止新增关闭类或方法过程块的声明。非过程块可能读写调用者的同名局部变量；历史方法可能依赖这种行为，修改业务实现时保留其原有作用域。
+
+[类关键字](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=ROBJ_class_procedureblock) · [方法关键字](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=ROBJ_method_procedureblock)
+
+## 新方法使用花括号块（OS003）
+
+新增 ObjectScript 方法统一使用 `{ ... }` 表示控制流块，禁止用无参数 Do 配合单层或多层点号缩进。按类和方法身份与基线比较，历史方法保留原写法。对象成员访问、按引用传参、字符串和注释中的点号照常使用。
+
+## 登录科室和用户（OS004）
+
+科室与用户的登录上下文由统一入口管理，避免业务方法分别维护会话键及字段位置。OS004 属于项目编码约定，直接读取本身是合法语法。前端调用优先传入 `sessionStr`，后端将收到的值交给统一方法取得科室与用户；旧调用未传时沿统一方法的缺省处理。OS004 拦截 `%session.Get("LOGON.CTLOCID")` 和 `%session.Get("LOGON.USERID")` 两个字面量调用。医生站组可调用 `DHCDoc.Util.RegisteredObject` 的 `%LogonLocId(sessionStr)`、`%LogonUserId(sessionStr)`；已继承该类的方法可使用 `..` 调用。

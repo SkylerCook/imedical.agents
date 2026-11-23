@@ -108,7 +108,7 @@ test('CLI reports advisory without blocking or changing a new file', t => {
   const init = spawnSync('git', ['init', root], { encoding: 'utf8', windowsHide: true, timeout: 30000 });
   assert.equal(init.status, 0, init.stderr);
   const file = path.join(root, 'Test.cls');
-  const source = withParameter('Parameter BAD_NAME = 1;', '    q ..#BAD_NAME');
+  const source = '/// Name: Test class\n/// Description: Exercises naming checks.\n' + withParameter('Parameter BAD_NAME = 1;', '    q ..#BAD_NAME').replace('ClassMethod ', '/// Name: Read the parameter\nClassMethod ');
   fs.writeFileSync(file, source);
   const result = spawnSync(process.execPath, [path.resolve(__dirname, '../check-cls-format.js'), file], { encoding: 'utf8', windowsHide: true, timeout: 30000 });
   assert.equal(result.status, 0, result.stderr);

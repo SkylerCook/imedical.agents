@@ -156,7 +156,19 @@ project 暂无编号时，将上例的 `--demand <requirement-id>` 替换为 `--
 单仓库时 `--modification` 可以只传说明正文。计划记录仓库 HEAD、branch、upstream、精确文件、状态/diff 指纹和拟用消息，并带完整性摘要，保存在系统临时目录。无编号计划记录 `noId: true`、`demand: null`，默认文件名使用独立随机标识，避免多个无编号计划覆盖；已有数字编号 v1 计划保持原样恢复。不得手工编辑或伪造计划；任何漂移都必须重新 plan。向用户展示每个仓库的文件与完整提交信息。
 
 - `--plan` 模式到此结束，不询问是否提交，不进入 Apply。
-- `--commit` 模式已有明确授权，plan 成功后直接进入 Apply，不重复暂停确认。
+- `--commit` 模式已有明确授权，plan 成功后，标版先完成下节 i18n 复核，再进入 Apply，不重复暂停确认。
+
+### 标版 i18n 复核
+
+Agent 对照计划里每个仓库的基线和精确文件检查整份需求差异，包括未跟踪的新文件、删除项和已从 worktree 合入的改动。检查页面、接口返回的展示消息、字典、打印、翻译 key 及其参数。用户可见内容走项目已有国际化能力，核对真实展示链、翻译资源和回退。纯内部改动记录无可见影响的具体依据。专项检查无法完成或仍有问题时保留待处理状态。
+
+完成检查后，由 Agent 执行以下命令把结论写回原计划，再执行 apply。复核本身可在提交授权前完成。计划或内容发生变化时沿新差异重新核对。
+
+```text
+node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js review --plan <plan.json> --snapshot <本次计划的 integrity> --result passed|no-visible-impact --evidence <核对的文件、展示路径和结论>
+```
+
+复用已有实仓提交时，核对计划记录的每个 commit 与父提交之间的完整需求差异，在其 committed 或 verified 计划上执行同一 review。验收使用已验证计划中与实仓提交一一对应的 i18n 结论。
 
 ### 2. Apply
 

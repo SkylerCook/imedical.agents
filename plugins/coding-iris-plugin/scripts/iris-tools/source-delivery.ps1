@@ -360,8 +360,16 @@ try{
         try{
             [void][IO.Directory]::CreateDirectory($stage);$hashes=[ordered]@{}
             foreach($item in $changed){foreach($pair in @(@('changes',$root,$item.afterSha256),@('rollback',$baseline.directory,$item.beforeSha256))){$bytes=[IO.File]::ReadAllBytes((Join-Safe $pair[1] $item.path));if((Hash-Bytes $bytes)-ne $pair[2]){throw 'source-drift-during-pack'};$relative=$pair[0]+'/'+$item.path;Write-New (Join-Safe $stage $relative) $bytes;$hashes[$relative]=$pair[2]}}
+            $diagnostic = @()
+            if ($WorkspaceEvidence -or $baseline.manifest.workspaceBindingSha256) {
+                $kind = (Read-Json (Join-Path $baseline.directory 'git-baseline.json')).demandKind
+                if (-not $kind -and $WorkspaceEvidence) { $kind = ($utf8.GetString([Convert]::FromBase64String($WorkspaceEvidence)) | ConvertFrom-Json).demandKind }
+                $diagnostic = & node (Join-Path $PSScriptRoot 'cls-delivery-gate.js') $stage $baseline.directory $kind 2>&1
+                if ($LASTEXITCODE -ne 0) { throw ($diagnostic -join [Environment]::NewLine) }
+            }
             $lines=@('# 源码变更说明','',$notes,'','## 来源与范围','',('- Atelier：'+$baseline.source.atelierUrl),('- Namespace：'+$baseline.source.namespace),('- 修改对象数：'+$changed.Count),('- 来源完整：'+$baseline.manifest.complete),'- changes 仅含修改后的完整源码；rollback 为同一批对象的原始源码。','','## 对象摘要','')
             if($baseline.source.kind -eq 'manual-source'){$lines=@('# 源码变更说明','',$notes,'','## 来源与范围','',('- 人工接收批次：'+$baseline.source.batchId),'- 来源 URL、namespace 未确认，不声明医院全量源码。',('- 修改对象数：'+$changed.Count),'- changes/rollback 保留输入相对路径，不自动导入或编译。','','## 对象摘要','')}
+            if ($diagnostic) { $lines += @('', '## 源码复核', '') + @($diagnostic) }
             foreach($item in $changed){$lines+=@('- '+$item.document,('  - 本地路径：{0}'-f $item.path),('  - before: {0}'-f $item.beforeSha256),('  - after: {0}'-f $item.afterSha256))}
             $lines+=@('','## 还回现场','', '- 本包记录的是带出来源；它不自动选择部署目标或授予写入权限。','- 先核对地址与 Namespace，并用相同读取表示核对现场当前内容与 before 摘要；不一致先合并。','- 按项目原有方式导入类/例程、上传对应 Web 虚拟路径，再编译、验收。','- 未上传、编译或执行业务验收；离线 Verify 不证明现场没有并行修改。','- rollback 来自带出的基线，回退前也须核对现场后续变化。','')
             Write-New (Join-Path $stage '变更说明.md') ($utf8.GetBytes(($lines-join "`n")));$hashes['变更说明.md']=Hash-File (Join-Path $stage '变更说明.md')

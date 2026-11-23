@@ -9,7 +9,7 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 开发方式先读取当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节。`developmentMode: offline` 时按[离线开发协议](../../references/iris-offline-development.md)处理当前源码或完整 XML，完成本地检查和 Review 后交付用户现场验证；不要求连接、资格或服务器元数据，不调用原生 IRIS MCP。下文服务器同步只适用于 `connected`（含旧配置缺省）；非法值停止核对。
 
-编写 `.cls` 前读取[CLS 命名与格式规范](../../references/cls-coding-format.md)，最终 diff 后按同一规范检查。新类参考规范模板，并按后端规则完成基类选择与项目适配；已有类只规范本次新增代码，不格式化被功能需求修改的原有代码。可选本地自检不阻断提交，不要求上传、回读或编译证据。
+编写 `.cls` 前读取[CLS 命名与格式规范](../../references/cls-coding-format.md)，最终 diff 后按同一规范检查。新类参考规范模板，并按后端规则完成基类选择与项目适配；已有类只规范本次新增代码，不格式化被功能需求修改的原有代码。最终 Review 对本次变更的 CLS 执行同一规范的「CLS 本地检查」；涉及已提交变更时传入评审基线。确定违规即返修。普通格式项仅提示。
 
 ## 使用时机
 
@@ -41,8 +41,10 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 按实际改动选择验收层级：内部方法直接验证，对外 Broker/REST/SOAP 经真实入口验证，写入增加独立回读；纯后端不强制走前端。返回契约影响前端消费者时补受影响页面。Broker 机器调用与授权/证据边界见 [分层验收接入](../../../../docs/night-acceptance.md)。
 
 - 最终 diff 已按 CLS 规范检查命名、格式、改动范围和兼容性；脚本检查与 Agent 审查结果分别说明。
-- 对本次新增注册类/非表模型、表类、成员及变量，按 [ObjectScript 注释约定](../../references/cls-coding-format.md#注释与空行) 核对适用标签、参数/返回契约、结构引用和自然语言说明；SQL 投影或返回结构不明时报告缺口，Debug 仅作为文档内容，不自动编译、调试或改写历史注释。
+- 对新增表、字段、类和方法执行现有 CLS 本地检查（OS006），缺失适用说明须补齐。对本次新增注册类/非表模型、表类、成员及变量，按 [ObjectScript 注释约定](../../references/cls-coding-format.md#注释与空行) 核对适用标签、参数/返回契约、结构引用和自然语言说明；SQL 投影或返回结构不明时报告缺口，Debug 仅作为文档内容，不自动编译、调试或改写历史注释。
 - 调用独立 review-agent 时传入冻结 diff、需求、范围、项目显式规范和 CLS 规范路径；新增类附基类选择及 profile/源码依据，按共用清单审查继承。不要求额外安装 formatter skill，无子 Agent 时按同一清单串行复核。
+- 标版新增 Global 写入时，按[业务数据与业务配置存储](../../rules/iris_coding_backend.md#标版业务数据与业务配置存储os005)检查写入及消费路径；确认 OS005 违规即返修，临时用途放行。
+- 最终 diff 涉及传统错误陷阱时按 [OS007](../../rules/iris_coding_backend.md#传统错误处理os007) 核对原始错误与陷阱收尾；涉及命名空间切换时按 [OS008](../../rules/iris_coding_backend.md#命名空间切换os008) 核对恢复路径与跨空间资源。
 - SQL 写入层返回格式稳定。
 - 参数校验避免 `<UNDEFINED>`。
 - 未引入源工程硬编码服务器、namespace 或业务前缀。

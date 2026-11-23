@@ -26,7 +26,7 @@ test('unified and direct frontend routes share the conditional i18n gate', () =>
     assert.match(content, /最终 diff 后再次执行/);
     assert.match(content, /失败.*停止/);
   }
-  for (const marker of ['.agents/config/plugin_profile.md', 'i18n-iris-plugin', 'enabled', '$g', '$trans',
+  for (const marker of ['.agents/config/project.jsonc', '标版 i18n 复核', 'i18n-iris-plugin', 'enabled', '$g', '$trans',
     'i18n_project_profile.md', 'i18n_coding_frontend.md', 'check-i18n-helper-usage.js', '--file',
     '全部触碰', '退出码 `1`', '退出码 `2`', '两者都必须停止']) {
     assert(rule.includes(marker), `owner gate must retain ${marker}`);

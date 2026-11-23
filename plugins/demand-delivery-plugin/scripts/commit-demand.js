@@ -366,6 +366,31 @@ function assertPlanScope(plan) {
   }
 }
 
+function reviewCommand(args) {
+  const plan = readPlan(args.plan);
+  if (plan.kind !== 'standard' || !['planned','committed','verified'].includes(plan.status) || args.snapshot !== plan.integrity) {
+    throw new Error('i18n-review-snapshot-mismatch');
+  }
+  if (!['passed', 'no-visible-impact'].includes(args.result) || !args.evidence?.trim()) {
+    throw new Error('i18n-review-conclusion-required');
+  }
+  assertPlanScope(plan);
+  if (plan.status === 'planned') {
+    for (const repo of plan.repositories) {
+      assertRepoUnchanged(repo);
+      repo.reviewedBlobs = repo.files.map(file => {
+        if (!fs.existsSync(path.join(repo.root,file))) return null;
+        return gitText(repo.root,['hash-object','--path='+file,'--',file]);
+      });
+      assertRepoUnchanged(repo);
+    }
+  }
+  plan.i18nReview = {result: args.result, evidence: args.evidence.trim(), reviewedAt: new Date().toISOString()};
+  if (plan.status === 'planned') writeJson(plan.planPath, plan);
+  else verifyPlan(plan);
+  console.log(JSON.stringify(plan, null, 2));
+}
+
 function applyCommand(args) {
   if (!args.confirmCommit) throw new Error('缺少 --confirm-commit；没有用户明确授权时禁止提交');
   const plan = readPlan(args.plan);
@@ -376,6 +401,9 @@ function applyCommand(args) {
     if (plan.kind === 'standard' && !repo.upstream) throw new Error(`标版仓库缺少 upstream: ${repo.root}`);
   }
 
+  if (plan.kind === 'standard' && (!['passed','no-visible-impact'].includes(plan.i18nReview?.result) || !plan.i18nReview.evidence?.trim())) {
+    throw new Error('i18n-review-required: review the complete standard demand plan before apply');
+  }
   let refreshed = false;
   for (const repo of plan.repositories) {
     if (!repo.upstream) {
@@ -437,8 +465,19 @@ function verifyPlan(plan) {
     if (missing.length) throw new Error(`提交缺少计划文件: ${repo.root}: ${missing.join(', ')}`);
     const unexpected = changed.filter((file) => !repo.files.includes(file));
     if (unexpected.length) throw new Error(`提交包含计划外文件: ${repo.root}: ${unexpected.join(', ')}`);
+    if (plan.kind === 'standard' && repo.reviewedBlobs) {
+      if (gitText(repo.root,['rev-parse',commit+'^']) !== repo.head) throw new Error('i18n-review-parent-changed');
+      for (const [index,file] of repo.files.entries()) {
+        const blob = runGit(repo.root,['rev-parse','--verify',commit+':'+file],{allowFailure:true});
+        if ((blob.status === 0 ? blob.stdout.trim() : null) !== repo.reviewedBlobs[index]) throw new Error('i18n-review-content-changed: '+file);
+      }
+    }
     repo.execution.status = 'verified';
     repo.execution.remainingStatus = gitText(repo.root, ['status', '--short']);
+  }
+  if (plan.kind === 'standard') {
+    if (!plan.i18nReview?.evidence?.trim() || !['passed','no-visible-impact'].includes(plan.i18nReview.result)) throw new Error('i18n-review-required');
+    plan.i18nReview.commits = plan.repositories.map(repo => ({root:repo.root, commit:repo.execution.commit}));
   }
   plan.status = 'verified';
   writeJson(plan.planPath, plan);
@@ -453,9 +492,10 @@ function verifyCommand(args) {
 function main() {
   const args = parseArgs(process.argv);
   if (args.command === 'plan') planCommand(args);
+  else if (args.command === 'review') reviewCommand(args);
   else if (args.command === 'apply') applyCommand(args);
   else if (args.command === 'verify') verifyCommand(args);
-  else throw new Error('用法: commit-demand.js <plan|apply|verify> ...');
+  else throw new Error('用法: commit-demand.js <plan|review|apply|verify> ...');
 }
 
 if (require.main === module) {

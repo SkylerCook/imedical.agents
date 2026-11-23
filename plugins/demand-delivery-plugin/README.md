@@ -33,3 +33,5 @@
 运行 `node --test plugins/demand-delivery-plugin/tests/*.test.js` 验证隔离 Git 仓库与模拟 hook 行为；真实远端和其它平台结果另行取证。
 
 验收完成前沿 demand-acceptance 核对相关仓库剩余差异与实施记录，识别辅助部署代码和模板资源的补交范围。
+
+标版提交和复用历史提交须完成[标版 i18n 复核](skills/demand-commit/SKILL.md#标版-i18n-复核)。已有工程正常更新，旧标版计划在原计划上补审。

@@ -14,7 +14,7 @@ for (const mode of ['success', 'pull-failed', 'head-changed', 'snapshot-changed'
     vm.runInContext(`
       const fakeRepo = {root: '.', branch:'dev', fingerprint:'unchanged', upstream: mode === 'local-only' ? '' : 'origin/dev', head: 'abc', stateVersion: 2,
         files: ['target'], execution: {}, message: 'test'};
-      readPlan = () => ({repositories:[fakeRepo], kind: mode === 'local-only' ? 'project' : 'standard', planPath:'test-plan'});
+      readPlan = () => ({i18nReview:{result:'passed',evidence:'checked fixture'},repositories:[fakeRepo], kind: mode === 'local-only' ? 'project' : 'standard', planPath:'test-plan'});
       // File ownership is covered by the real-repository suite; isolate hook ordering here.
       let scopeChecks = 0;
       assertPlanScope = () => { scopeChecks++; };
@@ -59,7 +59,7 @@ for (const field of ['head', 'branch', 'upstream', 'fingerprint']) {
       const repos = ['repo-a', 'repo-b'].map(root => ({root, head:'abc', branch:'dev', upstream:'origin/dev',
         fingerprint:'original', stateVersion:2, files:['target'], message:'test', execution:{}}));
       const live = new Map(repos.map(repo => [repo.root,{...repo}]));
-      readPlan = () => ({kind:'standard',repositories:repos,planPath:'unused'});
+      readPlan = () => ({kind:'standard',i18nReview:{result:'passed',evidence:'checked fixture'},repositories:repos,planPath:'unused'});
       assertPlanScope = () => {};
       repositoryInfo = root => ({...live.get(root)});
       writeJson = () => {};
@@ -84,7 +84,7 @@ for (const phase of ['before-first-stage', 'after-first-commit']) {
       const repos = ['repo-a', 'repo-b'].map(root => ({root, head:'abc', branch:'dev', upstream:'origin/dev',
         fingerprint:'original', stateVersion:2, files:['target'], message:'test', execution:{}}));
       const live = new Map(repos.map(repo => [repo.root,{...repo}]));
-      const planned = {kind:'standard',repositories:repos,planPath:'unused'};
+      const planned = {kind:'standard',i18nReview:{result:'passed',evidence:'checked fixture'},repositories:repos,planPath:'unused'};
       let saved;
       readPlan = () => planned;
       assertPlanScope = () => {};

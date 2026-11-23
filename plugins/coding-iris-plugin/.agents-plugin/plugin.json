@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.34.5",
+  "version": "0.34.6",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -176,5 +176,5 @@
     "Check this change against IRIS coding and deployment rules",
     "查询 imedical wiki 或菜单资料；菜单变更后同步项目菜单快照"
   ],
-  "runtimeResources": ["vendor/frontend-encoding", "vendor/hisui", "vendor/imedical-knowledge", "vendor/iris-agentic-dev", "vendor/sftp-server", "vendor/xml-parser"]
+  "runtimeResources": ["vendor/frontend-encoding", "vendor/hisui", "vendor/imedical-knowledge", "vendor/intersystems-language-server", "vendor/iris-agentic-dev", "vendor/sftp-server", "vendor/xml-parser"]
 }

@@ -68,3 +68,5 @@ task-affinity: [iris, coding, safety, editing]
 新增、替换或复制实现前，以及最终 diff 后，读取并执行[共享开发复用流程](../../../agents/_shared/execution-guidance.md#开发复用)。iris-coding、iris-backend-coding、iris-frontend-coding 的 fast/full/guarded 与 offline 分支均适用。Overlay 相对引用不可达时通过 ContextRoot 的 capability.json 定位 CapabilityRoot。
 
 后端核对已有类方法、业务服务、Query 和公共处理的消费者契约，并继续完成专项基类核对。前端沿专项规则的 HISUI 优先顺序检查控件、交互、状态和主题能力。候选与取舍随现有交付传递，最终自审或 review-agent 复核重复实现和兼容风险。
+
+标版任务开发时，涉及页面、接口展示消息、字典、打印或翻译 key/参数即沿已有 i18n 分流检查。正式 Review 按最终需求差异逐项判断可见影响并记录结论。提交执行[标版 i18n 复核](../../demand-delivery-plugin/skills/demand-commit/SKILL.md#标版-i18n-复核)，受管离线源码沿[正式 Review](../references/iris-offline-development.md#正式-review)。

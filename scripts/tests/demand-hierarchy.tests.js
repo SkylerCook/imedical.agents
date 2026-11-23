@@ -135,7 +135,7 @@ test('group acceptance gates shared commit, one push can precede all logs and la
   assert.throws(() => s.own('100'), /All related child/);
   assert.equal(acceptance.readyForClaim(s.load(), s.item('100')), false);
   s.passed('102'); s.passed('103'); s.own('100');
-  const receipt = { status: 'verified', demand: '100', repositories: [{ root: f.repo, files: ['actions.js'], message: 'fix(100):操作图标\n修改说明:统一操作', execution: { status: 'verified', commit: hash } }] };
+  const receipt = { status: 'verified', kind:'standard', i18nReview:{result:'passed',evidence:'Checked action keys',commits:[{root:f.repo,commit:hash}]}, demand: '100', repositories: [{ root: f.repo, files: ['actions.js'], message: 'fix(100):操作图标\n修改说明:统一操作', execution: { status: 'verified', commit: hash } }] };
   s.record('100', 'commit', 'succeeded', receipt);
   const push = { repositories: [{ key: 'ui', commit: hash, remote: 'origin', ref: 'refs/heads/dev', verified: true, remoteHash: hash }] };
   s.record('100', 'push', 'running'); s.record('100', 'push', 'succeeded', push);
@@ -217,12 +217,15 @@ test('official parent commit and a single local push complete Git before individ
     const r = spawnSync(process.execPath, [cli, ...args], { cwd: f.repo, encoding: 'utf8', windowsHide: true, env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(f.root,'empty-config') } });
     assert.equal(r.status, 0, r.stderr); return JSON.parse(r.stdout);
   }
-  const plan = run(['plan','--project-root',f.repo,'--kind','project','--demand','100','--type','fix','--subject','操作图标','--title','主需求',
+  const bare = path.join(f.root,'remote.git'); f.git('init','--bare',bare); f.git('remote','add','origin',bare);
+  f.git('push','-u','origin','HEAD:refs/heads/dev');
+  const plan = run(['plan','--project-root',f.repo,'--kind','standard','--demand','100','--type','fix','--subject','操作图标','--title','主需求',
     '--file',path.join(f.repo,'actions.js'),'--modification','使用公共图标配置替代主题分支，使操作一致并保留原有事件','--output',path.join(f.root,'official-plan.json')]);
+  run(['review','--plan',plan.planPath,'--snapshot',plan.integrity,'--result','no-visible-impact','--evidence','Reviewed the inherited icon configuration']);
   const committed = run(['apply','--plan',plan.planPath,'--confirm-commit','--verify']);
   s.record('100','commit','succeeded',committed);
   const hash = committed.repositories[0].execution.commit;
-  const bare = path.join(f.root,'remote.git'); f.git('init','--bare',bare); f.git('remote','add','origin',bare);
+
   s.record('100','push','running');
   f.git('push','origin','HEAD:refs/heads/dev');
   const remoteHash = f.git('--git-dir='+bare,'rev-parse','refs/heads/dev'); assert.equal(remoteHash,hash);
@@ -272,7 +275,7 @@ test('non-BOS commit-only groups inherit the main receipt without credential or 
   act('claim',{id:'100',owner:'worker'}); act('publish',{id:'100',owner:'worker'});
   assert.throws(()=>act('claim',{id:'101',owner:'child'}),/verified parent commit/);
   const hash = f.commit();
-  act('record',{id:'100',owner:'worker',phase:'commit',status:'succeeded',receipt:{status:'verified',demand:'100',repositories:[{root:f.repo,files:['actions.js'],message:'fix(100):操作图标\n修改说明:统一图标',execution:{status:'verified',commit:hash}}]}});
+  act('record',{id:'100',owner:'worker',phase:'commit',status:'succeeded',receipt:{status:'verified',kind:'standard',i18nReview:{result:'passed',evidence:'Checked action keys',commits:[{root:f.repo,commit:hash}]},demand:'100',repositories:[{root:f.repo,files:['actions.js'],message:'fix(100):操作图标\n修改说明:统一图标',execution:{status:'verified',commit:hash}}]}});
   act('claim',{id:'101',owner:'child'}); act('publish',{id:'101',owner:'child'}); act('inherit',{id:'101',owner:'child'});
   const state = acceptance.load(directory);
   assert.equal(acceptance.summarize(state,'delivered').count,2);

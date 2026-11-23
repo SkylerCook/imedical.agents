@@ -363,7 +363,7 @@
       "directory": "coding-iris-plugin",
       "manifest": {
         "name": "coding-iris-plugin",
-        "version": "0.34.5",
+        "version": "0.34.6",
         "displayName": "IRIS Coding Plugin",
         "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
         "entry": "AGENTS.md",
@@ -543,18 +543,19 @@
           "vendor/frontend-encoding",
           "vendor/hisui",
           "vendor/imedical-knowledge",
+          "vendor/intersystems-language-server",
           "vendor/iris-agentic-dev",
           "vendor/sftp-server",
           "vendor/xml-parser"
         ]
       },
-      "manifestHash": "096c787a40d8e9fdc779b71f25b6ed2dc98225e47be65b25883885ebcb473d3a"
+      "manifestHash": "67bad5b87d02a0ee02d6b4e010917386ce20e6b4da5e1895422f20fd898488cf"
     },
     {
       "directory": "demand-delivery-plugin",
       "manifest": {
         "name": "demand-delivery-plugin",
-        "version": "0.9.4",
+        "version": "0.10.0",
         "displayName": "Demand Delivery Plugin",
         "description": "跨技术栈的需求提交，支持 project 显式无编号提交，以及连续人工验收、逐号交付恢复。",
         "entry": "AGENTS.md",
@@ -589,7 +590,7 @@
           }
         ]
       },
-      "manifestHash": "a103e61732fbeb1836ca10de6ed8772ba620a90ac6cc1103b7a66467a76b7f8d"
+      "manifestHash": "7bd77da7bc8571c609e5ab395a3ab0e9899ff170c0401e73ecf6a9da1de0ed44"
     },
     {
       "directory": "extract-doc",

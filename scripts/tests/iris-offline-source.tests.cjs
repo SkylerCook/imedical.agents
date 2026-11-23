@@ -25,7 +25,7 @@ function fixture(t){
 }
 function framework(f,mode,extra=[]){
  const args=[path.join(tools,'source-delivery.js'),mode,'--project-root',f.project,'--source-directory','code','--baseline-directory',f.baseline,'--powershell',path.basename(shell)];
- if(mode==='prepare')args.push('--original-directory',f.original,'--batch-id','batch-01','--scope-file',f.scope);
+ if(mode==='prepare')args.push('--kind',f.kind || 'project','--original-directory',f.original,'--batch-id','batch-01','--scope-file',f.scope);
  else args.push('--out',f.output);
  if(mode==='pack')args.push('--notes-file',f.notes);
  return spawnSync(process.execPath,[...args,...extra],{encoding:'utf8',windowsHide:true,timeout:30000});
@@ -129,7 +129,7 @@ test('scoped receipt source preserves unknown receipt fields and explicit partia
  const receiptFile=path.join(f.code,'baseline-state.json');write(receiptFile,JSON.stringify(receipt));const original=fs.readFileSync(receiptFile);write(f.scope,JSON.stringify({files:[relative]}));
  const run=(mode,extra=[])=>spawnSync(process.execPath,[path.join(tools,'source-delivery.js'),mode,'--project-root',f.project,'--export-directory',f.code,'--baseline-directory',f.baseline,'--powershell',path.basename(shell),...extra],{encoding:'utf8',windowsHide:true,timeout:30000});
  git(f.code,'add',relative);git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','receipt original');
- const args=['--scope-file',f.scope,'--batch-id','receipt-batch'];assert.match(run('prepare',args).stderr,/incomplete-export/);
+ const args=['--kind','project','--scope-file',f.scope,'--batch-id','receipt-batch'];assert.match(run('prepare',args).stderr,/incomplete-export/);
  passed(run('prepare',[...args,'--allow-partial']));write(path.join(f.code,relative),'Class Demo.Receipt { /* edited */ }\n');
  passed(run('pack',['--out',f.output,'--notes-file',f.notes]));passed(run('verify',['--out',f.output]));assert.deepEqual(fs.readFileSync(receiptFile),original);
  const manifest=JSON.parse(fs.readFileSync(path.join(f.output,'manifest.json')));assert.equal(manifest.completeSource,false);assert.equal(manifest.excluded.length,1);assert.equal(manifest.sourceKind,'export-receipt');
@@ -148,12 +148,13 @@ test('Git baseline requires committed originals and common ancestry',t=>{
  const f=fixture(t),api=require(path.join(tools,'source-delivery.js'));
  fs.mkdirSync(f.baseline,{recursive:true});
  const state={gitRoot:f.code,source:f.code,scope:[f.a],baseline:f.baseline};
+ write(path.join(f.baseline,f.a),f.before);
  api.captureGitBaseline(state);const original=api.requireGitBaseline(state);
  write(path.join(f.code,f.a),f.before.toString().replace('Quit 1','Quit 2'));
  assert.equal(api.requireGitBaseline(state),original);
  git(f.code,'add',f.a);git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','business change');
  assert.equal(api.requireGitBaseline(state),original);
- const fresh='src/New.cls';write(path.join(f.code,fresh),'Class New {}');state.scope=[fresh];api.captureGitBaseline(state);
+ const fresh='src/New.cls';write(path.join(f.code,fresh),'Class New {}');state.scope=[fresh];write(path.join(f.baseline,fresh),'Class New {}');api.captureGitBaseline(state);
  assert.throws(()=>api.requireGitBaseline(state),/baseline-untracked/);
  write(path.join(f.code,fresh),'Class New { /* edited */ }');git(f.code,'add',fresh);git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','wrong baseline');
  assert.throws(()=>api.requireGitBaseline(state),/original-baseline-not-found/);
@@ -185,4 +186,226 @@ test('managed verify rejects source changes after packaging',{skip:!windows},t=>
  const f=fixture(t);passed(framework(f,'prepare'));write(path.join(f.code,f.a),f.before.toString().replace('Quit 1','Quit 2'));passed(framework(f,'pack'));
  write(path.join(f.code,f.a),f.before.toString().replace('Quit 1','Quit 3'));
  const result=framework(f,'verify');assert.equal(result.status,1);assert.match(result.stderr,/delivery-source-drift/);
+});
+
+test('normal pack enforces OS001 before publication and accepts corrected bytes', {skip: !windows}, t => {
+ const f = fixture(t);
+ passed(framework(f, 'prepare'));
+ const source = body => 'Class Demo.A\n{\nClassMethod Value()\n{\n    ' + body + '\n}\n}\n';
+ write(path.join(f.code,f.a), source('q:(a) || (b) ""'));
+ const blocked = framework(f,'pack');
+ assert.equal(blocked.status,1);
+ assert.match(blocked.stderr,/OS001/);
+ assert.equal(fs.existsSync(f.output),false);
+ write(path.join(f.code,f.a), source('q:((a)||(b)) ""'));
+ assert.equal(passed(framework(f,'pack')).changedCount,1);
+ passed(framework(f,'verify'));
+});
+
+test('OS002 pack preserves legacy scope and blocks an unscoped new method', {skip:!windows}, t => {
+ const f = fixture(t);
+ const legacy = f.before.toString().replace('Class Demo.A','Class Demo.A [ Not ProcedureBlock ]');
+ for (const root of [f.original,f.code]) write(path.join(root,f.a),legacy);
+ git(f.code,'add',f.a);
+ git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','legacy baseline');
+ passed(framework(f,'prepare'));
+ const extend = attrs => legacy.trimEnd().slice(0,-1) + '/// Name: Record addition\nClassMethod Added() '+attrs+'\n{\n    quit\n}\n}\n';
+ write(path.join(f.code,f.a),extend(''));
+ const blocked=framework(f,'pack');
+ assert.equal(blocked.status,1);
+ assert.match(blocked.stderr,/OS002.*Added/);
+ assert.equal(fs.existsSync(f.output),false);
+ write(path.join(f.code,f.a),extend('[ ProcedureBlock ]'));
+ passed(framework(f,'pack'));
+ passed(framework(f,'verify'));
+});
+
+test('review command blocks an untracked class with disabled procedure scope', {skip:!windows || process.arch !== 'x64'}, t => {
+ const f = fixture(t);
+ const file = path.join(f.code,'New.cls');
+ const run = () => spawnSync(process.execPath,[path.join(tools,'check-cls-format.js'),file],{encoding:'utf8'});
+ write(file,'/// Name: New class\n/// Description: Represents a new example.\nClass Demo.New [ Not ProcedureBlock ]\n{\n}\n');
+ const bad = run();
+ assert.equal(bad.status,1);
+ assert.match(bad.stdout,/OS002/);
+ write(file,'/// Name: New class\n/// Description: Represents a new example.\nClass Demo.New\n{\n}\n');
+ assert.equal(run().status,0);
+});
+
+test('OS003 review and pack block a new dotted method and release its brace rewrite', {skip:!windows || process.arch !== 'x64'}, t => {
+ const f=fixture(t);
+ passed(framework(f,'prepare'));
+ const file=path.join(f.code,f.a);
+ const update = body => write(file,f.before.toString().trimEnd().slice(0,-1)+'/// Name: Record addition\nClassMethod Added()\n{\n'+body+'\n}\n}\n');
+ const review = () => spawnSync(process.execPath,[path.join(tools,'check-cls-format.js'),file],{encoding:'utf8'});
+ update('    If ok Do\n    .Set i=1');
+ const reviewed=review(), blocked=framework(f,'pack');
+ assert.equal(reviewed.status,1);
+ assert.match(reviewed.stdout,/OS003/);
+ assert.equal(blocked.status,1);
+ assert.match(blocked.stderr,/OS003/);
+ assert.equal(fs.existsSync(f.output),false);
+ update('    If ok {\n        Set i=1\n    }');
+ assert.equal(review().status,0);
+ passed(framework(f,'pack'));
+ passed(framework(f,'verify'));
+});
+
+test('OS004 enforces changed reads in an existing method at review and pack', {skip:!windows || process.arch !== 'x64'}, t => {
+ const f=fixture(t);
+ passed(framework(f,'prepare'));
+ const file=path.join(f.code,f.a);
+ const update = body => write(file,'Class Demo.A\n{\nClassMethod Value(sessionStr As %String)\n{\n    '+body+'\n}\n}\n');
+ const review = () => spawnSync(process.execPath,[path.join(tools,'check-cls-format.js'),file],{encoding:'utf8'});
+ update('Quit %session.Get("LOGON.CTLOCID")');
+ const checked = review(), packed = framework(f,'pack');
+ assert.equal(checked.status,1);
+ assert.match(checked.stdout,/OS004/);
+ assert.equal(packed.status,1);
+ assert.match(packed.stderr,/OS004/);
+ assert.equal(fs.existsSync(f.output),false);
+ update('Quit ##class(DHCDoc.Util.RegisteredObject).%LogonLocId(sessionStr)');
+ assert.equal(review().status,0);
+ passed(framework(f,'pack'));
+ passed(framework(f,'verify'));
+});
+
+test('OS006 review and pack require a name on a newly added field in a legacy class', {skip:!windows || process.arch !== 'x64'}, t => {
+ const f=fixture(t);
+ passed(framework(f,'prepare'));
+ const file=path.join(f.code,f.a);
+ const setField=doc=>write(file,f.before.toString().replace('ClassMethod Value',doc+'Property batchId As %String;\nClassMethod Value'));
+ const review=()=>spawnSync(process.execPath,[path.join(tools,'check-cls-format.js'),file],{encoding:'utf8'});
+ setField('');
+ const bad=review(),pack=framework(f,'pack');
+ assert.equal(bad.status,1);
+ assert.match(bad.stdout,/OS006: batchId/);
+ assert.equal(pack.status,1);
+ assert.match(pack.stderr,/OS006: batchId/);
+ assert.equal(fs.existsSync(f.output),false);
+ setField('/// Name: Import batch identifier\n');
+ assert.equal(review().status,0);
+ passed(framework(f,'pack'));
+ passed(framework(f,'verify'));
+});
+
+test('OS008 review and pack reject manual ZN restore and accept scoped lookup', {skip:!windows || process.arch !== 'x64'}, t => {
+ const f=fixture(t);
+ passed(framework(f,'prepare'));
+ const file=path.join(f.code,f.a);
+ const update=body=>write(file,'Class Demo.A\n{\nClassMethod Value(target)\n{\n'+body+'\n}\n}\n');
+ const review=()=>spawnSync(process.execPath,[path.join(tools,'check-cls-format.js'),file],{encoding:'utf8'});
+ update('    Set original=$ZNSPACE\n    Zn target\n    Set result=$Get(^Example(1))\n    Zn original\n    Quit result');
+ const bad=review(), pack=framework(f,'pack');
+ assert.equal(bad.status,1);
+ assert.match(bad.stdout,/OS008: a manual ZN restore/);
+ assert.equal(pack.status,1);
+ assert.match(pack.stderr,/OS008/);
+ assert.equal(fs.existsSync(f.output),false);
+ update('    Do Lookup\n    Quit\nLookup\n    If flag {\n        New $Namespace\n    }\n    Set $Namespace=target\n    Quit');
+ assert.match(review().stdout,/OS008/);
+ assert.match(framework(f,'pack').stderr,/OS008/);
+ assert.equal(fs.existsSync(f.output),false);
+ update('    If flag Goto Lookup\n    Do Lookup\n    Quit\nLookup\n    New $Namespace\n    Set $Namespace=target\n    Quit');
+ assert.match(framework(f,'review').stderr,/OS008/);
+ assert.match(framework(f,'pack').stderr,/OS008/);
+ update('    Set flag=$Select(flag:1,$Namespace=target:2,1:3)\n    Quit $$Lookup(target)\nLookup(target)\n    New $Namespace\n    Set $Namespace=target\n    Quit $Get(^Example(1))');
+ assert.equal(review().status,0);
+ passed(framework(f,'pack'));
+ passed(framework(f,'verify'));
+});
+
+test('explicit Review base catches committed OS001 at the same line as Pack', {skip:!windows || process.arch !== 'x64'}, t => {
+ const f=fixture(t);
+ passed(framework(f,'prepare'));
+ const base=git(f.code,'rev-parse','HEAD');
+ const file=path.join(f.code,f.a);
+ write(file,'Class Demo.A\n{\nClassMethod Value()\n{\n    q:(a) || (b) ""\n}\n}\n');
+ git(f.code,'add',f.a);
+ git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','sample');
+ const review=(...args)=>spawnSync(process.execPath,[path.join(tools,'check-cls-format.js'),...args,file],{encoding:'utf8'});
+ assert.equal(review().status,0);
+ const formal=framework(f,'review');
+ assert.equal(formal.status,1);
+ assert.match(formal.stderr,/OS001/);
+ const result=review('--base-ref',base);
+ assert.equal(result.status,1);
+ assert.equal(JSON.parse(result.stdout)[0].issues.find(i=>i.message?.startsWith('OS001')).line,5);
+ assert.equal(review('--base-ref','missing-review-base').status,1);
+ const packed=framework(f,'pack');
+ assert.equal(packed.status,1);
+ assert.match(packed.stderr,/:5:\d+ OS001/);
+ assert.equal(fs.existsSync(f.output),false);
+});
+
+test('uncertain OS008 context reaches the reviewer and delivery notes', {skip:!windows || process.arch !== 'x64'}, t => {
+ const f=fixture(t);
+ passed(framework(f,'prepare'));
+ const file=path.join(f.code,f.a);
+ write(file,'Class Demo.A\n{\nClassMethod Value(target)\n{\n    New $Namespace\n    Set $Namespace=target\n    Quit\n}\n}\n');
+ const review=spawnSync(process.execPath,[path.join(tools,'check-cls-format.js'),file],{encoding:'utf8'});
+ assert.equal(review.status,0,review.stderr);
+ assert.equal(JSON.parse(review.stdout)[0].issues.find(i=>i.message?.startsWith('OS008')).status,'manual-review');
+ const pending=framework(f,'review');
+ assert.equal(pending.status,1);
+ const token=JSON.parse(pending.stdout).token;
+ assert.match(framework(f,'pack').stderr,/OS008-review-required/);
+ const approve=['--review-token',token,'--reason','Reviewed caller frame and all exits'];
+ passed(framework(f,'review',approve));
+ fs.appendFileSync(file,'\n');
+ assert.match(framework(f,'pack').stderr,/OS008-review-required/);
+ assert.match(framework(f,'review',approve).stderr,/binding-invalid/);
+ const refreshed=JSON.parse(framework(f,'review').stdout);
+ passed(framework(f,'review',['--review-token',refreshed.token,'--reason','Rechecked all exits']));
+ passed(framework(f,'pack'));
+ assert.match(fs.readFileSync(path.join(f.output,'变更说明.md'),'utf8'),/OS008/);
+ passed(framework(f,'verify'));
+});
+
+test('standard frontend-only Pack requires review of the frozen bytes', {skip:!windows}, t => {
+ const f=fixture(t), file='web/demo.js';
+ f.kind='standard';
+ for(const dir of [f.original,f.code])write(path.join(dir,file),'show(oldKey)\n');
+ git(f.code,'add',file);
+ git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','frontend baseline');
+ write(f.scope,JSON.stringify({files:[file]}));
+ passed(framework(f,'prepare'));
+ write(path.join(f.code,file),'show(newKey)\n');
+ assert.match(framework(f,'pack').stderr,/i18n-review-required/);
+ const review=JSON.parse(framework(f,'review').stdout);
+ assert.deepEqual(review.changed,[file]);
+ passed(framework(f,'review',['--review-token',review.token,'--i18n-result','passed','--i18n-evidence','Verified newKey display and fallback']));
+ write(path.join(f.code,file),'show(otherKey)\n');
+ assert.match(framework(f,'pack').stderr,/i18n-review-required/);
+ write(path.join(f.code,file),'show(newKey)\n');
+ passed(framework(f,'pack'));
+ passed(framework(f,'verify'));
+});
+
+test('OS008 conditional compilation gates formal Review and Pack', {skip:!windows || process.arch !== 'x64'}, t => {
+ const f=fixture(t);
+ const source=condition=>['Class Demo.A','{','ClassMethod Value(target)','{','    Do Lookup','    Quit','Lookup',
+   '#if '+condition,'    New $Namespace','#endif','    Set $Namespace=target','    Quit','}','}'].join('\n');
+ const file=path.join(f.code,f.a);
+ for(const dir of [f.original,f.code]) write(path.join(dir,f.a),source('1'));
+ git(f.code,'add',f.a);
+ git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','protected helper');
+ passed(framework(f,'prepare'));
+ write(file,source('0'));
+ for(const command of ['review','pack']){
+   const result=framework(f,command);
+   assert.equal(result.status,1);
+   assert.match(result.stderr,/OS008: isolate/);
+ }
+ assert.equal(fs.existsSync(f.output),false);
+ write(file,source('$$$FLAG'));
+ const pending=framework(f,'review');
+ assert.equal(pending.status,1);
+ assert.match(JSON.parse(pending.stdout).manual.join(' '),/OS008: verify the active preprocessor/);
+ assert.match(framework(f,'pack').stderr,/OS008-review-required/);
+ assert.equal(fs.existsSync(f.output),false);
+ write(file,source('1 confirmed'));
+ passed(framework(f,'review'));
+ passed(framework(f,'pack'));
+ passed(framework(f,'verify'));
 });

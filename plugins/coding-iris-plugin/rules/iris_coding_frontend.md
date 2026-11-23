@@ -35,6 +35,8 @@ UI 信号包括标注/原型还原、布局/滚动/尺寸、字体/颜色/边框
 
 ## 条件 i18n 门禁
 
+标版开发沿下表决定何时加载专项能力。最终 Review 对完整需求记录 i18n 结论，纯前端任务同样适用。插件停用时按项目已有实现核查，依据不足时保持待复核。见[标版 i18n 复核](../../demand-delivery-plugin/skills/demand-commit/SKILL.md#标版-i18n-复核)。
+
 前端任务必须读取目标工程 `.agents/config/project.jsonc` 的 `plugins` 节，并在修改前与最终 diff 后各判断一次。插件目录存在只表示 `available`，只有 `i18n-iris-plugin` 状态为 `enabled` 才能自动追加 i18n 能力。
 
 以下任一情况属于 i18n 信号：
@@ -146,6 +148,8 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 - 修改前运行 `frontend-encoding-cli.js check`，部署按[编码契约](../references/frontend-encoding.md)的服务器目标生成并验证产物。
 
 ## 前后端接口契约与旧调用迁移
+
+前端调用需要登录上下文的后端接口时，优先传入当前会话的 `sessionStr`。复用页面已有的当前会话值；医生站 Web 页面需要取值时调用 `websys_getSessionStr()`，将完整返回串按后端签名传入。命名参数写作 `sessionStr: websys_getSessionStr()`。新增接口同时约定该参数；已有接口扩参时保持旧调用兼容。后端取值沿 [OS004 登录上下文约定](../references/cls-coding-format.md#登录科室和用户os004)。
 
 抽取共享 service 或替换请求封装前，对照现行后端签名、既有调用者及可用请求证据，逐个确认参数名的精确大小写、必填项、位置顺序或命名绑定、序列化与返回结构。不同接口可能使用不同拼写，不得统一改名后假定服务端兼容。
 

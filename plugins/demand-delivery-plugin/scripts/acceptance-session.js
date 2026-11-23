@@ -84,7 +84,7 @@ function mutate(directory, operation) {
   }
 }
 function scopeItem(item, hierarchical) {
-  return { id: item.id, repositories: item.repositories, ...(hierarchical ? { parentId: item.parentId, codeBinding: item.codeBinding } : {}) };
+  return { id: item.id, ...(item.demandKind ? {demandKind:item.demandKind} : {}), repositories: item.repositories, ...(hierarchical ? { parentId: item.parentId, codeBinding: item.codeBinding } : {}) };
 }
 function mode(item) { return item.codeBinding?.kind || 'own'; }
 function codeOwner(state, item) { return mode(item) === 'parent' ? demand(state, { id: item.parentId }) : item; }
@@ -130,6 +130,7 @@ function create(directory, input) {
   const demands = rows.map(item => {
     const relation = relations?.get(item.id), kind = relation?.codeBinding.kind || 'own';
     if (kind !== 'own' && Object.hasOwn(item, 'repositories')) fail('Inherited or no-code demands cannot duplicate repository ownership');
+    if (item.demandKind !== undefined && !['standard','project'].includes(item.demandKind)) fail('demand-kind-invalid');
     const demandId = id(item.id);
     if (seen.has(demandId)) fail(`Duplicate demand: ${demandId}`);
     seen.add(demandId);
@@ -151,6 +152,7 @@ function create(directory, input) {
     const automatic = item.automatic || {};
     return {
       id: demandId, title: text(item.title, 'title'), repositories: specs,
+      ...(item.demandKind ? {demandKind:item.demandKind} : {}),
       ...(hierarchical ? { parentId: relation.parent, codeBinding: relation.codeBinding } : {}),
       automatic: { status: automatic.status || 'not-verified', evidenceRefs: automatic.evidenceRefs || [], gaps: automatic.gaps || [] },
       decision: { status: 'pending', quote: null, at: null },
@@ -240,6 +242,13 @@ function realSelection(state, item) {
     return { repo: actual.repo, ref: actual.ref, hash: actual.hashes[0] };
   });
 }
+function assertReviewedCommits(records, review) {
+  if (!['passed','no-visible-impact'].includes(review?.result) || !review.evidence?.trim() ||
+      !Array.isArray(review.commits) || review.commits.length !== records.length ||
+      !records.every(record => review.commits.some(entry => entry.commit === record.hash && canonical(entry.root) === canonical(record.repo)))) {
+    fail('i18n-review-required: acceptance needs the decision for the exact delivered commits');
+  }
+}
 function commitReceipt(state, item, receipt) {
   if (receipt.status !== 'verified' || String(receipt.demand) !== item.id) fail('Use the verified official commit plan for this demand');
   const records = (receipt.repositories || []).map(repo => {
@@ -257,6 +266,10 @@ function commitReceipt(state, item, receipt) {
     return { key, repo: path.resolve(repo.root), hash: repo.execution.commit };
   });
   if (records.length !== item.repositories.length || new Set(records.map(record => record.key)).size !== records.length) fail('All target repositories must be verified');
+  if (item.demandKind && item.demandKind !== receipt.kind) fail('demand-kind-mismatch');
+  if (receipt.kind === 'standard' || state.scope.deliveryActions.includes('bos-log')) {
+    assertReviewedCommits(records,receipt.i18nReview);
+  } else if (receipt.kind !== 'project') fail('demand-kind-required');
   return records;
 }
 function applyCore(state, command, input) {
@@ -373,6 +386,17 @@ function applyCore(state, command, input) {
     if (mode(item) === 'parent' && !sameSelection(actual, realSelection(state, codeOwner(state, item)))) fail('Inherited real commits differ from the parent');
   }
   const previous = item.delivery[phase];
+  if (phase === 'push' && ['running','succeeded'].includes(input.status) &&
+      (item.demandKind === 'standard' || item.delivery.commit.kind === 'standard' || state.scope.deliveryActions.includes('bos-log'))) {
+    assertReviewedCommits(item.delivery.commit.records,item.delivery.commit.i18nReview);
+  }
+  if (phase === 'commit' && previous.status === 'succeeded' && !previous.i18nReview && input.status === 'succeeded' && input.receipt?.i18nReview) {
+    const records = commitReceipt(state,item,input.receipt);
+    if (!sameSelection(records.map(r => ({repo:r.repo,hash:r.hash,ref:r.ref})), selection(item))) fail('Commit selection changed during i18n review');
+    previous.i18nReview = input.receipt.i18nReview;
+    previous.kind = input.receipt.kind;
+    return state;
+  }
   if (previous.status === 'succeeded') fail('Phase already succeeded; do not repeat the external action');
   if (phase === 'bos' && ['running', 'unknown'].includes(previous.status) && input.status === 'running') fail('BOS may already have been written; reconcile before retry');
   if (phase === 'bos' && previous.status === 'unknown') fail('Reconcile unknown BOS results explicitly');
@@ -382,7 +406,7 @@ function applyCore(state, command, input) {
     if (state.schema === HIERARCHY_SCHEMA) previous.linkProject = input.receipt.linkProject;
   }
   if (input.status === 'succeeded') {
-    if (phase === 'commit') item.delivery.commit = { status: 'succeeded', records: commitReceipt(state, item, input.receipt), at: now() };
+    if (phase === 'commit') item.delivery.commit = { status: 'succeeded', records: commitReceipt(state, item, input.receipt), kind:input.receipt.kind, ...(input.receipt.i18nReview ? {i18nReview: input.receipt.i18nReview} : {}), at: now() };
     if (phase === 'bos') {
       validateBosTarget(state, item, input.receipt);
       if (!sameSelection(input.receipt?.select, realSelection(state, item)) || !input.receipt?.submitted ||

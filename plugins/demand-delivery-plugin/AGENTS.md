@@ -13,3 +13,5 @@
 通用提交与验收索引不依赖 IRIS 或 BOS；选用标版 BOS 日志阶段时需已接入 bos-plugin。验收默认先 commit/push 再补日志，BOS 缺口或结果未知仅暂停日志，Git 完成即释放发布权；完整交付仍须全部适用回执，见技能“逐号交付”。新入口通过项目 plugin profile 接入；更新器按旧能力使用证据迁移项目引用与 owner 启用状态，旧入口已移除。各入口按自身授权契约执行，部署不包含在验收交付中。
 
 脚本使用共享 workspace-context，保留 Overlay 归属、计划完整性、现场校验、pull 和 hook 门禁。HEAD 前进时按[同步复核协议](references/commit-upstream-check.md)由 Agent 核查并自动接续；提交实现只维护在 scripts/commit-demand.js，兼容协议见 [迁移说明](../../docs/demand-delivery-migration.md)。
+
+标版提交、已有提交验收及纯前端交付都须执行[标版 i18n 复核](skills/demand-commit/SKILL.md#标版-i18n-复核)。
