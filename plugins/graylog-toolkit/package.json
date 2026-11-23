@@ -1,0 +1,13 @@
+{
+  "name": "graylog-toolkit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "可复用的 Graylog 报错/慢请求查询、日志解析、归属与处置判定库 + 薄 CLI（零依赖，Node >= 18）",
+  "main": "lib/index.js",
+  "bin": {
+    "graylog-toolkit": "bin/graylog-toolkit.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

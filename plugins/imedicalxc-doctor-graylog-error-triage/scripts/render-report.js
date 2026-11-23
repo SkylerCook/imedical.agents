@@ -176,9 +176,9 @@ function validateOutput(name, md) {
   return '';
 }
 
-// 只清理「状态快照」型产物：notify 与 infra 报告过期后会让读者以为问题仍在；
-// report-self / report-summary 是历史轨迹，不在此列
-const STALE_SNAPSHOT_RE = /^(?:notify|report-infra)-.*\.md$/i;
+// 只清理「状态快照」型产物：通知与基础设施报告过期后会让读者以为问题仍在；
+// 本组问题 / 巡检总览是历史轨迹，不在此列。旧英文名兼容到历史目录清空为止
+const STALE_SNAPSHOT_RE = /^(?:(?:notify|report-infra)-.*|(?:他组通知|基础设施)-.*)\.md$/i;
 
 function pruneStale(outDir, keepNames, currentHm) {
   const keep = new Set(keepNames);
@@ -224,15 +224,24 @@ function analysisBlock(entry, c, redactPatterns) {
   const L = [];
   L.push('### ' + (slow ? '耗时归因与优化方案' : '根因与修正方案'));
   L.push('');
+  const disp = dispositionOf(c, entry);
   if (!a) {
     if (slow) {
       L.push('> 待分析（P0 慢请求）。按最慢样例的 traceId 拉全链路日志，分阶段分解耗时，判定是**数据量导致的正常长耗时**还是**代码缺陷**（N+1 逐条调用、慢 SQL、循环内远程调用、缺批量接口）。');
+    } else if (disp === 'runtime-defect') {
+      L.push('> 待分析（运行时缺陷）。需给出**报错位置**（上方源码定位）与**具体代码修改方案**：改哪个类哪个方法、加什么判空/边界校验。');
+    } else if (disp === 'business-escalation') {
+      L.push('> 待分析（业务异常·需人工介入）。需写明被调方组/模块与**原始错误码与文案**（穿透调用方包装），或说明该异常为何需要开发处理；本组方案只做排障、容错、降级或提示优化。');
+    } else if (disp === 'log-level-review') {
+      L.push('> 待分析（日志级别待复核）。判定这条 log.error 是**级别滥用应降级**（warn/info）还是**确实应保留 error**，给出结论与理由；若发现背后有真故障，改判处置分类为运行时缺陷并出代码方案。');
+    } else if (disp === 'business-control') {
+      L.push('> 待分析（业务控制）。确认该抛出是否为业务正常处理、前端提示文案是否可识别即可，不强制出代码修改方案；若发现实为程序缺陷，用 `analysis.disposition` 改判 `runtime-defect`。');
     } else if (sev === 'P1') {
-      L.push('> 待分析（P1 业务异常）。确认该抛出是否为业务正常处理、提示文案是否合理即可，不强制出代码修改方案；若发现实为程序缺陷，用 `analysis.severity` 改判 P0。');
+      L.push('> 待分析（P1）。确认业务语义与提示文案，不强制出代码修改方案。');
     } else {
-      L.push('> 待分析（P0 程序异常）。需给出代码修改或报错处理方案。');
+      L.push('> 待分析（P0）。需给出代码修改或报错处理方案。');
     }
-    L.push('> 结论写入 `config/pending-queue.json` 中 `errorHash=' + hash + '` 的 `analysis` 字段（`rootCause` / `fix` / `verification`，可选 `severity` 改判），重新渲染即可回填。');
+    L.push('> 结论写入 `config/pending-queue.json` 中 `errorHash=' + hash + '` 的 `analysis` 字段（`rootCause` / `fix` / `verification`，可选 `severity` / `disposition` 改判，改判时附 `severityReason` / `dispositionReason`），重新渲染即可回填。');
     return L;
   }
   // 分析文本是人工写入的自由文本，可能引用连接串或主机地址，必须同样过一遍脱敏
@@ -240,6 +249,12 @@ function analysisBlock(entry, c, redactPatterns) {
     L.push('**严重度（分析结论）**：' + redact(String(a.severity), redactPatterns)
       + (c.severity && String(a.severity) !== c.severity ? '（脚本初判 ' + c.severity + '，已改判）' : '')
       + (a.severityReason ? ' — ' + redact(String(a.severityReason), redactPatterns) : ''));
+    L.push('');
+  }
+  if (a.disposition) {
+    L.push('**处置分类（分析结论）**：' + dispositionLabel(String(a.disposition))
+      + (c.disposition && String(a.disposition) !== c.disposition ? '（脚本初判 ' + dispositionLabel(c.disposition) + '，已改判）' : '')
+      + (a.dispositionReason ? ' — ' + redact(String(a.dispositionReason), redactPatterns) : ''));
     L.push('');
   }
   if (a.rootCause) {
@@ -383,12 +398,38 @@ function severityOf(c, entry) {
   return c.severity ? String(c.severity) : '';
 }
 
+// 处置分类：回答「这条报错要不要动、动哪里」，与严重度正交。
+const DISPOSITION_META = {
+  'runtime-defect': { label: '运行时缺陷（需改码）', action: '给出报错位置与具体代码修改方案' },
+  'business-escalation': { label: '业务异常·需人工介入', action: '写明被调方与原始错误或需开发处理的事项，给排障/容错/提示方案' },
+  'log-level-review': { label: '日志级别待复核', action: '判定 log.error 是否滥用：降级为 warn/info 或保留 error，并说明理由' },
+  'business-control': { label: '业务控制（无需干预）', action: '确认业务语义与前端提示文案，不强制改码' },
+  'slow-perf': { label: '慢请求耗时归因', action: '按 traceId 分解耗时，出优化方案' },
+};
+const DISPOSITION_ORDER = ['runtime-defect', 'business-escalation', 'log-level-review', 'business-control', 'slow-perf'];
+
+function dispositionOf(c, entry) {
+  const a = entry && entry.analysis ? entry.analysis : null;
+  if (a && a.disposition) return String(a.disposition);
+  return c.disposition ? String(c.disposition) : '';
+}
+
+function dispositionLabel(d) {
+  return (DISPOSITION_META[d] || {}).label || (d ? d : '未分类');
+}
+
+function dispositionAction(d) {
+  return (DISPOSITION_META[d] || {}).action || '重跑 classify-owner.js 回填处置分类';
+}
+
 function renderCluster(no, c, ctx) {
   const queue = ctx.queue;
   const redactPatterns = ctx.redactPatterns;
   const entry = queue.get(c.errorHash);
   const sev = severityOf(c, entry);
   const overridden = Boolean(sev && c.severity && sev !== c.severity);
+  const disp = dispositionOf(c, entry);
+  const dispOverridden = Boolean(disp && c.disposition && disp !== c.disposition);
   const slow = c.kind === 'slow';
   const sampleId = (c.samples[0] || {}).id;
   const raw = ctx.rawIndex.get(sampleId);
@@ -402,7 +443,19 @@ function renderCluster(no, c, ctx) {
   L.push('| 严重度 | ' + (sev
     ? sev + (overridden ? '（分析轮改判，脚本初判 ' + c.severity + '）' : '（脚本初判）')
     : '未初判（旧版分类结果，无 severity 字段）') + ' |');
-  if (c.severityBasis) L.push('| 严重度依据 | ' + redact(c.severityBasis, redactPatterns) + (c.severityMixed ? '；**混合簇，按最高级处理**' : '') + ' |');
+  const sevReason = entry && entry.analysis && entry.analysis.severityReason;
+  const sevBasisBase = sevReason || c.severityBasis;
+  if (sevBasisBase) L.push('| 严重度依据 | ' + redact(String(sevBasisBase), redactPatterns) + (c.severityMixed && !sevReason ? '；**混合簇，按最高级处理**' : '') + ' |');
+  // 他组通知只给证据，不带本组处置判断
+  if (ctx.showAnalysis !== false) {
+    L.push('| 处置分类 | ' + (disp
+      ? dispositionLabel(disp) + (dispOverridden
+          ? '（分析轮改判，脚本初判 ' + dispositionLabel(c.disposition) + '）'
+          : '（脚本初判）')
+      : '未分类（旧版分类结果，重跑 classify-owner.js 回填）') + ' |');
+    const basis = (entry && entry.analysis && entry.analysis.dispositionReason) || c.dispositionBasis;
+    if (basis) L.push('| 处置依据 | ' + redact(String(basis), redactPatterns) + ' |');
+  }
   L.push('| 归属 | ' + c.ownerKind + (c.ownerModule ? ' / ' + c.ownerModule : '') + (c.ownerGroup ? ' / ' + c.ownerGroup : '') + ' |');
   L.push('| 归属判定 | ' + c.rule + '（' + c.confidence + '） |');
   L.push('| 来源 | ' + originLabel(c) + ' |');
@@ -450,6 +503,36 @@ function renderCluster(no, c, ctx) {
       L.push('> 同簇命中 ' + sites.length + ' 处源码位置（同一 errorHash 合并了不同抛点或日志点），上方为出现最多的一处：');
       L.push('');
       for (const s of sites) L.push('- ' + sourceLocation(s, redactPatterns) + (s.count ? ' ×' + s.count : ''));
+      L.push('');
+    }
+  }
+  const logSite = ctx.logSites && ctx.logSites.get(c.errorHash);
+  if (logSite) {
+    L.push('### 日志语句定位（按日志文案匹配源码，非堆栈证据）');
+    L.push('');
+    L.push('| 文件 | 行 | 级别 |');
+    L.push('|---|---|---|');
+    L.push('| `' + logSite.best.file + '` | ' + logSite.best.line + ' | ' + logSite.best.level + ' |');
+    L.push('');
+    if (logSite.best.scope === 'infra') {
+      L.push('> 该日志语句位于**基础设施公共仓**（非本组代码）：请先核对归属判定，若确为公共模块打印，应转基础设施清单而非按本组改码。');
+      L.push('');
+    }
+    if (logSite.best.level !== 'error') {
+      L.push('> 工作区源码为 `' + logSite.best.level + '` 级（采集侧标记为 ERROR，部署版本可能与本地代码不一致），复核时以线上版本为准。');
+      L.push('');
+    }
+    if (logSite.best.snippet) {
+      L.push(FENCE + 'java');
+      L.push(redact(logSite.best.snippet, redactPatterns));
+      L.push(FENCE);
+      L.push('');
+    }
+    if (logSite.ambiguous && logSite.alternatives.length > 0) {
+      L.push('> 存在其他近似候选，需人工确认：');
+      for (const alt of logSite.alternatives) {
+        L.push('> - `' + alt.file + ':' + alt.line + '`（' + alt.level + '）');
+      }
       L.push('');
     }
   }
@@ -568,6 +651,21 @@ function renderSummary(payload, fileNames, ctx) {
   L.push('');
   L.push('> 严重度为脚本初判（业务异常信号：业务拦截器 logger / 消息首行「业务异常(」/ 业务异常类名）。分析轮可在 `analysis.severity` 改判，改判后本表与明细同步生效。');
   L.push('');
+  const dispOf = (c) => dispositionOf(c, queue.get(c.errorHash));
+  const errs = all.filter((c) => c.kind !== 'slow');
+  const dispCount = (d) => errs.filter((c) => dispOf(c) === d).length;
+  const dispMissing = errs.filter((c) => !dispOf(c)).length;
+  L.push('## 处置分类分布（报错簇：要不要动、动哪里）');
+  L.push('');
+  L.push('| 处置分类 | 簇数 | 处理要求 |');
+  L.push('|---|---|---|');
+  for (const d of ['runtime-defect', 'business-escalation', 'log-level-review', 'business-control']) {
+    L.push('| ' + dispositionLabel(d) + ' | ' + dispCount(d) + ' | ' + dispositionAction(d) + ' |');
+  }
+  if (dispMissing > 0) L.push('| 未分类 | ' + dispMissing + ' | 旧版分类结果无 disposition 字段，重跑 classify-owner.js 回填 |');
+  L.push('');
+  L.push('> 慢请求簇（' + slowAll.length + ' 个）不参与异常处置分类，走耗时归因。处置分类为脚本初判：异常类 + 业务信号 + 外部调用异常/人工处理关键词；分析轮可在 `analysis.disposition` 改判，改判后本表与明细同步生效。');
+  L.push('');
   L.push('## 归属分布');
   L.push('');
   L.push('| 归属 | 簇数 | 处理 |');
@@ -657,9 +755,24 @@ function renderSelf(payload, ctx) {
   L.push('- 生成时间：' + fmtLocal(payload.generatedAt) + '（本地时间 UTC+8）');
   L.push('- 本组簇数：' + clusters.length + '（报错 ' + errors.length + '：有本组堆栈帧 ' + withFrame.length + ' / 仅应用名推断 ' + inferred.length + '；慢请求 ' + slows.length + '）');
   L.push('- 严重度：P0 ' + p0 + ' 簇 / P1 ' + p1 + ' 簇（脚本初判，分析轮结论可改判）');
+  const dispOfSelf = (c) => dispositionOf(c, ctx.queue.get(c.errorHash));
+  const dispCountSelf = (d) => clusters.filter((c) => c.kind !== 'slow' && dispOfSelf(c) === d).length;
+  L.push('- 处置分类：运行时缺陷 ' + dispCountSelf('runtime-defect')
+    + ' / 业务异常·需人工介入 ' + dispCountSelf('business-escalation')
+    + ' / 日志级别待复核 ' + dispCountSelf('log-level-review')
+    + ' / 业务控制 ' + dispCountSelf('business-control')
+    + '（报错簇，慢请求 ' + slows.length + ' 簇另计）');
   L.push('');
-  // 报告按证据分段，P0 可能落在「二、仅应用名推断」段而被 P1 挤到后面；先给一张按严重度优先的索引
-  const ordered = withFrame.concat(inferred, slows);
+  // 报告按处置分流分章（运行时缺陷 / 需人工介入 / 日志级别复核 / 业务控制 / 慢请求），
+  // 章内先有本组帧、再仅应用名、最后慢请求；章节顺序与「处置分流」表一致，编号一一对应。
+  const rankOf = (c) => (c.kind === 'slow' ? 2 : (evidenceLevelOf(c) === 'module-frame' ? 0 : 1));
+  const sortByEvidence = (list) => list.slice().sort((a, b) => rankOf(a) - rankOf(b));
+  const chapterRows = DISPOSITION_ORDER
+    .map((d) => ({ d, list: sortByEvidence(clusters.filter((c) => dispOfSelf(c) === d)) }))
+    .filter((r) => r.list.length > 0);
+  const unclassified = sortByEvidence(clusters.filter((c) => !dispOfSelf(c)));
+  const chapters = chapterRows.concat(unclassified.length > 0 ? [{ d: '', list: unclassified }] : []);
+  const ordered = chapters.reduce((acc, r) => acc.concat(r.list), []);
   const numberOf = new Map(ordered.map((c, i) => [c.errorHash, i + 1]));
   const p0List = ordered.filter((c) => severityOf(c, ctx.queue.get(c.errorHash)) === 'P0');
   if (p0List.length > 0) {
@@ -677,56 +790,62 @@ function renderSelf(payload, ctx) {
       L.push('| ' + numberOf.get(c.errorHash) + ' | ' + (c.kind === 'slow' ? '慢请求' : '报错') + ' | `' + title + '` | ' + evidenceLabel(c) + ' | ' + (c.count || 0) + ' |');
     }
     L.push('');
-    L.push('> 序号对应下文各段明细。落在「二、仅应用名推断」段的 P0 簇**无本组代码证据**，需先交叉同轮基础设施/他组簇再定性。');
+    L.push('> 序号对应下文各章明细。证据等级为「仅应用名推断」的 P0 簇**无本组代码证据**，需先交叉同轮基础设施/他组簇再定性。');
     L.push('');
+  }
+  if (clusters.length > 0) {
+    // 处置分流回答「哪些要动」：需改码 / 需人工介入 / 需复核级别 vs 业务控制无需干预
+    if (chapters.length > 0) {
+      L.push('## 处置分流（哪些需要动）');
+      L.push('');
+      L.push('| 处置分类 | 簇数 | 处理要求 | 簇（序号） |');
+      L.push('|---|---|---|---|');
+      for (const { d, list } of chapters) {
+        const nums = list.slice(0, 8).map((c) => '#' + numberOf.get(c.errorHash)).join('、');
+        L.push('| ' + (d ? dispositionLabel(d) : '未分类') + ' | ' + list.length + ' | '
+          + (d ? dispositionAction(d) : '旧版分类结果无 disposition 字段，重跑 classify-owner.js 回填') + ' | '
+          + nums + (list.length > 8 ? ' …等 ' + list.length + ' 簇' : '') + ' |');
+      }
+      L.push('');
+      L.push('> 处置分类为脚本初判，分析轮可在队列条目的 `analysis.disposition` 改判并写 `dispositionReason`，本表与明细同步生效。');
+      L.push('> 明细正文按本表顺序分章，每章内先有本组堆栈帧、再仅应用名推断、最后慢请求。');
+      L.push('');
+    }
   }
   if (clusters.length === 0) {
     L.push('本窗口内无本组报错，也无本组慢请求。');
     L.push('');
   } else {
-    L.push('# 一、有本组堆栈帧（可直接定性）');
-    L.push('');
-    if (withFrame.length === 0) {
-      L.push('> 本段为空：本轮没有任何一条报错的堆栈命中本组模块包。');
-      L.push('> 这不等于本组无缺陷——写错的 SQL、被框架包装掉的异常都可能不出现本组帧，');
-      L.push('> 仍需结合「二、仅应用名推断」与基础设施报告交叉判断。');
-      L.push('');
-    }
-    withFrame.forEach((c, i) => {
-      for (const line of renderCluster(i + 1, c, ctx)) L.push(line);
-    });
-    L.push('# 二、仅应用名推断（无本组代码证据）');
-    L.push('');
-    L.push('- 覆盖日志 ' + inferred.reduce((n, c) => n + (c.count || 0), 0) + ' 条');
-    L.push('');
-    L.push('> 以下簇仅凭应用名 `his-mediway-server` 判定归属。该进程是聚合进程，代多个模块与其他系统应答，');
-    L.push('> **不能证明异常由本组代码抛出**。请先看同 traceId 是否存在基础设施/他组簇，再决定是否按本组缺陷处理。');
-    L.push('');
-    if (inferred.length === 0) {
-      L.push('本段为空。');
-      L.push('');
-    }
-    const offset = withFrame.length;
-    inferred.forEach((c, i) => {
-      for (const line of renderCluster(offset + i + 1, c, ctx)) L.push(line);
-    });
-    L.push('# 三、慢请求（接口耗时超阈值，一律 P0）');
-    L.push('');
     const thresholdMs = Number((payload.slow || {}).thresholdMs) || 15000;
-    L.push('- 阈值：接口耗时 >= ' + Math.round(thresholdMs / 1000) + 's（`query.slowThresholdMs`）');
-    L.push('- 覆盖日志 ' + slows.reduce((n, c) => n + (c.count || 0), 0) + ' 条，按接口聚簇（同一接口的多次慢调用合并为一簇）');
-    L.push('');
-    L.push('> 慢请求日志由框架 `LogFilter` 以 WARN 打印，**没有堆栈**。归属优先按接口全限定名的包前缀判定；');
-    L.push('> 前缀未登记时退回应用名推断（此时无代码证据，见各簇「证据等级」行，不得直接定性为本组缺陷）。');
-    L.push('> 每簇必须分析耗时原因：按最慢样例 traceId 拉全链路，分阶段分解耗时，区分数据量正常与代码缺陷。');
-    L.push('');
-    if (slows.length === 0) {
-      L.push('本段为空：本窗口内无本组接口耗时超过阈值。');
+    const cnNum = ['一', '二', '三', '四', '五', '六', '七'];
+    chapters.forEach((row, idx) => {
+      const list = row.list;
+      const errN = list.filter((c) => c.kind !== 'slow').length;
+      const slowN = list.length - errN;
+      L.push('# ' + cnNum[idx] + '、' + (row.d ? dispositionLabel(row.d) : '未分类（旧版分类结果）'));
       L.push('');
-    }
-    const slowOffset = withFrame.length + inferred.length;
-    slows.forEach((c, i) => {
-      for (const line of renderCluster(slowOffset + i + 1, c, ctx)) L.push(line);
+      L.push('- 簇数：' + list.length + (slowN > 0 ? '（报错 ' + errN + ' / 慢请求 ' + slowN + '）' : ''));
+      L.push('');
+      if (row.d) {
+        L.push('> 处理要求：' + dispositionAction(row.d) + '。');
+      }
+      if (row.d === 'slow-perf') {
+        L.push('> 阈值：接口耗时 >= ' + Math.round(thresholdMs / 1000) + 's（`query.slowThresholdMs`），覆盖日志 '
+          + list.reduce((n, c) => n + (c.count || 0), 0) + ' 条，按接口聚簇。');
+        L.push('> 慢请求日志由框架 `LogFilter` 以 WARN 打印，**没有堆栈**：归属优先按接口全限定名的包前缀判定，');
+        L.push('> 前缀未登记时退回应用名推断（见各簇「证据等级」行，不得直接定性为本组缺陷）。');
+        L.push('> 每簇必须分析耗时原因：按最慢样例 traceId 拉全链路，分阶段分解耗时，区分数据量正常与代码缺陷。');
+      } else if (list.some((c) => evidenceLevelOf(c) !== 'module-frame')) {
+        L.push('> 本章含「仅应用名推断」簇（无本组代码证据）：仅凭应用名 `his-mediway-server` 判定归属，');
+        L.push('> **不能证明异常由本组代码抛出**；请先看同 traceId 是否存在基础设施/他组簇，再决定是否按本组缺陷处理。');
+      }
+      if (row.d === 'business-control') {
+        L.push('> 业务正常处理抛出，不强制改码；若发现实为程序缺陷，用 `analysis.disposition` 改判。');
+      }
+      L.push('');
+      for (const c of list) {
+        for (const line of renderCluster(numberOf.get(c.errorHash), c, ctx)) L.push(line);
+      }
     });
   }
   // 跨组报错不属于本组缺陷，但本组是调用发起方，分析轮要给出「责任在被调方 + 本组容错」的判断。
@@ -736,7 +855,7 @@ function renderSelf(payload, ctx) {
   if (crossGroup.length > 0) {
     L.push('# 附录：本组调用他组失败（跨组报错，责任在被调方）');
     L.push('');
-    L.push('- 共 ' + crossGroup.length + ' 簇，已按被调方并入对应 `notify-*` 文档；跨组慢请求同样只在通知中，不在此列');
+    L.push('- 共 ' + crossGroup.length + ' 簇，已按被调方并入对应 `他组通知-*` 文档；跨组慢请求同样只在通知中，不在此列');
     L.push('');
     L.push('> 这些簇由本组进程打印或本组参与同一 trace，但异常抛在被调方接口/代码内。');
     L.push('> 分析轮须写明被调方与原始错误，本组只给容错/降级/提示方案，**不按本组缺陷改码、不臆造本组堆栈**。');
@@ -870,13 +989,39 @@ function main() {
     maxStack: Number(args['max-stack']) > 0 ? Number(args['max-stack']) : (Number((cfg.output || {}).maxStackLinesNotify) || 25),
   };
 
+  // app-only 簇没有堆栈与 source_*，按 raw 的 logger_name + 消息文案反查源码中的 log 调用位置（带 7 天缓存）
+  const appOnlySelf = (((payload.groups.self || {}).clusters) || [])
+    .filter((c) => c.kind !== 'slow' && !c.source && evidenceLevelOf(c) !== 'module-frame')
+    .map((c) => {
+      let loggerName = '';
+      for (const s of (c.samples || []).slice(0, 4)) {
+        const rawItem = rawIndex.get(s.id);
+        if (rawItem && rawItem.loggerName) {
+          loggerName = String(rawItem.loggerName);
+          break;
+        }
+      }
+      return Object.assign({}, c, { loggerName });
+    });
+  if (appOnlySelf.length > 0) {
+    try {
+      const { locateLogSites } = require('./lib/log-site-locate');
+      const started = Date.now();
+      selfCtx.logSites = locateLogSites(cfg, appOnlySelf);
+      console.log('[INFO] 日志语句定位：命中 ' + selfCtx.logSites.size + '/' + appOnlySelf.length
+        + ' 簇（' + (Date.now() - started) + 'ms）');
+    } catch (err) {
+      console.warn('[WARN] 日志语句定位失败（不影响报告生成）: ' + err.message);
+    }
+  }
+
   const outputs = [];
-  outputs.push(['report-self-' + hm + '.md', renderSelf(payload, selfCtx)]);
+  outputs.push(['本组问题-' + hm + '.md', renderSelf(payload, selfCtx)]);
   if (((payload.groups.infra || {}).clusters || []).length > 0) {
-    outputs.push(['report-infra-' + hm + '.md', renderInfra(payload, notifyCtx)]);
+    outputs.push(['基础设施-' + hm + '.md', renderInfra(payload, notifyCtx)]);
   }
   for (const bucket of payload.groups.external || []) {
-    outputs.push(['notify-' + safeName(bucket.group) + '-' + hm + '.md', renderExternal(payload, bucket, notifyCtx)]);
+    outputs.push(['他组通知-' + safeName(bucket.group) + '-' + hm + '.md', renderExternal(payload, bucket, notifyCtx)]);
   }
 
   const written = [];
@@ -888,7 +1033,7 @@ function main() {
   }
 
   const summaryMd = renderSummary(payload, written.map(([name]) => name), { queue, redactPatterns });
-  const finalOutputs = [['report-summary-' + hm + '.md', summaryMd]].concat(written);
+  const finalOutputs = [['巡检总览-' + hm + '.md', summaryMd]].concat(written);
 
   if (args.check) {
     console.log('[CHECK] 将写入 ' + finalOutputs.length + ' 个文件：' + finalOutputs.map(([n]) => n).join(', '));

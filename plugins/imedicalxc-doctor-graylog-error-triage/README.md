@@ -1,6 +1,6 @@
 # Graylog 报错与慢请求巡检（imedicalxc-doctor-graylog-error-triage）
 
-按固定节奏增量抓取 Graylog 的 **ERROR 日志 + 耗时超阈值的慢请求日志（两路并集）**，按堆栈或接口全限定名判定「这是谁的问题」，初判 P0/P1 严重度，产出四类文档并按需推送 QQ 群。**P0**（不可预知程序异常、接口耗时 ≥ 15 秒）必须给出修正或优化方案，**P1**（业务正常处理抛出的异常）只说明触发条件。**采集与分析都由 Qoder 自动任务驱动，不依赖 Windows 计划任务**：采集轮 cron `0,15,30,45 * * * *`（Full Access，只跑脚本流水线），分析轮 cron `7,37 * * * *`（Auto Approval，只做根因分析与耗时归因）。分工、验证口径与运维见 `skills/imedicalxc-doctor-graylog-error-triage/references/notification-and-schedule.md`。前端定位目前只到候选页面级，按钮级分支未实现；慢请求日志不含 URL，天然无前端定位。
+按固定节奏增量抓取 Graylog 的 **ERROR 日志 + 耗时超阈值的慢请求日志（两路并集）**，按堆栈或接口全限定名判定「这是谁的问题」，再把每个报错簇分成**处置分类**（运行时缺陷需改码 / 日志级别待复核 / 业务异常·需人工介入 / 业务控制无需干预），推导 P0/P1 严重度，产出四类文档并按需推送 QQ 群。**P0** 必须按分类出方案（改码位置与改法、日志级别结论、被调方与容错方案、耗时归因），**P1**（业务控制）只确认语义与前端提示文案。**采集与分析都由 Qoder 自动任务驱动，不依赖 Windows 计划任务**：采集轮 cron `0,15,30,45 * * * *`（Full Access，只跑脚本流水线），分析轮 cron `7,37 * * * *`（Auto Approval，只做根因分析与耗时归因）。分工、验证口径与运维见 `skills/imedicalxc-doctor-graylog-error-triage/references/notification-and-schedule.md`。前端定位目前只到候选页面级，按钮级分支未实现；慢请求日志不含 URL，天然无前端定位。
 
 ---
 
@@ -29,14 +29,20 @@ node -e "const c=require('./.agents/plugins/imedicalxc-doctor-graylog-error-tria
 
 ---
 
+## 复用与依赖
+
+通用能力已下沉到库插件 `.agents/plugins/graylog-toolkit/`（查询两路并集、日志解析与簇键、归属/处置/严重度规则引擎、app-only 簇日志语句定位），本插件是它的第一个消费者：`scripts/lib/*` 只做薄转发并注入工程根目录与缓存路径，`scripts/collect-errors.js` / `classify-owner.js` 直接引用 toolkit 的客户端、条目构建与分类接口。规则差异走 `config/graylog-triage.json` 注入，不在脚本里改规则。其他插件要复用同一套规范时引用 toolkit，而不是复制本插件的脚本。
+
+---
+
 ## 产物
 
 | 文档 | 内容 | 是否推群 |
 |---|---|---|
-| `report-summary-<HHmm>.md` | 本轮窗口、两路采集计数（报错 / 慢请求达标）、归属分布、P0/P1 分布、慢请求 Top、精度说明、产物清单 | 一条汇总文本 |
-| `report-self-<HHmm>.md` | P0 优先索引 + 本组簇（按有堆栈帧 / 仅应用名 / 慢请求三段）+ 待定附录、严重度与依据、堆栈或耗时样例、前端定位、修正/优化方案块 | 否 |
-| `report-infra-<HHmm>.md` | 基础设施簇，仅落盘 | 否 |
-| `notify-<组>-<HHmm>.md` | 他组簇（报错：异常类/堆栈/请求接口；慢请求：接口全限定名/最大·平均耗时）、traceId、调用方、`[P0]`/`[P1]` 标记、排查请求 | 文本 + 群文件 |
+| `巡检总览-<HHmm>.md` | 本轮窗口、两路采集计数（报错 / 慢请求达标）、归属分布、处置分类分布、P0/P1 分布、慢请求 Top、精度说明、产物清单 | 一条汇总文本 |
+| `本组问题-<HHmm>.md` | P0 优先索引 + 处置分流表 + 本组簇（按处置分流分章：运行时缺陷 / 需人工介入 / 日志级别复核 / 业务控制 / 慢请求，章内先有堆栈帧、再仅应用名）+ 待定附录、严重度与依据、堆栈或耗时样例、前端定位、无堆栈簇的「日志语句定位」（按 logger + 文案反查源码，非堆栈证据）、修正/优化方案块 | 否 |
+| `基础设施-<HHmm>.md` | 基础设施簇，仅落盘 | 否 |
+| `他组通知-<组>-<HHmm>.md` | 他组簇（报错：异常类/堆栈/请求接口；慢请求：接口全限定名/最大·平均耗时）、traceId、调用方、`[P0]`/`[P1]` 标记、排查请求 | 文本 + 群文件 |
 
 四条落盘路径，全部按环境隔离：
 
@@ -47,9 +53,9 @@ node -e "const c=require('./.agents/plugins/imedicalxc-doctor-graylog-error-tria
 | 水位线与去重表 | `config/graylog-triage-state-<env>.json` |
 | 并发锁 | `config/.run-<env>.lock` |
 
-> `report-infra-*` 与 `notify-*` 是状态快照，只保留最新轮次；`report-self-*`、`report-summary-*` 是历史轨迹，不自动清理。
+> `基础设施-*` 与 `他组通知-*` 是状态快照，只保留最新轮次；`本组问题-*`、`巡检总览-*` 是历史轨迹，不自动清理。
 
-> QQ 推送当前受网关 403 限制，线上效果是每轮一条 `[WARN]`，`notify-*` 需手工转发。背景见 `references/接入手册.md` 第 8 节「已知限制」。
+> QQ 推送当前受网关 403 限制，线上效果是每轮一条 `[WARN]`，`他组通知-*` 需手工转发。背景见 `references/接入手册.md` 第 8 节「已知限制」。
 
 ---
 
@@ -91,7 +97,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-d
 |---|---|---|
 | `config-env.js` | 连接解析（mcp.json / 环境变量）+ 主配置加载 | — |
 | `collect-errors.js` | 水位线增量采集（ERROR + 慢请求两路并集）+ 消息 id 去重 + traceId 增强 | 0/1/2 |
-| `classify-owner.js` | 慢请求接口全限定名前置分支 + 五步归属判定 + 聚簇 + P0/P1 初判 + 待分析队列；`--calibrate` 输出观测证据 | 0/1/2 |
+| `classify-owner.js` | 慢请求接口全限定名前置分支 + 五步归属判定 + 聚簇 + 处置分类初判与 P0/P1 推导 + 待分析队列；`--calibrate` 输出观测证据 | 0/1/2 |
 | `penetrate-frontend.js` | 分类结果 → 前端页面候选（启发式，流水线实际入口）；慢请求簇无 URL，计入 `no-http-request` 跳过 | 0/1/2 |
 | `build-front-chains.js` | codegraph 模式下的 URL → 页面/操作/JS 行号（分支未启用，仅产出索引） | 0/1/2 |
 | `render-report.js` | 四类 md + P0 优先索引 + 严重度与耗时指标 + 双层校验 + 脱敏 + 快照清理 | 0/1/2 |
@@ -124,9 +130,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-d
 - **两路采集**：ERROR 走 `query.errorSelector`（`level:3`，回退 `level_name:ERROR`）；慢请求走 `query.slowSelector`（`full_message:"接口响应超过"`），单轮上限 2000 条。**阈值按解析出的毫秒数判**（`query.slowThresholdMs`，当前 15000，脚本兜底同值），不靠日志文案：分档最高只到「15秒」，2101 秒的调用也写着「超过15秒」，且「超过」与 `>=` 语义不同。阈值筛选在采集阶段，改值必须重新采集才改变达标集合。
 - **errorHash**：报错 `sha1(异常类|首个本组堆栈帧|消息模板)[:16]`；慢请求 `sha1('slow|'+接口全限定名)[:16]`，**不含耗时**——同一接口持续慢会跨轮复现并累加计数。两者都不含 traceId，用于聚簇与跨轮去重。
 - **行级去重**：Graylog 消息 `_id`，TTL 由 `state.dedupeTtlHours` 决定（当前 6 小时），超 `dedupeMaxEntries`（80000）按时间淘汰最旧。
-- **严重度**：脚本初判——慢请求一律 P0；报错簇全为业务异常（业务拦截器 logger / `业务异常(` 前缀 / 业务异常类）→ P1，否则 P0，部分业务异常记 `severityMixed`。分析轮可用 `analysis.severity` 改判，但必须写 `severityReason`。P0 必须出方案，P1 不强行改码。
-- **归属**：self（医生站 12 模块）/ infra（public 7 仓）/ external（他组按产品组）/ unknown（待定，不猜）。慢请求先按接口全限定名判（证据等级 `interface-fqcn`），未命中才走五步短路。
-- **无关与待定的区别**：无关是他组应用自身故障且 trace 里无本组任意一帧，只统计；待定是判不出归属，进人工确认队列。
+- **处置分类**：脚本按条初判后聚簇，回答「这条报错要不要动、动哪里」——`slow-perf`（慢请求，做耗时归因）/ `business-escalation`（业务抛出的外部调用失败或需开发处理，写被调方与原始错误，本组只做容错）/ `business-control`（业务抛出的正常控制，确认语义与提示文案，不改码）/ `runtime-defect`（NPE / 类型转换 / 越界等运行时异常，必须给位置与改法）/ `log-level-review`（无异常类的 log.error，给「降级」或「保留」结论）。运行时异常类优先于业务信号（经 `HisBusinessInterceptor` 打印的 NPE 仍是 `runtime-defect`）；「线程池」「执行失败」等关键词归 `business-escalation`。混合簇按 `runtime-defect > business-escalation > log-level-review > business-control` 取最高优先级，记 `dispositionCounts`。分析轮可用 `analysis.disposition` / `analysis.dispositionReason` 改判。
+- **严重度**：由处置分类推导——`slow-perf` / `runtime-defect` / `business-escalation` / `log-level-review` → P0；`business-control` → P1；混合簇保守取 P0 并记 `severityMixed`。分析轮可用 `analysis.severity` / `analysis.severityReason` 改判，全篇以改判为准。P0 必须出方案，P1 不强行改码。
+- **归属**：self（医生站 12 模块）/ infra（public 7 仓）/ external（他组按产品组）/ unknown（待定，不猜）。慢请求先按接口全限定名判（证据等级 `interface-fqcn`），未命中才走五步短路。应用名为聚合进程且无本组帧时按 logger 全限定名判（`comnur` / `ph.*` / `arinv` / `com.mediway.hos`），本组堆栈帧始终优先；最内层业务帧未登记归属记待定（`unregistered-business-frame`），不算本组。
+- **噪音过滤**：`filters.ignoreMessageIncludes`（当前「未获取到token信息」）在采集、分类、队列三处统一过滤，不落盘、不分析、不进任何报告。
+- **无关与待定的区别**：无关是他组应用自身故障（条目自身 app 名可解析即定组，trace 里有本组参与也不改判）且堆栈无本组代码帧，只统计；待定是判不出归属，进人工确认队列。
 - **单体陷阱**：本组与基础设施共用 `his-mediway-server`，不能只靠 app_name 判归属，必须看堆栈帧。慢请求更甚——它没有堆栈帧，且药房、ESB 等他组接口也由这个聚合进程打印，只看 app_name 会把他组接口误判成本组。
 - **参数名写错不报错**：只会静默走默认值，读了错的文件却照常出结果。是 `-SkipNotify` 不是 `-SkipPush`，是 `-Env` 不是 `-EnvId`，node 脚本是 `--file` 不是 `--raw`。`run-triage.ps1` 没有 `-DryRun`，`collect-errors.js` 没有 `--from`。
 

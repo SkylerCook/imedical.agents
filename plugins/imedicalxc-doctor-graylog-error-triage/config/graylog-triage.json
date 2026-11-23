@@ -55,10 +55,35 @@
     "traceLookup": true,
     "maxTraceLookups": 20
   },
+  "filters": {
+    "ignoreMessageIncludes": ["未获取到token信息"],
+    "ignoreLoggerPrefixes": []
+  },
   "severity": {
     "businessLoggers": ["com.mediway.his.server.advise.HisBusinessInterceptor"],
     "businessMessagePrefixes": ["业务异常("],
-    "businessExceptionClasses": ["HisBusinessException", "BaseBusinessException", "BusinessException"]
+    "businessExceptionClasses": ["HisBusinessException", "DocBusinessException", "BaseBusinessException", "BusinessException"]
+  },
+  "disposition": {
+    "businessExceptionClasses": ["HisBusinessException", "DocBusinessException", "BaseBusinessException", "BusinessException"],
+    "runtimeExceptionClasses": [
+      "NullPointerException", "IllegalArgumentException", "IllegalStateException",
+      "ClassCastException", "IndexOutOfBoundsException", "ArrayIndexOutOfBoundsException",
+      "NegativeArraySizeException", "ArithmeticException", "NumberFormatException",
+      "UnsupportedOperationException", "ConcurrentModificationException", "NoSuchElementException",
+      "StackOverflowError", "OutOfMemoryError", "NoClassDefFoundError", "ClassNotFoundException",
+      "NoSuchMethodError", "AbstractMethodError"
+    ],
+    "externalCallClasses": [
+      "FeignException", "RetryableException", "HystrixRuntimeException", "RestClientException",
+      "ResourceAccessException", "SocketTimeoutException", "ConnectException", "TimeoutException",
+      "HttpClientErrorException", "HttpServerErrorException"
+    ],
+    "escalationKeywords": [
+      "调用失败", "调用异常", "远程调用", "接口返回", "服务不可用", "熔断", "降级",
+      "配置缺失", "未配置", "缺少配置", "请联系开发",
+      "线程池", "执行失败"
+    ]
   },
   "classify": {
     "businessPackageRoot": "com.mediway",
@@ -67,6 +92,11 @@
     "maxSamplesPerCluster": 3,
     "maxFullMessageChars": 4000,
     "appNameRule": true,
+    "genericLoggers": [
+      "com.mediway.his.server.advise.HisBusinessInterceptor",
+      "c.m.h.s.a.HisBusinessInterceptor"
+    ],
+    "loggerOwnerInfraPrefixes": ["com.mediway.hos"],
     "frameworkPrefixes": [
       "java.", "javax.", "jdk.", "sun.", "com.sun.",
       "org.springframework.", "org.apache.", "org.mybatis.",
@@ -123,7 +153,9 @@
       ],
       "appPrefixes": ["his-mediway-gateway", "his-gateway", "hisbsp", "job-mediway", "hisct", "hiscf", "hiscore", "hisbase"],
       "loggerPrefixes": {
-        "c.m.h.h.b.": "hisbsp"
+        "c.m.h.h.b.": "hisbsp",
+        "com.mediway.hos.": "hos",
+        "c.m.hos.": "hos"
       },
       "urlPrefixes": ["hisbsp"],
       "notify": false,
@@ -155,15 +187,22 @@
         "聚合平台": ["esb"]
       },
       "packagePrefixes": {
-        "护士站": ["com.mediway.hos.nurm"],
+        "护士站": ["com.mediway.hos.nurm", "com.mediway.his.comnur"],
         "药房药库": [
           "com.mediway.his.ph.in",
           "com.mediway.his.ph.ip",
           "com.mediway.his.ph.op",
-          "com.mediway.his.ph.herb"
+          "com.mediway.his.ph.herb",
+          "com.mediway.his.ph.pha",
+          "com.mediway.his.com.ph"
         ],
+        "计费医保": ["com.mediway.his.arinv"],
         "电子签名": ["com.mediway.his.ca", "com.mediway.hos.ca"],
         "体检": ["com.mediway.his.hm"]
+      },
+      "loggerPrefixes": {
+        "护士站": ["c.m.h.c.n."],
+        "药房药库": ["c.m.h.c.p."]
       },
       "notify": true,
       "notifyUnrelated": ["检查"],

@@ -35,4 +35,4 @@ python .agents\plugins\imedicalxc-doctor-codegraph\scripts\scan_controller_endpo
 
 ## 判断值不值得构建索引
 
-先看 `report-summary` 的「前端穿透」行。若连续多轮命中 0 个本组簇，且本组簇本身就没有 URL，构建索引不会有改善。等出现带 URL 的本组报错再建。
+先看 `巡检总览` 的「前端穿透」行。若连续多轮命中 0 个本组簇，且本组簇本身就没有 URL，构建索引不会有改善。等出现带 URL 的本组报错再建。

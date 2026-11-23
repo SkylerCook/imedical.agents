@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "defaultEnv": "prod",
+  "settingsKey": "graylogTriage",
+  "mcpConfig": {
+    "envVar": "QODER_MCP_CONFIG",
+    "base": "home",
+    "defaultRelative": ".qoder-cn/shared_client/mcp.json",
+    "serverKeyTemplate": "graylog-{env}"
+  },
+  "environments": {
+    "prod": {
+      "enabled": true,
+      "label": "生产环境",
+      "mcpServer": "graylog-prod",
+      "urlEnv": "GRAYLOG_PROD_URL",
+      "tokenEnv": "GRAYLOG_PROD_TOKEN",
+      "cookieEnv": "GRAYLOG_PROD_COOKIE",
+      "apiMode": "views",
+      "streamIds": [],
+      "overlapSeconds": 120,
+      "intervalMinutes": 15,
+      "initialLookbackMinutes": 30,
+      "pageSize": 500,
+      "maxMessagesPerRun": 12000,
+      "sliceBudget": 8000,
+      "maxSlicesPerRun": 4
+    }
+  },
+  "query": {
+    "errorSelector": "level:3",
+    "fallbackSelector": "level_name:ERROR",
+    "slowSelector": "full_message:\"接口响应超过\"",
+    "slowThresholdMs": 15000,
+    "extraFilter": "",
+    "fields": "*",
+    "traceLookup": true,
+    "maxTraceLookups": 20
+  },
+  "filters": {
+    "ignoreMessageIncludes": [],
+    "ignoreLoggerPrefixes": []
+  },
+  "severity": {
+    "businessLoggers": ["com.example.server.advise.BusinessInterceptor"],
+    "businessMessagePrefixes": ["业务异常("],
+    "businessExceptionClasses": ["BusinessException"]
+  },
+  "disposition": {
+    "businessExceptionClasses": ["BusinessException"],
+    "runtimeExceptionClasses": [
+      "NullPointerException", "IllegalArgumentException", "IllegalStateException",
+      "ClassCastException", "IndexOutOfBoundsException", "ArithmeticException",
+      "NumberFormatException", "StackOverflowError", "OutOfMemoryError"
+    ],
+    "externalCallClasses": [
+      "FeignException", "RetryableException", "RestClientException",
+      "SocketTimeoutException", "ConnectException", "TimeoutException"
+    ],
+    "escalationKeywords": ["调用失败", "调用异常", "线程池", "执行失败", "服务不可用"]
+  },
+  "classify": {
+    "frameworkPrefixes": ["java.", "javax.", "sun.", "jdk.", "org.springframework.", "org.apache."],
+    "maxFullMessageChars": 4000,
+    "maxSamplesPerCluster": 3,
+    "scanWorkspaceRepos": true
+  },
+  "ownerGroups": {
+    "self": {
+      "label": "本系统",
+      "modules": ["order", "patient", "billing"],
+      "repos": ["src/backend/order-service", "src/backend/patient-service"],
+      "appKeywords": ["order-server"],
+      "appPrefixes": ["order-server"],
+      "packagePrefixTemplate": "com.example.{module}",
+      "urlPrefixTemplate": "/{module}/",
+      "notify": false
+    },
+    "infra": {
+      "label": "基础设施",
+      "modules": ["base", "config", "auth"],
+      "repos": ["src/backend/base-lib"],
+      "packagePrefixes": ["com.example.platform"],
+      "loggerPrefixes": ["com.example.platform."],
+      "notify": false
+    },
+    "external": {
+      "appGroups": {
+        "检验": ["lis"],
+        "检查": ["ris", "pacs"]
+      },
+      "packagePrefixes": {
+        "检验": ["com.example.lis"],
+        "检查": ["com.example.pacs"]
+      },
+      "loggerPrefixes": {
+        "检验": ["c.e.lis."],
+        "检查": ["c.e.pacs."]
+      },
+      "notify": true,
+      "notifyUnrelated": [],
+      "unrelatedLabel": "无关（他组自身故障）",
+      "unknownGroupLabel": "待定"
+    }
+  }
+}

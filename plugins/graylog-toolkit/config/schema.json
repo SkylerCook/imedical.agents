@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "graylog-toolkit config",
+  "description": "Graylog 巡检工具链配置。连接凭据不在此文件：只写环境变量名，真实值由 IDE mcp.json 或进程环境提供。",
+  "type": "object",
+  "required": ["environments", "query", "ownerGroups"],
+  "properties": {
+    "version": { "type": "integer" },
+    "defaultEnv": { "type": "string", "description": "CLI 未传 --env 时使用" },
+    "settingsKey": { "type": "string", "default": "graylogTriage", "description": ".qoder/settings.local.json 中存放环境变量的键名" },
+    "mcpConfig": {
+      "type": "object",
+      "properties": {
+        "envVar": { "type": "string", "description": "指向 mcp.json 路径的环境变量名" },
+        "base": { "enum": ["home", "workspace"] },
+        "defaultRelative": { "type": "string" },
+        "serverKeyTemplate": { "type": "string", "description": "如 graylog-{env}" }
+      }
+    },
+    "environments": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": true },
+          "label": { "type": "string" },
+          "mcpServer": { "type": "string", "description": "mcp.json mcpServers 下的键名" },
+          "urlEnv": { "type": "string" },
+          "tokenEnv": { "type": "string" },
+          "cookieEnv": { "type": "string" },
+          "apiMode": { "enum": ["views", "legacy"], "default": "views", "description": "搜索接口；legacy 仅 Graylog 3.x/4.x，5.x 自动降级 views" },
+          "streamIds": { "type": "array", "items": { "type": "string" } },
+          "overlapSeconds": { "type": "number", "default": 120 },
+          "intervalMinutes": { "type": "number", "default": 15 },
+          "initialLookbackMinutes": { "type": "number" },
+          "pageSize": { "type": "number", "default": 500, "maximum": 10000 },
+          "maxMessagesPerRun": { "type": "number", "default": 12000 },
+          "sliceBudget": { "type": "number", "default": 8000, "maximum": 9000 },
+          "maxSlicesPerRun": { "type": "number", "default": 4 },
+          "legacySort": { "type": "string", "description": "legacy 接口排序表达式，默认 timestamp:asc" }
+        }
+      }
+    },
+    "query": {
+      "type": "object",
+      "required": ["errorSelector"],
+      "properties": {
+        "errorSelector": { "type": "string", "description": "ERROR 查询，如 level:3" },
+        "fallbackSelector": { "type": "string", "description": "errorSelector 无结果时回退" },
+        "slowSelector": { "type": "string", "description": "慢请求 WARN 查询；空则禁用慢请求一路" },
+        "slowThresholdMs": { "type": "number", "default": 15000, "description": "按解析出的耗时毫秒数判定，框架文案分档不可信" },
+        "extraFilter": { "type": "string", "description": "与各选择器 AND 的附加条件" },
+        "fields": { "type": "string", "description": "返回字段，* 为全部；source_* 与 logger_name 需要包含" },
+        "traceLookup": { "type": "boolean", "default": true },
+        "maxTraceLookups": { "type": "number", "default": 20 }
+      }
+    },
+    "filters": {
+      "type": "object",
+      "properties": {
+        "ignoreMessageIncludes": { "type": "array", "items": { "type": "string" }, "description": "消息包含任一子串即丢弃（采集与分类两侧都生效）" },
+        "ignoreLoggerPrefixes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "severity": {
+      "type": "object",
+      "description": "业务正常处理信号；命中则算 P1 候选",
+      "properties": {
+        "businessLoggers": { "type": "array", "items": { "type": "string" } },
+        "businessMessagePrefixes": { "type": "array", "items": { "type": "string" } },
+        "businessExceptionClasses": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "disposition": {
+      "type": "object",
+      "description": "处置分类规则；运行时异常类优先于业务信号",
+      "properties": {
+        "businessExceptionClasses": { "type": "array", "items": { "type": "string" } },
+        "runtimeExceptionClasses": { "type": "array", "items": { "type": "string" } },
+        "externalCallClasses": { "type": "array", "items": { "type": "string" } },
+        "escalationKeywords": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "classify": {
+      "type": "object",
+      "properties": {
+        "frameworkPrefixes": { "type": "array", "items": { "type": "string" }, "description": "退堆栈找业务帧时跳过的框架包前缀" },
+        "maxFullMessageChars": { "type": "number", "default": 4000 },
+        "maxSamplesPerCluster": { "type": "number", "default": 3 },
+        "scanWorkspaceRepos": { "type": "boolean", "default": true, "description": "扫描 ownerGroups 的 repos 自校准模块前缀" }
+      }
+    },
+    "ownerGroups": {
+      "type": "object",
+      "required": ["self"],
+      "properties": {
+        "self": {
+          "type": "object",
+          "required": ["repos"],
+          "properties": {
+            "label": { "type": "string" },
+            "modules": { "type": "array", "items": { "type": "string" } },
+            "repos": { "type": "array", "items": { "type": "string" }, "description": "相对 repoRoot 的源码仓库路径，用于扫描真实模块前缀与日志语句" },
+            "appKeywords": { "type": "array", "items": { "type": "string" }, "description": "日志 app_name 命中即视为本组进程" },
+            "appPrefixes": { "type": "array", "items": { "type": "string" } },
+            "packagePrefixTemplate": { "type": "string", "example": "com.example.{module}" },
+            "urlPrefixTemplate": { "type": "string", "example": "/{module}/" },
+            "notify": { "type": "boolean" }
+          }
+        },
+        "infra": {
+          "type": "object",
+          "properties": {
+            "label": { "type": "string" },
+            "modules": { "type": "array", "items": { "type": "string" } },
+            "repos": { "type": "array", "items": { "type": "string" } },
+            "packagePrefixes": { "type": "array", "items": { "type": "string" } },
+            "loggerPrefixes": { "type": "array", "items": { "type": "string" } },
+            "notify": { "type": "boolean" }
+          }
+        },
+        "external": {
+          "type": "object",
+          "properties": {
+            "appGroups": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } }, "description": "组名 → app 名关键字列表" },
+            "packagePrefixes": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } }, "description": "组名 → Java 包前缀" },
+            "loggerPrefixes": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } }, "description": "组名 → logger 缩写前缀（如 c.m.h.c.n.）" },
+            "notify": { "type": "boolean" },
+            "notifyUnrelated": { "type": "array", "items": { "type": "string" } },
+            "unrelatedLabel": { "type": "string" },
+            "unknownGroupLabel": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -8,6 +8,8 @@ description: |
 
 按顺序执行 8 步。每步先核实事实再动作，缺前置就停下报告，不跳步、不猜。
 
+> 下文 `<env>` 是环境 ID，必须与 `config/graylog-triage.json` 的 `environments` 键、以及传给 `--env` / `-Env` 的值一字不差，不要凭记忆填写。本机可选值与当前默认环境见 `README.md` 的「环境」节。
+
 ## 步骤 1：确认工作区与插件状态
 
 1. 读 `AGENTS.md`（父仓库）确认代码位置与搜索约束。
@@ -30,17 +32,17 @@ node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\verify-insta
 
 连接信息单一事实源是 IDE 的 mcp.json，默认路径 `<userHome>/.qoder-cn/shared_client/mcp.json`，可用 `QODER_MCP_CONFIG` 或 `--mcp-config` 覆盖。
 
-1. 读取该文件，检查 `mcpServers["graylog-87"]` 是否存在。
+1. 读取该文件，检查 `mcpServers["graylog-<env>"]` 是否存在。
 2. 若为空，向用户给出注册片段，**由用户填写真实地址与只读 token**，Agent 不写入凭据：
 
 ```json
 {
   "mcpServers": {
-    "graylog-87": {
+    "graylog-<env>": {
       "command": "node",
       "args": ["<仓库绝对路径>/mcp-graylog/index.js"],
       "env": {
-        "GRAYLOG_URL": "<87环境Graylog地址>",
+        "GRAYLOG_URL": "<该环境Graylog地址>",
         "GRAYLOG_TOKEN": "<只读token>"
       }
     }
@@ -52,7 +54,7 @@ node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\verify-insta
 4. 预检（不取数、不回显凭据）：
 
 ```powershell
-node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\collect-errors.js --env 87 --check
+node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\collect-errors.js --env <env> --check
 ```
 
 期望 `status: ready`。`missing-config` / `missing-credentials` / `ambiguous` 均须先解决。
@@ -67,7 +69,7 @@ node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\collect-erro
 4. 演练：
 
 ```powershell
-node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\push-notify.js --env 87 --dry-run
+node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\push-notify.js --env <env> --dry-run
 ```
 
 ## 步骤 5：前端索引（需用户授权）
@@ -121,10 +123,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents\scripts\update-plugi
 ## 步骤 7：首轮手动验证
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\run-triage.ps1 -Env 87 -SkipNotify
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\run-triage.ps1 -Env <env> -SkipNotify
 ```
 
-检查：退出码 0；`docs/agent-reports/graylog-triage/87/<日期>/` 出现 raw / classified / report-summary / report-self 文档；`config/graylog-triage-state-87.json` 的 cursor 已推进。
+检查：退出码 0；`docs/agent-reports/graylog-triage/<env>/<日期>/` 出现 raw / classified / 巡检总览 / 本组问题 文档；`config/graylog-triage-state-<env>.json` 的 cursor 已推进。
 
 还要确认**两路采集都跑了**：日志里同时有 `报错命中 N 条` 与 `慢请求（>=15s）命中 N 条…达标 N 条`，汇总报告有 P0/P1 分布。慢请求达标 0 条可以是正常结果（该窗口确实没有超 15 秒的接口），但整路计数缺失说明 `query.slowSelector` 被清空或解析失败，须先排查。阈值按解析出的毫秒数判，日志文案分档最高只到「15秒」且是「超过」语义，不能靠文案确认。
 
@@ -134,17 +136,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-d
 
 | 项 | 采集轮 | 分析轮 |
 |---|---|---|
-| 名称 | `医生站 Graylog 报错采集轮（87）` | `医生站 Graylog 报错分析轮（87）` |
+| 名称 | `医生站 Graylog 报错采集轮（<env>）` | `医生站 Graylog 报错分析轮（<env>）` |
 | cron（Asia/Shanghai） | `0,15,30,45 * * * *` | `7,37 * * * *` |
 | 权限 | **Full Access**（`executionAuthorization: true`） | Auto Approval（`false`） |
 | outputMode | `merged` | `merged` |
 | cwd | 仓库根目录 | 仓库根目录 |
 
-采集轮 prompt 保持极窄形态：只跑 `run-triage.ps1 -Env 87` 一条命令 + 按退出码（0/1/2/3）回报 + 禁止清单（禁单阶段脚本、禁改配置与脚本、禁 git、禁根因分析、禁动任何调度、禁配令牌或外发）。**必须 Full Access**：Auto Approval 会把 `powershell -ExecutionPolicy Bypass` 拦下，表现为状态 `succeeded` 但流水线一步没跑。
+采集轮 prompt 保持极窄形态：只跑 `run-triage.ps1 -Env <env>` 一条命令 + 按退出码（0/1/2/3）回报 + 禁止清单（禁单阶段脚本、禁改配置与脚本、禁 git、禁根因分析、禁动任何调度、禁配令牌或外发）。**必须 Full Access**：Auto Approval 会把 `powershell -ExecutionPolicy Bypass` 拦下，表现为状态 `succeeded` 但流水线一步没跑。
 
 分析轮 prompt 指向主 skill，取材范围是 `config/pending-queue.json` **全量候选**（`pending` + `lastSeen` 前进的 `blocked`，每轮上限 4 条簇，**P0 先于 P1**），不是只看最新一轮报告。队列条目带采集轮打好的 **`origin` 来源标志**（`self` / `self-calls-external` / `external` / `infra` / `unknown`），分析轮据此定责任侧而不是重新猜：`self` 出本组根因与修正方案；`self-calls-external`（本组调用他组失败的跨组报错）只写被调方 + 原始错误 + 本组容错，不写成需要本组改码的缺陷。职责：读报告→报错按来源定根因 / 慢请求按接口全限定名定归属并按 traceId 追全链路做耗时归因→回填 `pending-queue.json`（可用 `analysis.severity` 改判，但必须写 `severityReason`）→按受影响轮次重渲染→整理 `analysis-outbox-<HHmm>.md`。允许只读 Graylog traceId 查询（区别于被禁的 `collect-errors.js` 取数）。禁采集、禁 `push-notify.js`、禁任何外发、禁创建或改动任何调度任务（含自身）。无产物或无新增时提前退出，不补采集。
 
-创建后用 `run` 各触发一次验证，**只看客观证据**：日志 `config/logs/triage-<yyyyMMdd>-87.log` 的 mtime 推进且末尾有 `[SUMMARY]`、当日产物落盘、state cursor 推进；分析轮看 `pending-queue.json` 是否新增 `analyzed`。`lastRunStatus: succeeded` 不作为判据。
+创建后用 `run` 各触发一次验证，**只看客观证据**：日志 `config/logs/triage-<yyyyMMdd>-<env>.log` 的 mtime 推进且末尾有 `[SUMMARY]`、当日产物落盘、state cursor 推进；分析轮看 `pending-queue.json` 是否新增 `analyzed`。`lastRunStatus: succeeded` 不作为判据。
 
 两个任务都依赖 Qoder 客户端在线，退出期间不触发，重启后水位线补齐窗口。
 
@@ -153,17 +155,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-d
 只有用户明确要求「客户端退出期间也采集」时才走这条路，且**必须先 `disable` Qoder 采集轮**避免双调度：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\install-schedule.ps1 -Env 87 -DryRun
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\install-schedule.ps1 -Env <env> -DryRun
 ```
 
 确认 `Repeat: 无限期`、`Principal` 为当前用户、触发间隔与 `config.schedule.intervalMinutes` 一致（当前 15 分钟，OS 路径只认这个值）后去掉 `-DryRun` 执行，然后：
 
 ```powershell
-Start-ScheduledTask -TaskName "iMedicalxc-GraylogTriage-87"
+Start-ScheduledTask -TaskName "iMedicalxc-GraylogTriage-<env>"
 ```
 
 ```powershell
-Get-ScheduledTaskInfo -TaskName "iMedicalxc-GraylogTriage-87" | Select-Object LastRunTime, LastTaskResult, NextRunTime
+Get-ScheduledTaskInfo -TaskName "iMedicalxc-GraylogTriage-<env>" | Select-Object LastRunTime, LastTaskResult, NextRunTime
 ```
 
 `LastTaskResult`：`0` 正常、`267009` 运行中、`1` 脚本失败、`2` 连接不可用、`3` 上一轮仍在执行（正常跳过）。

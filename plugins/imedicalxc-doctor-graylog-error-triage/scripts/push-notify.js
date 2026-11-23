@@ -223,7 +223,9 @@ function collectUploadFiles(classifiedFile, payload) {
   try { files = fs.readdirSync(dir); } catch { return []; }
   const wanted = files.filter((f) => {
     if (!f.endsWith('-' + hm + '.md')) return false;
-    return f.startsWith('report-self-') || f.startsWith('notify-') || f.startsWith('report-summary-');
+    // 中文名为当前产物；英文名兼容历史轮次
+    return f.startsWith('本组问题-') || f.startsWith('他组通知-') || f.startsWith('巡检总览-')
+      || f.startsWith('report-self-') || f.startsWith('notify-') || f.startsWith('report-summary-');
   });
   return wanted.sort().map((f) => path.join(dir, f));
 }

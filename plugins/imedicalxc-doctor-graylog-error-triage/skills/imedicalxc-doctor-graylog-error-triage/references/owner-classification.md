@@ -9,7 +9,7 @@
 |---|---|---|---|
 | `self` | `ownerGroups.self` | 医生站 | 出根因与修正方案 |
 | `infra` | `ownerGroups.infra` | 基础设施（public 公共仓） | 仅汇总，`infra.notify=false` 默认不推送 |
-| `external` | `ownerGroups.external` | 他组产品组 | 生成 `notify-<组>-*.md` 并推送 |
+| `external` | `ownerGroups.external` | 他组产品组 | 生成 `他组通知-<组>-*.md` 并推送 |
 | `unrelated` | — | 他组自身故障，本组未参与该 trace | 仅计数，不推送 |
 | `unknown` | — | 无法判定 | 进 `pending-queue.json` 人工确认 |
 
@@ -19,7 +19,7 @@
 
 ## 2. 配置在哪里
 
-唯一位置：`config/graylog-triage.json` 的 `ownerGroups`（约第 77-172 行）。严重度初判规则在同文件 `severity` 段（第 58-62 行），慢请求查询与阈值在 `query.slowSelector` / `query.slowThresholdMs`（第 51-52 行）。
+唯一位置：`config/graylog-triage.json` 的 `ownerGroups`。处置分类与严重度初判规则在同文件 `disposition` / `severity` 段，慢请求查询与阈值在 `query.slowSelector` / `query.slowThresholdMs`。
 
 | 字段 | 行 | 作用 | 改错的后果 |
 |---|---|---|---|
@@ -35,7 +35,11 @@
 | `infra.loggerPrefixes` | 125-127 | `{logger 前缀: 模块名}`，详见第 8 节 | 见第 8 节三个禁区 |
 | `infra.urlPrefixes` | 128 | URL 首段白名单 | — |
 | `external.appGroups` | 134-156 | `{产品组: [模块码]}`，同时生成 `com.mediway.his.{code}` 与 `com.mediway.{code}` | 新服务漏配 → 长驻待定 |
-| `external.packagePrefixes` | 157-167 | 他组自有包前缀（护士站 `com.mediway.hos.nurm`；药房药库 `com.mediway.his.ph.{in\|ip\|op\|herb}`；电子签名 `com.mediway.his.ca`、`com.mediway.hos.ca`；体检 `com.mediway.his.hm`） | 不配会被 infra 的 `com.mediway.hos` 吞掉；**慢请求会退回 app-only 被算成本组**，见第 4 节 ⓪ |
+| `external.packagePrefixes` | 157-167 | 他组自有包前缀（护士站 `com.mediway.hos.nurm`、`com.mediway.his.comnur`；药房药库 `com.mediway.his.ph.{in\|ip\|op\|herb\|pha}`、`com.mediway.his.com.ph`；计费医保 `com.mediway.his.arinv`；电子签名 `com.mediway.his.ca`、`com.mediway.hos.ca`；体检 `com.mediway.his.hm`） | 不配会被 infra 的 `com.mediway.hos` 吞掉；**慢请求与 logger 归属都会退回 app-only 被算成本组**，见第 4 节 ⓪ 与第 8 节 |
+| `external.loggerPrefixes` | 203 | `{产品组: [logger 前缀]}`（当前 `c.m.h.c.n.` 护士站、`c.m.h.c.p.` 药房药库），给无 `logger_name` 字段的正文日志兜底 | 正文缩写名解析不到该组 |
+| `classify.loggerOwnerInfraPrefixes` | — | 允许参与 logger 归属的 infra 包前缀（当前仅 `com.mediway.hos`，即 hos 框架） | 配宽了会把本组日志吸进基础设施 |
+| `classify.genericLoggers` | — | 通用日志入口（`HisBusinessInterceptor`），**不参与** logger 归属 | 删掉会让所有经拦截器的日志被清出本组 |
+| `filters.ignoreMessageIncludes` | — | 噪音消息片段（当前「未获取到token信息」）：采集、分类、渲染、队列四处统一过滤 | 漏配会把噪音重新带回巡检结果 |
 | `external.notifyUnrelated` | 169 | 白名单组：即使判无关也出通知 | 不进则只在 summary 里计数 |
 
 > `external.mappingSource`（第 133 行）是给人看的文档指针，程序不读。
@@ -63,7 +67,11 @@
 
 匹配规则：`name === prefix` 或 `name.startsWith(prefix + '-')`。加短横线是为了避免 `ma` 误命中 `mdm`。
 
-**③ logger 前缀 `loggerPrefixes`**（只来自 `infra.loggerPrefixes`，kind 固定为 `infra`）
+**③ logger 归属 `loggerOwners` / `loggerPrefixes`**
+
+- `loggerOwners`：来自 `external.packagePrefixes` 的全部前缀（kind=external，带组名）+ `infra.packagePrefixes` 中命中 `classify.loggerOwnerInfraPrefixes` 的前缀（当前只有 `com.mediway.hos` → `hos`）。按最长前缀匹配完整 FQCN。
+- `loggerPrefixes`：`infra.loggerPrefixes` + `external.loggerPrefixes`，用于**缩写名**（`c.m.h.c.n.` 等）兜底。
+- `classify.genericLoggers`（`HisBusinessInterceptor` 全名与缩写名）在前两者之前短路，直接返回 null。
 
 **④ URL 首段 `infraUrlPrefixes`**（只来自 `infra.urlPrefixes`）
 
@@ -83,23 +91,28 @@
        ├ 前缀属基础设施 → infra (slow-interface-fqcn, high)
        └ 前缀未登记   → 不返回，继续走下面五步（通常落到 app-name/low = app-only）
 ① trace 邻域：同一 traceId 下是否有他组应用报错
-       ├ 本条自身就是他组 app 且本组未参与 → unrelated (trace-peer-app-name, medium)
+       ├ 本条自身就是他组 app 且堆栈无本组帧 → unrelated (trace-peer-app-name, medium)
        ├ URL 首段能解析出他组组名        → external  (trace-peer, high)
        └ 都解析不出                      → unknown   (trace-peer-unresolved, low)
 ② Feign：正文命中 FEIGN_HINT_RE，或异常类属于 feignExceptionTypes
-       ├ 本条自身就是他组 app 且本组未参与 → unrelated (feign-app-name, medium)
+       ├ 本条自身就是他组 app 且堆栈无本组帧 → unrelated (feign-app-name, medium)
        ├ URL 首段能解析出他组组名        → external  (feign-exception, high)
        └ 都解析不出                      → unknown   (feign-unresolved, low)
 ③ 应用名（app_name，缺失时退回 source）
-       ├ 判为 self     → 进第 5 节六道降级
+       ├ 判为 self     → 进第 5 节降级链
        ├ 判为 infra    → infra      (app-name, medium)
        └ 判为 external → unrelated  (app-self-error, medium)
+③' 应用名认不出但 logger 命中他组/基础设施 → 按 logger 归属（logger-name, high）
 ④ 堆栈帧：从最内层向外找第一个能解析归属的帧（跳过 frameworkPrefixes）
        ├ self     → self     (business-frame,  medium)
        ├ infra    → infra    (business-frame,  medium)
        └ external → external (external-frame,  medium)
 ⑤ 都不命中 → unknown (undecided, low)
 ```
+
+> 注：③' 只在「无本组堆栈帧」时生效（第 5 节第 1 道同款约束），本组帧永远优先于 logger。
+>
+> 注：①② 的「本条自身就是他组 app」**不再要求本组未参与 trace**。报错发生在对方进程内、修的也是对方，trace 里有本组参与只说明本组是被影响方，不改归属；只有堆栈里出现本组代码帧（`hasSelfCodeFrame`，责任确在本组）时才落下，继续走 URL/unknown 交人工。该守卫与第 5 节 logger 同款：他组进程打印、异常抛在本组帧上仍归本组。
 
 **为什么慢请求必须先看接口全限定名**：慢请求日志由框架 `LogFilter` 以 WARN 打印，**没有堆栈帧**，第 ④ 步永远空转；而 `his-mediway-server` 是聚合进程，会代他组模块应答（见第 7 节）。按 app 名判等于把他组接口的慢调用全算成本组。接口全限定名回答的正是"哪段代码在跑"，比打印进程名更准，所以它是慢请求的**直接证据**（`evidenceLevel=interface-fqcn`），而不是推断。
 
@@ -108,6 +121,8 @@
 `FEIGN_HINT_RE` 只认 Feign/负载均衡的专属特征（`feign.FeignException`、`RetryableException`、`HystrixRuntimeException`、`Load balancer does not have available server`、`No instances available`）。`Connection refused`、`Read timed out` 这类通用网络错误**故意不认**，否则数据库连接失败会被误判成"调用外部接口失败"。
 
 **为什么 app 名优先于堆栈帧**：`com.mediway.hos` / `his.server` / `his.base` 这些共享基础包几乎出现在所有应用的堆栈里。若以帧优先，全环境的框架层异常都会被吸进本组或基础设施。app 名回答"谁在报错"，帧回答"哪段代码抛的"——前者才是归属。
+
+**但当 app 名是 self 时，顺序反转为本组帧 > logger > URL > app 名**：聚合进程会代他组打日志（logger 可定组），而他组调用本组接口时用他组 logger 打印、异常却抛在本组帧上（如计费 `ArIPCheckAdmfeeServiceImpl` 核查医嘱 → comoe `getChildGenTimeList` NPE，责任在本组）。所以本组帧在场时不再看 logger。
 
 **`ownerModule` 有三种语义，看报告时要分清**：
 
@@ -123,14 +138,17 @@
 
 | 序 | 条件 | 结果 | rule | 置信度 |
 |---|---|---|---|---|
-| 1 | logger 名命中 `infra.loggerPrefixes` | infra | `logger-name` | medium |
+| 1 | **无本组帧** 且 logger 全限定名命中 `loggerOwners`（他组 `comnur` / `ph.*` / `arinv`、基础设施 `com.mediway.hos`）或缩写名命中 `loggerPrefixes` | external / infra | `logger-name` | high |
 | 2 | 无归属帧 且 URL 首段在 `infra.urlPrefixes` | infra | `self-app-infra-url` | medium |
 | 3 | 首个可归属帧是 infra 包 | infra | `self-app-infra-frame` | high |
 | 4 | 首个可归属帧是他组包 | external | `self-app-external-frame` | high |
 | 5 | 无归属帧 且 URL 首段解析出他组组名 | unrelated | `self-app-url-module` | medium |
-| 6 | 以上都不成立 | self | `app-name` | high（有本组帧）/ **low（无）** |
+| 6 | 无本组帧、无任何归属帧，但最内层业务帧落在 `classify.businessPackageRoot`（默认 `com.mediway`）下 | unknown | `unregistered-business-frame` | low |
+| 7 | 以上都不成立 | self | `app-name` | high（有本组帧）/ **low（无）** |
 
-第 6 道是唯一的兜底出口。`low` 表示"只有应用名一条证据"，**它不是责任结论**——第 6 节就是为它设计的。
+第 1 道的 `hasSelfFrame` 守卫是硬约束：他组 logger + 本组帧时**不进**这道，继续走到第 4/7 道按本组帧定责。
+第 6 道是新增的「未登记产品」出口：应用名只是聚合进程，最内层业务帧（如 `com.mediway.his.opspcol.*`）未登记任何归属，不能按「仅应用名」算本组，归待定交人工确认。
+第 7 道是唯一的本组兜底出口。`low` 表示"只有应用名一条证据"，**它不是责任结论**——第 6 节就是为它设计的。
 
 ## 6. 证据等级（只对本组有意义）
 
@@ -140,9 +158,9 @@
 
 | 等级 | 产生条件 | 含义 | 报告位置 |
 |---|---|---|---|
-| `module-frame` | 报错：`app-name` + high，或 `business-frame` | 堆栈命中 `com.mediway.his.{本组模块}`，本组代码在场 | `report-self` 第一段 |
-| `app-only` | `app-name` + low | 只有 `app_name`，堆栈无本组帧：**推断，不构成本组缺陷证据** | `report-self` 第二段（报错）/ 第三段（慢请求） |
-| `interface-fqcn` | 慢请求：`slow-interface-fqcn` 且前缀属本组 | 接口全限定名命中本组包前缀。慢请求无堆栈，这就是"哪段代码在跑"的直接证据 | `report-self` 第三段 |
+| `module-frame` | 报错：`app-name` + high，或 `business-frame` | 堆栈命中 `com.mediway.his.{本组模块}`，本组代码在场 | `本组问题` 各处置章内排最前 |
+| `app-only` | `app-name` + low | 只有 `app_name`，堆栈无本组帧：**推断，不构成本组缺陷证据** | `本组问题` 各处置章内排在 module-frame 之后 |
+| `interface-fqcn` | 慢请求：`slow-interface-fqcn` 且前缀属本组 | 接口全限定名命中本组包前缀。慢请求无堆栈，这就是"哪段代码在跑"的直接证据 | `本组问题` 慢请求章 |
 
 **簇级定级规则：强证据优先，不取多数。**
 
@@ -176,13 +194,15 @@
 
 ## 8. logger 判据的适用边界
 
-`ownerFromLogger()` 解析 logback 单行格式：
+两条来源：raw 字段 `logger_name`（完整 FQCN，`ownerFromLoggerName()` 优先读），以及 logback 单行格式正文（`ownerFromLogger()` 兜底解析）：
 
 ```text
 2026-11-20 14:07:06,101 - <traceId> [http-nio-8081-exec-52] ERROR <logger> - <message>
 ```
 
-**生效范围极窄**：只在「应用名已判为 self」的第 1 道降级里被读。app 名认不出来时它**不生效**。
+**生效条件：没有本组堆栈帧**。应用名判为 self 时它是第 1 道降级；应用名认不出时它作为 ③' 分支生效（见第 4 节）。**有本组帧时 logger 不参与**——他组调用本组接口、本组代码抛异常的场景必须归本组。
+
+`classify.genericLoggers`（`HisBusinessInterceptor` 全名 + 缩写名）在任何匹配之前短路返回 null，否则所有经拦截器的日志都会被他组/基础设施吸走。
 
 **三个必须知道的坑**：
 
@@ -194,7 +214,7 @@
    | `com.mediway.his.hisbasesv.bsp.icon.comp.LinkUrlRpc` | `c.m.h.h.bsp.icon.comp.LinkUrlRpc` |
    | `com.mediway.his.hisbasesv.bsp.icon.service.impl.HisIconServiceImpl` | `c.m.h.h.b.i.s.i.HisIconServiceImpl` |
 
-   而 `ownerFromLogger()` 是**纯字符串前缀匹配**，没有缩写归一化。所以配置 `c.m.h.h.b.` 只覆盖"砍得更狠"那一档，`c.m.h.h.bsp.` 这种漏掉。要覆盖就得每种缩写写一条——**不建议这么做**，缩写组合会爆炸。
+   `loggerOwners` 匹配的是 **raw 字段 `logger_name` 的完整 FQCN**，不受缩写影响，这是现在的首选路径；只有历史日志或字段缺失时才退回正文缩写匹配，而它是**纯字符串前缀匹配**，没有缩写归一化。所以配置 `c.m.h.h.b.` 只覆盖"砍得更狠"那一档，`c.m.h.h.bsp.` 这种漏掉——**不建议为缩写组合逐条补配置**。
 
 2. **三个禁区**，加进去会出事：
 
@@ -230,7 +250,7 @@
 node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\classify-owner.js --env <env> --calibrate
 ```
 
-`--env` 填环境 ID（如 `wengyuan-prod`），缺省用 `defaultEnv`。**不要写死 `87`。**
+`--env` 填环境 ID（与 `config/graylog-triage.json` 的 `environments` 键一致），缺省用 `defaultEnv`。不要把某个环境 ID 写死进命令或文档。
 
 重点看 `calibrate()` 返回的四个 diff：
 
@@ -258,7 +278,7 @@ node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\classify-own
 
 ## 11. 无关 ≠ 没问题
 
-判「无关」的条件是本组**未参与该 trace**。这类簇里的真实 bug 不会进 notify，需要人工在 `report-summary` 里扫一眼「无关簇按疑似归属」那行。
+判「无关」的条件是**报错发生在他组应用进程内且堆栈无本组代码帧**。本组参与同一 trace 不改变归属（本组是被影响方），只有本组帧出现在堆栈里才算本组的责。这类簇里的真实 bug 不会进 notify，需要人工在 `巡检总览` 里扫一眼「无关簇按疑似归属」那行。
 
 历史上的病案组 Kingbase `RETURNING` 语法错误就是这样被漏掉的——它当时落在无关桶里，因为报错进程是他组的，但 SQL 语法问题的性质与归属无关，仍值得回头看一眼。
 
@@ -275,20 +295,27 @@ node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\classify-own
 
 - `scripts/lib/log-parse.js`：`parseSlow` 解析接口全限定名与耗时毫秒数，`deriveSlowKey` 生成慢请求聚簇键，`normalizeMessage` 透出 `loggerName`（业务异常判据要用）
 - `scripts/lib/owner-index.js`：`makeResult` 透传 `evidenceLevel` 并按 `originOf()` 输出 `origin`；`app-name` 与 `business-frame` 两个出口打标；`classify()` 开头新增 `slow-interface-fqcn` 前置分支
-- `scripts/classify-owner.js`：簇级按"强证据优先"定级（含 `interface-fqcn`），记 `evidenceLevelMixed`；簇级来源聚合（self 一票否决 + 多数）并记 `originCounts` / `originMixed`；`stats` 拆出 `selfModuleFrame` / `selfAppOnly` / `selfSlow` 与 `originSelf` / `originSelfCallsExternal` / `originExternal` / `originInfra` / `originUnknown` / `originMixed`；按 `severity` 配置做 P0/P1 初判；队列只刷新观测值，跨组报错入队
-- `scripts/render-report.js`：`renderSelf` 分三段 + 开头「P0 优先处理清单」+ 文末「本组调用他组失败」附录，`renderCluster` 增加「类型 / 严重度 / 严重度依据 / 归属判定 / 来源 / 证据等级」行与慢请求耗时指标，`renderSummary` 拆本组统计行并加「严重度分布」「来源分布」「慢请求 Top」，他组通知不渲染分析结论
+- `scripts/classify-owner.js`：簇级按"强证据优先"定级（含 `interface-fqcn`），记 `evidenceLevelMixed`；簇级来源聚合（self 一票否决 + 多数）并记 `originCounts` / `originMixed`；`stats` 拆出 `selfModuleFrame` / `selfAppOnly` / `selfSlow` 与 `originSelf` / `originSelfCallsExternal` / `originExternal` / `originInfra` / `originUnknown` / `originMixed`；按 `disposition` 规则做处置分类并推导 P0/P1；队列只刷新观测值，跨组报错入队
+- `scripts/render-report.js`：`renderSelf` 按处置分流分章（章内 module-frame → app-only → slow）+ 开头「P0 优先处理清单」「处置分流」表 + 文末「本组调用他组失败」附录，`renderCluster` 增加「类型 / 严重度 / 严重度依据 / 归属判定 / 来源 / 证据等级」行与慢请求耗时指标，`renderSummary` 拆本组统计行并加「严重度分布」「来源分布」「慢请求 Top」，他组通知不渲染分析结论
 
-## 13. 严重度初判与改判
+## 13. 处置分类、严重度初判与改判
 
-严重度与归属是**两个正交维度**：归属回答"谁的问题"，严重度回答"要多急着处理、必须产出什么"。五个桶里的簇都带 severity。
+处置分类、严重度、归属是**三个正交维度**：归属回答"谁的问题"，处置分类回答"要不要动、动哪里"，严重度回答"要多急着处理"。
 
-**初判规则**（`classify-owner.js`，按簇判定，不是按条）：
+**处置分类初判**（`classify-owner.js` 的 `itemDisposition()`，按条判定后按簇聚合）：
 
-| 条件 | severity | severityBasis |
+| 条件（按顺序短路） | disposition | 必须产出 |
 |---|---|---|
-| `kind === 'slow'` | **P0** | 接口耗时超过阈值（附最大耗时与次数） |
-| 报错簇 `businessCount === count` | **P1** | 业务正常处理抛出的异常 |
-| 报错簇其余情况 | **P0** | 不可预知的程序异常；`businessCount > 0` 时标 `severityMixed` 并写明混合比例 |
+| `kind === 'slow'` | `slow-perf` | 耗时归因与优化方案 |
+| **异常类属运行时异常清单**（`disposition.runtimeExceptionClasses`，NPE/越界/类型转换等） | `runtime-defect` | 报错位置 + 具体改法 |
+| 命中业务异常信号 + 命中外部调用异常类或人工处理关键词 | `business-escalation` | 被调方与原始错误；本组容错/降级/提示方案 |
+| 命中业务异常信号，两者都未命中 | `business-control` | 确认业务语义与前端提示文案，不改码 |
+| 非业务抛出但命中外部调用异常类 | `business-escalation` | 外部调用失败，需人工排查 |
+| 有异常类但不在已知清单 | `runtime-defect` | 按不可预知程序异常处理（宁可误报） |
+| 无异常类、无堆栈 | `log-level-review` | 「降级 warn/info」或「保留 error」的结论 |
+
+> **运行时异常必须排在业务信号之前**：`HisBusinessInterceptor` 只说明日志经过统一入口，NPE 仍是程序缺陷。人工审核曾发现 NPE 因该 logger 被判 `business-control` → P1，现已修正。
+> `disposition.escalationKeywords` 含「线程池」「执行失败」：线程池任务失败、异步执行失败类消息按 `business-escalation`（P0，需人工干预）。
 
 **业务异常信号**（`config.severity`，三者命中任一即算该条为业务异常）：
 
@@ -296,16 +323,25 @@ node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\classify-own
 |---|---|---|
 | `businessLoggers` | `com.mediway.his.server.advise.HisBusinessInterceptor` | `loggerName` 全等匹配 |
 | `businessMessagePrefixes` | `业务异常(` | 消息**首行**以此开头 |
-| `businessExceptionClasses` | `HisBusinessException`、`BaseBusinessException`、`BusinessException` | 异常类**简名**匹配（去包名） |
+| `businessExceptionClasses` | `HisBusinessException`、`DocBusinessException`、`BaseBusinessException`、`BusinessException` | 异常类**简名**匹配（去包名） |
 
-> 这里用 logger 全等匹配是安全的：第 8 节禁止的是把它加进 `infra.loggerPrefixes`（那会改变**归属**、清空 self 桶）；此处只影响**严重度**，簇仍留在 self。
-> 混合簇保守取 P0：宁可多分析一簇业务提示，也不能让程序缺陷藏在多数业务异常里被降级。
+外部调用类名与人工处理关键词在 `config.disposition.externalCallClasses` / `escalationKeywords`；运行时异常清单在 `disposition.runtimeExceptionClasses`。
 
-**已知的保守偏差**：配置/数据前提缺失类 ERROR（如「没有关联扩展数据，请注意！」「没有关联的厂家模块代码」）没有异常类、也不经业务拦截器，初判会落到 P0。分析轮确认属业务提示后用 `analysis.severity` 改判 P1。
+> 这里用 logger 全等匹配是安全的：第 8 节禁止的是把它加进 `infra.loggerPrefixes`（那会改变**归属**、清空 self 桶）；此处只影响处置分类与严重度，簇仍留在 self。
+> 混合簇按 `DISPOSITION_PRIORITY`（runtime-defect > business-escalation > log-level-review > business-control）取最高优先级，并记 `dispositionCounts`。
 
-**改判口径**：分析轮在队列条目写 `analysis.severity`（`P0`/`P1`）+ `analysis.severityReason`。渲染层 `severityOf()` 以 `analysis.severity` 优先，其次簇的初判，旧版 classified 两者都无时显示「未初判」而**不是默认 P0**。改判后严重度分布表、P0 优先处理清单、簇标题徽标、方案段占位提示全部同步。
+**严重度由处置分类推导**：
 
-**队列字段边界**：采集侧每轮刷新 `kind`、`severity`（初判）、`origin`、`ownerGroup`、`count`、`firstSeen/lastSeen`，慢请求另刷 `interfaceName`、`durationMaxMs`；**`status` 与 `analysis` 属分析轮结论，采集侧绝不覆盖**。入队范围见第 14 节：`self` 与 `unknown` 全部入队，另加非慢请求的 `self-calls-external` 跨组报错；他组自身（`external`）/基础设施/无关簇不入队。
+| 条件 | severity | severityBasis |
+|---|---|---|
+| `slow-perf` / `runtime-defect` / `business-escalation` / `log-level-review` | **P0** | 按分类写明需改码、需人工介入或需复核级别 |
+| `business-control` | **P1** | 业务正常处理抛出（业务控制）；`businessCount < count` 时标 `severityMixed` |
+
+**已知的保守偏差**：配置/数据前提缺失类的 log.error（如「没有关联扩展数据，请注意！」「没有关联的厂家模块代码」）没有异常类，初判落 `log-level-review` + P0，复核后给「应降级」或「保留但改文案」结论。
+
+**改判口径**：分析轮在队列条目写 `analysis.disposition` + `analysis.dispositionReason`（严重度可另写 `analysis.severity` + `analysis.severityReason`）。渲染层 `dispositionOf()` / `severityOf()` 以分析结论优先，其次簇的初判，旧版 classified 无字段时显示「未分类 / 未初判」而**不是默认 P0**。改判后处置分类分布、处置分流、P0 清单、簇明细全部同步。
+
+**队列字段边界**：采集侧每轮刷新 `kind`、`severity` / `disposition`（初判）、`origin`、`ownerGroup`、`count`、`firstSeen/lastSeen`，慢请求另刷 `interfaceName`、`durationMaxMs`；**`status` 与 `analysis` 属分析轮结论，采集侧绝不覆盖**。入队范围见第 14 节：`self` 与 `unknown` 全部入队，另加非慢请求的 `self-calls-external` 跨组报错；他组自身（`external`）/基础设施/无关簇不入队。
 
 ## 14. 来源 origin：本组自身 vs 本组调用他组
 
@@ -343,3 +379,15 @@ node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\classify-own
 - `selfAffected` 只认 `self.appKeywords`（默认 `his-mediway-server`），`opcare-mediway-server` 这类**不**算本组参与。若某环境本组应用名不在 `appKeywords` 里，`trace-peer` 的跨组判定会退化成 `external`。
 - 跨组条目的 `ownerGroup` 来自接口包前缀/URL 模块名解析，解析不出时为空，此时该条只能落 `unknown` 而非 `self-calls-external`。
 - 旧版 `classified-*.json` 没有 `origin` 字段，渲染层显示「未标注（旧版分类结果，重跑 classify-owner.js 可得）」，不要当成 `self`。
+## 15. 噪音过滤与队列清洗
+
+`config/graylog-triage.json` 的 `filters.ignoreMessageIncludes`（当前 `["未获取到token信息"]`）是**硬过滤**，四个环节统一生效：
+
+| 环节 | 行为 |
+|---|---|
+| 采集 `collect-errors.js` | 命中消息片段的不进 `items`、不落 raw、不进去重表，只打一行 `噪音过滤 N 条` |
+| 分类 `classify-owner.js` | 兼容历史 raw：命中片段的不参与聚簇，`stats.filteredNoise` 记录条数 |
+| 队列 `mergePendingQueue` | 删除队列中命中片段的历史条目；本轮被改判为不再入队（他组/基础设施/无关）的 `pending` / `blocked` 旧条目删除（输出 `清理 N`），`analyzed` 条目保留为历史结论并刷新观测字段 |
+| 报告 | 噪音既不进本组报告，也不进他组通知 |
+
+新增噪音类型只改配置，不改代码与报告；判定依据是消息正文包含关系（`message` + `fullMessage`），不做正则。
