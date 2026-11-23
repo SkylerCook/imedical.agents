@@ -98,7 +98,7 @@ function inspect(source, selected = () => true, baseline = '', sessionLines = se
     if (historical.get(id)) historical.set(id, historical.get(id)-1);
     else issues.push({line:item.line, column:item.column,
       ...(item.manual || item.conditional ? {status:'manual-review'} : {}),
-      message:item.conditional ? 'OS008: verify the active preprocessor branches and namespace protection in the target build' : item.manual ? 'OS008: verify the calling frame and namespace restoration on each exit path' : item.manualRestore ? 'OS008: a manual ZN restore can be skipped on error; use a local call with New $Namespace and Set $Namespace' : 'OS008: isolate the temporary switch in a called local context; New $Namespace must precede Set'});
+      message:item.persistentSwitch ? 'OS008: verify the active ZN/ZNSPACE caller contract requires keeping the target namespace after return' : item.conditional ? 'OS008: verify the active preprocessor branches and namespace protection in the target build' : item.manual ? 'OS008: verify the calling frame and namespace restoration on each exit path' : item.manualRestore ? 'OS008: a manual ZN restore can be skipped on error; use a local call with New $Namespace and Set $Namespace' : 'OS008: isolate the temporary switch in a called local context; New $Namespace must precede Set'});
   }
   const {timestampIssues} = require('./cls-timestamp-write');
   const previousWrites = new Map();

@@ -8,6 +8,10 @@
 
 ## 改动范围
 
+新增方法从声明、注释头到整个方法体均按当前适用规范验收，包括参照或复制邻近方法建立的新接口。修改存量方法时，原有语句的功能调整可保留原风格；其中新写的逻辑仍按当前规范。这项豁免仅涉及历史格式，功能、语法和适用 OS 条款按各自范围复核。
+
+参照邻近方法时，复用其接口、数据含义和行为。例如邻居写 `Set value=$Get(input)`，本次新增的对应语句写 `s value = $g(input)`。主张原样迁移历史实现时对照基线确认身份；主张项目有不同风格时给出项目显式约定的位置。
+
 - 新类按完整规范编写；使用[类模板](../templates/class.template.cls)前，按[后端基类核对流程](../rules/iris_coding_backend.md#三层架构)适配 `Extends`，模板中的基类不代表项目继承要求。
 - 已有类的格式规范仅用于本次真正新增的代码，如新方法、声明或语句；不得格式化原有代码，即使它因功能需求被修改，也保留其既有风格。新增代码可添加自身必要的分隔空行，但不整理相邻历史空白、类末尾或 EOF。
 - 历史命名、空格、缩进、注释、空行和换行保持原样。格式自检发现原有代码的问题时不修正，也不影响提交。功能或语法修复按需求执行，不借修复附带调整风格。
@@ -187,7 +191,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/check-cls-format.js [
 
 ## ObjectScript 变量作用域（OS002）
 
-新类保持 ProcedureBlock 默认开启。新 ObjectScript 方法必须在过程块内运行。普通类可省略该关键字；历史类声明 Not ProcedureBlock 时，新增方法须显式写 [ ProcedureBlock = 1 ]。方法显式开启时必须带 = 1，类级简写不用于方法。禁止新增关闭类或方法过程块的声明。非过程块可能读写调用者的同名局部变量；历史方法可能依赖这种行为，修改业务实现时保留其原有作用域。
+新类保持 ProcedureBlock 默认开启。新 ObjectScript 方法必须在过程块内运行。普通类可省略该关键字；历史类声明 Not ProcedureBlock 时，新增方法须显式写 [ ProcedureBlock = 1 ]。为兼容项目目标环境，方法显式开启统一带 = 1。IRIS 官方方法文档也列出简写；OS002 按项目约定检查。禁止新增关闭类或方法过程块的声明。非过程块可能读写调用者的同名局部变量；历史方法可能依赖这种行为，修改业务实现时保留其原有作用域。
 
 [类关键字](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=ROBJ_class_procedureblock) · [方法关键字](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=ROBJ_method_procedureblock)
 

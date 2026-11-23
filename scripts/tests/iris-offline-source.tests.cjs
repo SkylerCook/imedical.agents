@@ -340,6 +340,20 @@ test('explicit Review base catches committed OS001 at the same line as Pack', {s
  assert.equal(fs.existsSync(f.output),false);
 });
 
+test('bare ZNSPACE requires a caller contract before Pack', {skip:!windows || process.arch !== 'x64'}, t => {
+ const f=fixture(t);
+ passed(framework(f,'prepare'));
+ write(path.join(f.code,f.a),'Class Demo.A\n{\nClassMethod Value(target)\n{\n    ZNSPACE target\n    Quit\n}\n}\n');
+ const pending=framework(f,'review');
+ assert.equal(pending.status,1);
+ const {manual,token}=JSON.parse(pending.stdout);
+ assert.match(manual.join(' '),/OS008: verify the active ZN/);
+ assert.match(framework(f,'pack').stderr,/OS008-review-required/);
+ passed(framework(f,'review',['--review-token',token,'--reason','Caller continues in target namespace after return']));
+ passed(framework(f,'pack'));
+ passed(framework(f,'verify'));
+});
+
 test('uncertain OS008 context reaches the reviewer and delivery notes', {skip:!windows || process.arch !== 'x64'}, t => {
  const f=fixture(t);
  passed(framework(f,'prepare'));

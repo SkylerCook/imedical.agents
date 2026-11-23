@@ -82,7 +82,7 @@ related:
 
 ## 命名空间切换（OS008）
 
-业务代码优先在当前命名空间完成操作。新增或修改切换时，先核对是否确有跨空间需求。临时切换由外层方法进入可独立返回的局部调用层，例如 `Do 标签` 或带返回值的 `$$标签(参数)`。核对实际调用和返回路径，避免从外层顺序落入切换逻辑；`Goto` 本身不会建立调用层。[官方调用栈说明](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_vestack) 子例程内先 `New $Namespace`，再 `Set $Namespace=target`；所有到达切换的路径都须先保存上下文，正常返回或异常退出该层时由运行时恢复。只读当前 `$Namespace` 无需保存。只有调用契约明确要求返回后继续留在目标空间时才使用 `ZN`（`ZNSPACE`）做持久切换。
+业务代码优先在当前命名空间完成操作。新增或修改切换时，先核对是否确有跨空间需求。临时切换由外层方法进入可独立返回的局部调用层，例如 `Do 标签` 或带返回值的 `$$标签(参数)`。核对实际调用和返回路径，避免从外层顺序落入切换逻辑；`Goto` 本身不会建立调用层。[官方调用栈说明](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_vestack) 子例程内先 `New $Namespace`，再 `Set $Namespace=target`；所有到达切换的路径都须先保存上下文，正常返回或异常退出该层时由运行时恢复。只读当前 `$Namespace` 无需保存。只有调用契约明确要求返回后继续留在目标空间时才使用 `ZN`（`ZNSPACE`）做持久切换。新增或改动的此类命令进入正式 Review，记录调用方为何需要保留目标空间。
 
 禁止将当前空间保存到普通变量、用 `ZN` 切出，再依赖末尾 `ZN` 切回的临时切换写法。切换成功后的查询、调用或其他操作若抛错，末尾恢复语句可能被跳过。Review 核对调用方返回后的预期空间，检查打开的对象或 SQL 游标是否跨切换点继续使用。临时切换缺少栈保护、异常路径遗留目标空间或跨空间误用资源，确认后返修。静态检查按分支核对保护，并区分 Set 顶层赋值与表达式中的比较。同一标签同时经局部调用和直接跳转进入时，按违规处理。间接入口或方法调用边界待确认时，正式 Review 要求核实各退出路径。受管 Pack 校验当前源码对应的复核结论。[官方命名空间说明](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_vnamespace)
 
@@ -133,6 +133,6 @@ OS008 按目标编译分支核对保护。整数常量条件与嵌套分支可�
 
 ## 时间戳写入（OS009）
 
-新增或修改对象赋值、嵌入式 SQL INSERT / UPDATE 时，从绑定值追到实际属性类型。向 `%DateTime` 或 `%TimeStamp` 写入逻辑值；已知依赖界面或地区格式的日期时间须先按其来源转换。生成当前本地时间可用 `$zdt($h,3)`；已有事件时间须保留原值及所需精度。页面、打印和查询结果可按展示约定格式化。
+新增或修改对象赋值、嵌入式 SQL INSERT / UPDATE 时，从绑定值追到实际属性类型。向 `%DateTime` 或 `%TimeStamp` 写入逻辑值；已知依赖界面或地区格式的日期时间须先按其来源转换。生成当前本地时间可用 `$zdt($h,3)`；已有事件时间须保留原值及所需精度。页面、打印和查询结果可按展示约定格式化。 标准 %DateTime 的 DATEFORMAT 参数用于解析 Display 或 ODBC 输入中的数值日期顺序，逻辑值采用 YYYY-MM-DD HH:MM:SS（可带小数秒）。写入当前本地时间且只需秒精度时，直接使用上述原生表达式；接收外部日期串时须核对来源约定与目标属性的实际转换参数。[DateTime 类型参数](https://docs.intersystems.com/irislatest/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25Library.DateTime&LIBRARY=%25SYS)
 
-Review 核对 helper 的实现、格式参数及其覆盖方法。日期参数 3 只固定日期部分。受管源码门禁根据本类声明和冻结任务范围内可识别的持久类映射检查 SQL 列及属性；确认展示值直写时间戳时报 OS009。写入来源未明，或展示值的目标类型、SQL 参数映射无法解析时，核对实际声明及转换并通过正式 Review 的 `--reason` 记录依据。动态 SQL、宏展开和跨方法数据流由 Reviewer 沿实际调用链核查。
+Review 核对 helper 的实现、格式参数及其覆盖方法。原生 `$ZDATETIME($H,3)` 默认按 ODBC 格式输出日期和时间；显式指定 localeopt=0 时须核对区域设置。自定义日期 helper 的参数 3 不能证明独立时间 helper 的输出格式或精度。[官方参数说明](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fzdatetime)受管源码门禁根据本类声明和冻结任务范围内可识别的持久类映射检查 SQL 列及属性；确认展示值直写时间戳时报 OS009。写入来源未明，或展示值的目标类型、SQL 参数映射无法解析时，核对实际声明及转换并通过正式 Review 的 `--reason` 记录依据。动态 SQL、宏展开和跨方法数据流由 Reviewer 沿实际调用链核查。

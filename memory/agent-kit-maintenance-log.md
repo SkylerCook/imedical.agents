@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- coding 0.34.10 将新增裸 ZN/ZNSPACE 纳入 OS008 正式复核，并澄清 OS002 兼容写法及 OS009 原生函数与项目 helper 的区别。
+
 - coding 0.34.9 修正 OS002 方法级声明的提示和门禁，显式开启使用 ProcedureBlock = 1。
 
 - 显式点名框架 review-agent 时，由协调者说明评审范围、基线和路由。受管离线源码复用正式 Review，普通差异按命中领域复核。

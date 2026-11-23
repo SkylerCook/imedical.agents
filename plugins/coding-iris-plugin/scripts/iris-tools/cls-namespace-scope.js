@@ -75,6 +75,7 @@ function namespaceIssues(lines, parsed, methods, attrs) {
     const called = new Set();
     const jumped = new Set();
     const switches = [];
+    const pendingZn = new Set();
     const snapshots = new Map();
     const blocks = [];
     let closedIf, lastCommand;
@@ -153,11 +154,17 @@ function namespaceIssues(lines, parsed, methods, attrs) {
         if (/^(?:zn|znspace)$/i.test(t.value) && next) {
           const original = snapshots.get(next.value);
           if (original?.outbound && !saved) {
+            pendingZn.delete(original.outbound);
             issues.push({...original.outbound, manualRestore:true, conditional:included === null || original.outbound.conditional || saved === null || conditionalFlow});
             snapshots.delete(next.value);
           } else {
+            const command = {key,label,line:row+1,column:t.column,source:line.trim(),conditional:included === null};
+            pendingZn.add(command);
             for (const snapshot of snapshots.values()) {
-              if (!snapshot.outbound) snapshot.outbound = {key,label,line:row+1,column:t.column,source:line.trim(),conditional:included === null || snapshot.conditional};
+              if (!snapshot.outbound) {
+                snapshot.outbound = command;
+                if (snapshot.conditional) command.conditional = true;
+              }
             }
           }
         }
@@ -181,6 +188,7 @@ function namespaceIssues(lines, parsed, methods, attrs) {
       // A conditional or block-local quit cannot establish a fall-through barrier.
       if (first.value === '{' || first.value === '}') terminated = false;
     }
+    for (const command of pendingZn) issues.push({...command,manual:true,persistentSwitch:true});
     for (const item of switches) {
       // An independently called method may itself own the frame. Indirect jumps
       // and dynamic code also require the reviewer to inspect the actual caller.

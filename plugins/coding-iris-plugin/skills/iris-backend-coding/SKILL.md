@@ -41,6 +41,7 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 按实际改动选择验收层级：内部方法直接验证，对外 Broker/REST/SOAP 经真实入口验证，写入增加独立回读；纯后端不强制走前端。返回契约影响前端消费者时补受影响页面。Broker 机器调用与授权/证据边界见 [分层验收接入](../../../../docs/night-acceptance.md)。
 
 - 最终 diff 已按 CLS 规范检查命名、格式、改动范围和兼容性；脚本检查与 Agent 审查结果分别说明。
+- 返修时逐项对照上一轮 Review 与最新 diff。对已确认违反现行规范的新增代码，核对修改位置后关闭；若发现项目显式覆盖或误判为新增，给出规范位置或基线证据后修订结论。相邻方法采用旧写法或格式脚本退出 0 均不足以关闭该项。
 - 对新增表、字段、类和方法执行现有 CLS 本地检查（OS006），缺失适用说明须补齐。对本次新增注册类/非表模型、表类、成员及变量，按 [ObjectScript 注释约定](../../references/cls-coding-format.md#注释与空行) 核对适用标签、参数/返回契约、结构引用和自然语言说明；SQL 投影或返回结构不明时报告缺口，Debug 仅作为文档内容，不自动编译、调试或改写历史注释。
 - 调用独立 review-agent 时传入冻结 diff、需求、范围、项目显式规范、CLS 规范路径及命中的 OS 条款；新增类附基类选择及 profile/源码依据，按共用清单审查继承。不要求额外安装 formatter skill，无子 Agent 时按同一清单串行复核。
 - 标版新增 Global 写入时，按[业务数据与业务配置存储](../../rules/iris_coding_backend.md#标版业务数据与业务配置存储os005)检查写入及消费路径；确认 OS005 违规即返修，临时用途放行。
