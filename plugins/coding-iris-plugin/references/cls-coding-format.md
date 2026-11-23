@@ -36,7 +36,10 @@
 ## 命令、表达式与缩进
 
 - 方法体每层缩进 4 个空格，不新增 Tab；项目显式覆盖时按项目规范执行。方法左大括号单独一行。
-- 常用命令和函数采用小写缩写：`s`、`d`、`q`、`$g`、`$p`、`$o`、`$d`。新块式控制结构使用 `if`、`elseif`、`else`、`for`、`while` 全拼，`continue` 保持全拼；`} else {` 同行。
+- 新增 ObjectScript 方法体内，命令、内建函数及特殊变量统一小写，优先使用目标 IRIS 版本在该语境支持的官方简写。编码与 Review 按[离线速查表](objectscript-commands.md)选用命令、常用内建函数和特殊变量的项目写法；未收录的缩写按[官方缩写表](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_abbreviations)核对；有简写的例子包括 `s`、`d`、`q`、`$g`、`$p`、`$o`、`$d`。没有官方简写时使用小写全拼。这条约定同样适用于存量方法中的新增逻辑。
+- 小写规则只作用于已识别的 ObjectScript 命令、系统函数和特殊变量名本身。变量、Global、包、类、成员、例程、标签、Include 文件和宏名按声明保留大小写；参数值、字符串、嵌入式 SQL 和预处理指令按各自语法处理。Review 遇到未识别的名称先核实，禁止对整行或所有以 `$` 起始的词统一转小写。见[官方大小写规则](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GCOS_syntax)。
+- 沿用框架的块式控制流约定：`if`、`elseif`、`else`、`for`、`while`、`do { … } while` 和 `continue` 使用小写全拼；调用方法写 `d`。终止进程写 `halt`，暂停写 `hang`；`} else {` 同行。类名、方法名、变量名、字符串和嵌入式 SQL 分别遵循其自身契约。
+- 新增 ObjectScript 事务命令统一使用小写缩写：开始事务用 `ts`（TSTART），回滚用 `tro`（TROLLBACK），提交用 `tc`（TCOMMIT）。缩写须保留原有后条件及回滚层级参数，例如 `TROLLBACK 1` 写作 `tro 1`。见[官方命令缩写表](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_abbreviations)。
 - 同一条件分支保持完整语法结构；历史命令式 `i/e` 不机械改写，也不与块式 `if/else` 混接。
 - 普通赋值和二元运算符两侧各留一个空格，参数列表逗号后留一个空格，例如 `s totalCount = firstCount + secondCount`、`d ..Save(patientId, totalCount)`。一元运算符、间接引用、宏、对象访问和嵌入语言按各自语法处理。
 - 命令与首个参数之间使用一个空格；同一行无参数命令后接下一条命令时保留所需的双空格。不要将命令分隔符当作普通排版空格压缩。

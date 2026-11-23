@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- coding 0.34.11 明确新增 ObjectScript 命令、内建函数及特殊变量优先使用官方简写并统一小写，包含事务命令 ts、tro、tc，保留块式控制流的全拼约定。
+
 - coding 0.34.10 将新增裸 ZN/ZNSPACE 纳入 OS008 正式复核，并澄清 OS002 兼容写法及 OS009 原生函数与项目 helper 的区别。
 
 - coding 0.34.9 修正 OS002 方法级声明的提示和门禁，显式开启使用 ProcedureBlock = 1。
