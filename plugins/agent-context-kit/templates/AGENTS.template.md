@@ -18,6 +18,7 @@ TODO: 按项目实际情况填写高频任务的源码入口/参考实现，以�
 
 TODO: 只保留项目实际需要的高频保护，如所属 Git 仓库、用户修改、编码、维护分工和数据边界；专项规则链接到 owner。
 
+- 项目 `.agents/` 中由上游框架维护的文件，非必要请勿修改。遇到框架使用问题，统一反馈给上游维护者，无需上游仓库权限。可请 [agent-framework-feedback](.agents/skills/agent-framework-feedback/SKILL.md) 在对话中整理脱敏的问题描述、复现步骤和影响，再自行发邮件至 [xingkaile@imedway.com](mailto:xingkaile@imedway.com)，也可直接邮件反馈。
 - 远端写入按项目规则及用户授权执行；已有授权覆盖当前动作时不重复确认。
 - 私有连接配置中的凭据不复制到 rules、memory、插件或交付物。
 - 本地检查、远端执行与真实环境验收分别取证，不混称完成。

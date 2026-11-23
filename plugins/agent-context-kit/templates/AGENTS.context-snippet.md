@@ -1,5 +1,7 @@
 ## 项目上下文维护
 
+项目 `.agents/` 中由上游框架维护的文件，非必要请勿修改。遇到框架使用问题，统一反馈给上游维护者，无需上游仓库权限。可请 [agent-framework-feedback](.agents/skills/agent-framework-feedback/SKILL.md) 在对话中整理脱敏的问题描述、复现步骤和影响，再自行发邮件至 [xingkaile@imedway.com](mailto:xingkaile@imedway.com)，也可直接邮件反馈。
+
 创建或接续 worktree、完成一批改动或准备交接时，读取并执行[阶段提交与恢复点](.agents/docs/guides/worktree-review.md#阶段提交与恢复点)，核对本地提交授权和最后恢复点；本入口不授予提交权限。
 
 需求交接：确认 `agent-context-kit` 为 enabled（无 profile 时沿用基础 enabled）且入口可用后，启用交接、生成交接或接续已有需求时读取 `.agents/skills/task-handoff/SKILL.md`；通过 task-handoff 工具解析当前工作区交接根并定位任务，启用后关键节点持续维护，普通需求不自动建档。
