@@ -252,8 +252,12 @@ function New-TestProject {
     "## Basic",
     "",
     "- projectName: TODO",
-    "- newField: TODO",
-    "- preservedField: TODO"
+    "- newField: template-default",
+    "- preservedField: TODO",
+    "- removedPlaceholder: TODO",
+    "- mixedPlaceholder: CSP / TODO",
+    "- emptyPlaceholder:",
+    "- requiredPlaceholder: <required>"
   )
 
   Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot "scripts/generate-plugin-thin-index.ps1") -Value @(
@@ -1414,7 +1418,11 @@ try {
 
   $beforeWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")
   Assert-Contains $beforeWrite "projectName: real-project" "DryRun must not overwrite existing config values"
-  Assert-True (-not $beforeWrite.Contains("newField: TODO")) "DryRun must not append missing config keys"
+  Assert-True (-not $beforeWrite.Contains("newField: template-default")) "DryRun must not append missing config keys"
+  Assert-True (-not $dryRunOutput.Contains("removedPlaceholder")) "DryRun must not request removed TODO fields"
+  Assert-True (-not $dryRunOutput.Contains("mixedPlaceholder")) "DryRun must not request mixed TODO placeholders"
+  Assert-True (-not $dryRunOutput.Contains("emptyPlaceholder")) "DryRun must not request empty optional fields"
+  Assert-True (-not $dryRunOutput.Contains("requiredPlaceholder")) "Required runtime settings belong to owner validation"
 
   $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
@@ -1617,7 +1625,10 @@ try {
   Assert-Contains $afterWrite "projectName: real-project" "Write must preserve existing config values"
   Assert-Contains $afterWrite "preservedField: manual-value" "Write must preserve manually maintained values"
   Assert-Contains $afterWrite "oldField: legacy-value" "Write must not delete deprecated candidate fields"
-  Assert-Contains $afterWrite "newField: TODO" "Write should append missing config keys"
+  Assert-Contains $afterWrite "newField: template-default" "Write should append meaningful missing config defaults"
+  foreach ($placeholder in @("removedPlaceholder", "mixedPlaceholder", "emptyPlaceholder", "requiredPlaceholder")) {
+    Assert-True (-not $afterWrite.Contains($placeholder)) "Write must not recreate removed template placeholders"
+  }
 
   $retainedRulePath = Join-Path $projectRoot ".agents/rules/sample_rule.md"
   $retainedRuleBefore = [IO.File]::ReadAllText($retainedRulePath, [Text.Encoding]::UTF8)

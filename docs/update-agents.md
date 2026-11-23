@@ -25,6 +25,8 @@ node "$CapabilityRoot/scripts/configure-agents.js" verify "$WorkspaceRoot"
 
 目录布局、远程策略和会话后端可用 `configure-agents.js restore <WorkspaceRoot> <分节名> DryRun` 预演。原件与有效配置一致时，经授权改为 `Write` 恢复旧来源。
 
+既有配置 Markdown 的增量合并只补有实际值的缺项；模板中的空值、TODO（含混合占位）及 `<required>`、`<unset>` 不会重新加入。现有人工值和待确认说明保持，运行必需参数仍由对应 owner 校验，模板的显式人工复核标记仍生效。首次缺失文件仍按完整模板创建。清理后的工程沿原更新流程取得此修复，无需重新初始化或回填已删除的模板行。
+
 ## 使用工作台安装与更新
 
 在 Windows x64 上按发行记录校验并解压 `agents-workbench-react.zip`，双击 `start-workbench.cmd` 并选择工程根目录。自 0.4.0 起，双击启动后命令窗口自动关闭，关闭最后一个工作台标签页后服务自动收尾退出。需要保留启动输出时，可在现有终端指定工程目录。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。在线检测与首装访问框架源，离线操作使用团队批准的完整能力包。

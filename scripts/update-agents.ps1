@@ -275,6 +275,7 @@ function Get-MarkdownConfigEntries {
         $entries[$key] = [PSCustomObject]@{
           key = $key
           line = $line
+          value = $match.Groups["value"].Value.Trim()
         }
       }
     }
@@ -320,7 +321,13 @@ function Merge-ConfigTemplate {
 
   foreach ($key in ($templateEntries.Keys | Sort-Object)) {
     if (-not $targetEntries.ContainsKey($key)) {
-      $line = $templateEntries[$key].line
+      $entry = $templateEntries[$key]
+      # Templates may teach optional fields without requiring projects to retain
+      # empty/TODO rows. Preserve existing rows and merge meaningful defaults.
+      $value = $entry.value.Trim().Trim([char]96).Trim()
+      if ([string]::IsNullOrWhiteSpace($value) -or
+          $value -match '(?i)(^|[^A-Za-z0-9_])TODO([^A-Za-z0-9_]|$)|^<(?:required|unset)>$') { continue }
+      $line = $entry.line
       $missingLines.Add($line)
       if ($Mode -eq "Write") {
         $status = "config-merged-key"
