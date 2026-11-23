@@ -216,6 +216,8 @@ test('OS002 pack preserves legacy scope and blocks an unscoped new method', {ski
  assert.match(blocked.stderr,/OS002.*Added/);
  assert.equal(fs.existsSync(f.output),false);
  write(path.join(f.code,f.a),extend('[ ProcedureBlock ]'));
+ assert.match(framework(f,'pack').stderr,/OS002.*Added/);
+ write(path.join(f.code,f.a),extend('[ ProcedureBlock = 1 ]'));
  passed(framework(f,'pack'));
  passed(framework(f,'verify'));
 });

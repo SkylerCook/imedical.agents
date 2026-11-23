@@ -36,7 +36,9 @@ test('OS002 compares effective method scopes with frozen declarations', {skip:pr
   assert.equal(hits(original).length,2);
   assert.equal(hits(original.replace('Old()','Old(a As %String)').replace('quit','quit 1'),original).length,0);
   assert.equal(hits(source(legacy,method('Old')+'\n'+method('New')),original).length,1);
-  assert.equal(hits(source(legacy,method('New','[ ProcedureBlock ]')),original).length,0);
+  assert.equal(hits(source(legacy,method('New','[ ProcedureBlock ]')),original).length,1);
+  assert.equal(hits(source(legacy,method('New','[ ProcedureBlock = 1 ]')),original).length,0);
+  assert.equal(hits(source('[ ProcedureBlock ]',method('New'))).length,0);
   assert.equal(hits(source('',method('New','[\n ProcedureBlock = 0\n]'))).length,1);
   assert.equal(hits(source('',method('New','[ Language = python, ProcedureBlock = 0 ]'))).length,0);
   assert.equal(hits(source('',method('New').replace('quit','write "Not ProcedureBlock"'))).length,0);

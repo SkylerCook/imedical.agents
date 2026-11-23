@@ -187,7 +187,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/check-cls-format.js [
 
 ## ObjectScript 变量作用域（OS002）
 
-新类保持 ProcedureBlock 默认开启。新 ObjectScript 方法必须在过程块内运行。普通类可省略该关键字；历史类声明 Not ProcedureBlock 时，新增方法须显式写 [ ProcedureBlock ] 或 [ ProcedureBlock = 1 ]。禁止新增关闭类或方法过程块的声明。非过程块可能读写调用者的同名局部变量；历史方法可能依赖这种行为，修改业务实现时保留其原有作用域。
+新类保持 ProcedureBlock 默认开启。新 ObjectScript 方法必须在过程块内运行。普通类可省略该关键字；历史类声明 Not ProcedureBlock 时，新增方法须显式写 [ ProcedureBlock = 1 ]。方法显式开启时必须带 = 1，类级简写不用于方法。禁止新增关闭类或方法过程块的声明。非过程块可能读写调用者的同名局部变量；历史方法可能依赖这种行为，修改业务实现时保留其原有作用域。
 
 [类关键字](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=ROBJ_class_procedureblock) · [方法关键字](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=ROBJ_method_procedureblock)
 

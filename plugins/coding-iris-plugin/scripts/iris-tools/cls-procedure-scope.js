@@ -25,6 +25,7 @@ function procedureScopes(lines, parsed, attributes, declarations = new Map()) {
       table:isClass && header.persistent});
     if (!isField && (isClass || language === 'objectscript')) {
       const scope = {disabled: !(header.enabled ?? classEnabled), explicit:header.enabled === false,
+        bareMethod:!isClass && header.bareProcedureBlock,
         line:header.line, column:header.column, name, isClass};
       scopes.set(key, scope);
       if (!isClass && delimiter === '{') {
@@ -80,6 +81,7 @@ function procedureScopes(lines, parsed, attributes, declarations = new Map()) {
       for (const [j,k] of kw.entries()) {
         if (k.type !== 'Keyword') continue;
         if (/^procedureblock$/i.test(k.text)) {
+          header.bareProcedureBlock = kw[j+1]?.text !== '=' && !/^not$/i.test(kw[j-1]?.text);
           header.enabled = !(/^not$/i.test(kw[j-1]?.text) ||
             (kw[j+1]?.text === '=' && kw[j+2]?.text === '0'));
         }
@@ -97,9 +99,12 @@ function checkProcedureScopes(current, baseline) {
   const issues = [];
   for (const [key, scope] of current) {
     const previous = baseline.get(key);
+    if (scope.bareMethod && !previous?.bareMethod) {
+      issues.push({line:scope.line, column:scope.column, message:'OS002: ' + scope.name + ' must specify [ ProcedureBlock = 1 ] on the method'});
+    }
     if (!scope.disabled || (previous?.disabled && (!scope.explicit || previous.explicit))) continue;
     issues.push({line:scope.line, column:scope.column, message:'OS002: ' + scope.name +
-      (scope.isClass ? ' must enable ProcedureBlock by default' : ' must use a procedure block; specify [ ProcedureBlock ] when the class default is disabled')});
+      (scope.isClass ? ' must enable ProcedureBlock by default' : ' must use a procedure block; specify [ ProcedureBlock = 1 ] when the class default is disabled')});
   }
   return issues;
 }

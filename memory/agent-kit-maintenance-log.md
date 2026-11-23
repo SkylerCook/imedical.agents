@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- coding 0.34.9 修正 OS002 方法级声明的提示和门禁，显式开启使用 ProcedureBlock = 1。
+
 - 显式点名框架 review-agent 时，由协调者说明评审范围、基线和路由。受管离线源码复用正式 Review，普通差异按命中领域复核。
 
 - coding 0.34.8 将 CLS 全文和 OS 条款选择前移到首次后端写入，评审复用同一规则入口。
