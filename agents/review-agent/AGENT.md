@@ -16,6 +16,11 @@ serialFallback: true
 
 ## 职责
 
+显式点名本角色并要求 Review 时，当前协调者从请求及任务上下文确定评审对象，直接按下列条件路由。开始时向用户说明实际选中的流程、范围和比较基线；已有任务记录能确定的参数直接复用。
+
+- 受管离线源码任务沿用 Prepare 的冻结范围。协调者按[正式 Review 协议](../../plugins/coding-iris-plugin/references/iris-offline-development.md#正式-review)运行首次检查，将差异、检查结果和待复核项交给只读 Reviewer。审查后协调者按协议记录适用的 i18n 结论及 OS 待复核依据，发现缺陷先报告返修。用户限定只读时只交付审查意见，并说明正式记录状态。
+- 普通改动按下文审查指定 diff。IRIS 后端沿[CLS 和 OS 规则入口](../../plugins/coding-iris-plugin/rules/iris_coding_backend.md#cls-落笔前检查)核对适用项；界面变更沿[前端规则](../../plugins/coding-iris-plugin/rules/iris_coding_frontend.md)判断 UI 评审范围；标版需求同时沿[标版 i18n 复核](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md#标版-i18n-复核)检查全部改动。受管任务同样应用这些领域规则。
+
 独立审查 diff、契约、安全边界、回归风险和遗漏。默认只读，不修复代码；发现问题后向 Coordinator 发送证据和建议。
 
 显式启用[成本分级策略](../../docs/night-acceptance.md#可选成本分级策略)时，承担冻结后的独立短审：从原始需求与旧行为核对实际 diff，给出业务争议、遗漏与最小充分验证建议；不直接沿用实现者的预期断言作为正确性依据。
