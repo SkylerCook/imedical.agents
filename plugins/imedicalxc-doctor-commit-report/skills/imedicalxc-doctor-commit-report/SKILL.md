@@ -1,7 +1,7 @@
 ---
 name: imedicalxc-doctor-commit-report
 description: |
-  HIS 医生站信创产品迭代周报。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），评估前经 codegraph 调用图批量取证（改动方法 → 入口 / 工作区调用方 / 外部 Maven 调用方 / 下游 Feign → 前端界面 / 操作元素 / 菜单访问位置，结构化 JSON），再对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，报告期只给初评、测试用例 / 联调用例产出后回评定档，1-2★ 必须给出至少一条具体问题评价，测试建议四段式且标注界面、访问位置、操作步骤并可追溯到证据），并自动检测数据库脚本执行提醒（PO 数据结构修改 / 新增系统标准配置 / 新增系统标准提醒 / 新增代码表缓存配置），归档 Markdown 报告，将 1-2★ 低星问题经 tencent_docs MCP 登记到《信创版产品迭代每周问题登记》（多个独立问题的提交按问题拆行），并按配置尝试推送。用于周度定时汇总或按需汇总提交记录。
+  HIS 医生站信创产品迭代周报。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），评估前经 codegraph 调用图批量取证（改动方法 → 入口 / 工作区调用方 / 外部 Maven 调用方 / 下游 Feign → 前端界面 / 操作元素 / 菜单访问位置，结构化 JSON），再对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，报告期只给初评、测试用例 / 联调用例产出后回评定档，1-2★ 必须给出至少一条具体问题评价，测试建议四段式且标注界面、访问位置、操作步骤并可追溯到证据），并自动检测数据库脚本执行提醒（PO 数据结构修改 / 新增系统标准配置 / 新增系统标准提醒 / 新增代码表缓存配置），归档 Markdown 报告，将 1-2★ 低星问题经 tencent_docs MCP 登记到《信创版产品迭代每周问题登记》（多个独立问题的提交按问题拆行），并按配置尝试推送。分类与评估由确定性脚本切包、子 Agent 批量判读、脚本校验合并（主上下文只读摘要，不把 code-impact / front-chains 大文件读入）。用于周度定时汇总或按需汇总提交记录。
 triggers:
   - 提交汇总
   - 提交记录汇总
@@ -17,7 +17,7 @@ priority: high
 
 # 医生站信创产品迭代周报 — 工作流
 
-七步串行执行：① 采集 → ② 数据库变更检测 → ③ 分类 → ③.5 代码影响取证（codegraph 批量检索：后端调用图 + 前端界面 / 菜单访问位置，输出结构化证据） → ④ 评估（基于证据 + diff） → ⑤ 归档 → ⑥ 低星问题登记 → ⑦ 推送。每步完成后再进入下一步。定时模式在 ⑦ 之后追加步骤 ⑧（回写 state）。
+七步串行执行：① 采集 → ② 数据库变更检测 → ③ 分类（脚本切包 + 子 Agent 分批判读 + 脚本校验合并） → ③.5 代码影响取证（codegraph 批量检索：后端调用图 + 前端界面 / 菜单访问位置，输出结构化证据） → ④ 评估（脚本产评估包 + 子 Agent 批量判读 + 脚本校验合并） → ⑤ 归档 → ⑥ 低星问题登记 → ⑦ 推送。每步完成后再进入下一步。定时模式在 ⑦ 之后追加步骤 ⑧（回写 state）。
 
 测试用例 / 联调用例产出后，再按回评模式（步骤 ⑨）对该期影响范围星级定档；定档前报告只标注**初评**，步骤 ⑥ 登记延后。
 
@@ -40,6 +40,21 @@ priority: high
 - **幂等**：失败重跑前先确认上一期报告是否已完整归档；已归档则从 state 的 `until` 继续，不重复生成。
 - **采集源**：取 config `ref`（默认 `origin/master`），由 `collect-commits.js` 读取，命令中不硬编码分支。
 - **期号传递**：用 `collect-commits.js --label <label>` 指定期号，`raw-commits` / `db-changes` / `classification` / `evaluations` / `issue-rows` / `commit-report` / `db-change-email` 必须使用同一 label。
+
+## 上下文分工（评估包 + 子 Agent）
+
+LLM 判读只发生在子 Agent 里；主 Agent 只接触摘要与校验结果，整期生成不把原料读进主上下文（避免触发上下文压缩）。
+
+| 角色 | 读什么 | 不读什么 |
+|---|---|---|
+| 主 Agent | 各脚本的控制台摘要行、包索引 `index.json`（批次 / 条数 / 字节数 / 哈希）、`*-validation-<label>.json` 摘要、渲染产物路径 | `code-impact-<label>.json`（MB 级）、`front-chains-<label>.json`（MB 级）、`raw-commits` 全量逐条判读、评估包 / 片段正文 |
+| 子 Agent（每包一个） | 自己那一个包（`batch-NN.json`，≤ `config.batching.maxPackBytes`）+ 本 SKILL 对应步骤的规则小节；可按需跑只读定向查询（`git show`、`query_front_back_chain.py page/controller/method`） | 其他包、`code-impact` / `front-chains` 原文件、其他期产物 |
+| 确定性脚本 | 读取全部原料，切包、裁 diff、算证据计数、算高风险机械触发、校验、合并落盘 | — |
+
+- 批量参数取 `config.batching`：分类 30 条/包、评估 9 条/包、diff 摘录 40 行、单包 ≤40KB（按 `batch-NN.json` 落盘字节计）。裁 diff 阶梯用尽仍超限时脚本对半拆分，包内条数可少于 9；`index.json` 的 `bytes` 与文件实际大小一致，`trimmedForSize` 标明该包经过裁剪。
+- 子 Agent 用 Agent 工具派发；同一包批次的多个子 Agent 在**同一条消息**里并行启动。子 Agent 只写自己的片段文件，**回复只报一行**（包号、条数、文件名、异常），不回传 JSON 正文。
+- 子 Agent 产出片段 → `validate-evals.js` 校验合并 → 主 Agent 读校验摘要。校验失败的批次整包退回重跑**一次**；仍失败则停止后续步骤并向用户报告（或 `--allow-degraded` 留档后如实标注 degraded），**不得手写补齐或编造**。
+- 步骤 ③ / ④ 的规则表仍以本 SKILL 为唯一口径，子 Agent 通过读取对应小节获得，不在派发提示词里另抄一套。
 
 ## 步骤 ①：采集（确定性脚本）
 
@@ -84,9 +99,36 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 
 检查 `meta.errors`（错误不阻断整体）与控制台摘要，然后继续。
 
-## 步骤 ③：分类（五要素，逐条）
+## 步骤 ③：分类（子 Agent 分批判读 + 脚本校验合并）
 
-对 JSON 中每条提交判定。依据：subject + files 路径为主，必要时 `git -C <repo> show <hash> --stat`。
+**上下文约束**：分类不在主上下文逐条判读。确定性脚本按 `config.batching.classificationSize`（默认 30 条/包）切包，每包交给一个子 Agent；主 Agent 只读脚本摘要、包索引与校验结果。
+
+1. **切包**：
+
+```bash
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-eval-packs.js --label <label> --kind classification
+```
+
+产出同目录 `classify-packs/batch-NN.json` 与 `index.json`（每包条数、字节数、哈希清单）。包内每条含 `hash / shortHash / repo / author / date / subject / unitId / files / fileCount / additions / deletions`。
+
+2. **派发子 Agent**（每包一个，同一条消息内并行）。提示词必须包含：
+   - 包文件绝对路径：先读该包，只判读本包内的提交；
+   - 指向本 SKILL「步骤 ③」小节，要求子 Agent 只读取该小节的字段规则、工作站判定对照、工作站与功能模组对照，以及 config 的 `workstations` 清单；
+   - 依据 subject + files 路径为主；个别提交语义不清时允许 `git -C <repo> show <hash> --stat`（只读）消歧，禁止读取 `code-impact` / `front-chains` 原文件；
+   - 输出：用 Write 写出 `<packs-dir>/batch-NN.classification.json`，schema `{ "schemaVersion": "classification-fragment/v1", "commits": [...] }`；每条只含 `hash / workstation / reqType / priority / summary / funcPoint`，hash 与本包逐一对应（不缺、不多、不改写）；**不得**直接写 `classification-<label>.json`；
+   - 回复只报一行结果（包号、条数、文件名、异常）。
+
+3. **校验并合并**：
+
+```bash
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/validate-evals.js --label <label> --kind classification
+```
+
+产出 `classification-<label>.json`（`mergedBy=validate-evals`，数组顺序与 `raw-commits-<label>.json` 完全一致）与 `classification-validation-<label>.json`。脚本校验：哈希覆盖对账（不缺 / 不多 / 不重复）、工作站 ∈ config 清单、需求类型 / 优先级枚举、改造内容总结非空。
+
+4. **失败处理**：脚本退出码 1 → 按校验报告把失败批次原样退回重跑**一次**；仍失败 → 停止并报告批次与具体问题，不手写补齐。`--allow-degraded` 会留档跳过，但缺分类会导致步骤 ⑤ 校验失败，必须向用户报告后暂停。
+
+5. **字段规则**（子 Agent 判读依据）：
 
 | 字段 | 规则 |
 |---|---|
@@ -137,18 +179,18 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 
 > **说明**：「电子医嘱」「电子诊断」为跨门诊/住院的共用模组，前端有独立界面但后端分属 opcare/ipcare。「→」表示 SKILL 工作站名到 IT形态汇总 正式名称的映射。加粗模组名为邮件影响表中 `determineModule()` 关键词匹配的模组。
 
-**落盘分类检查点**：逐条判定完成后写出同目录 `classification-<label>.json`，结构 `{ commits: [...] }`；数组顺序与 `raw-commits-<label>.json` 完全一致，哈希与采集结果一一对应。每条字段：
+**分类片段字段**（子 Agent 写给 `batch-NN.classification.json`，脚本合并时原样保留并补齐 `repo` / `author` / `date` / `subject`）：
 
 | 字段 | 说明 |
 |---|---|
-| `hash` / `repo` / `author` / `date` / `subject` | 原样继承采集结果，不得改写（用于与 raw-commits 对账） |
+| `hash` | 与本包逐一对应，不得改写 |
 | `workstation` | 岗位工作站（上表取值） |
 | `reqType` | 需求类型 |
 | `priority` | 优先级 |
 | `summary` | 改造内容总结 |
 | `funcPoint` | 涉及功能范围（具体功能点） |
 
-该文件是步骤 ⑤ 渲染第一、二章的唯一数据源：提交总数、四类分布、提交明细均从中读取，不再依赖对话上下文。判定过程中如触发上下文压缩，以本文件为事实来源继续后续步骤；后续步骤不得再用「记忆里的分类」覆盖文件内容。
+**事实来源**：`classification-<label>.json` 是步骤 ⑤ 渲染第一、二章的唯一数据源：提交总数、四类分布、提交明细均从中读取，不依赖对话上下文。上下文压缩后从本文件与校验报告继续；后续步骤不得用「记忆里的分类」覆盖文件内容。
 
 ## 步骤 ③.5：代码影响取证（确定性脚本）
 
@@ -192,6 +234,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 | `commits[].unitId` | 需求号归并键：subject 匹配 `BOS\s*(\d{6,})` → `BOS<数字>`；`【需求:?\s*(\d{6,})】` / `需求[:：]\s*(\d{6,})` → `REQ<数字>`；无需求号为空。`meta.units` 列出窗口内同需求号的多提交单元（`unitId` / `commits` / `hashes`），供兄弟证据互通 |
 | `commits[].downstream` | `count` / `services`：入口可达工作区方法数，**仅作规模参考，不等于回归范围** |
 | `commits[].skippedFiles[]` | 未入图原因：frontend / type_contract / public_layer / not_in_graph / no_method_change / resource / parse_failed / binary / repo_unavailable / commit_unavailable |
+| `commits[].coverage` | 提交级覆盖摘要：`indexFresh` / `methodsInGraph` / `skippedReasons`（原因计数）/ `skippedReasonLabels`（中文释义）/ `reverseProbeUsed`。`entrypoints=0` 时先读它区分「索引未覆盖」与「确实无页面入口」 |
 | `commits[].confidence` | `graph`（有方法级证据）/ `partial-reverse`（仅常量反查补出入口）/ `partial`（仅契约文件）/ `none` |
 | `commits[].indexFresh` | 索引构建时间是否晚于提交时间 |
 | `meta.stats` | 除方法/入口计数外含 `reverseProbeCommits` / `reverseProbeEntrypoints` |
@@ -200,7 +243,8 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 
 | 字段 | 含义 |
 |---|---|
-| `commits[].uiEntries[]` | 界面证据：`page`（HTML 路径）/ `pageTitle` / `module` / `source`（inline / js_binding / config_bar / page_load 等）/ `element`（id / label / event）/ `request`（method / paths）/ `backend`（controller / method / path / file / line；`source` = `endpoint-index` 表示工作区端点索引解析，`entrypoint` 表示外部服务不在索引内、用入口自带的类.方法补全）/ `jsPath`（name / kind / file / line；`name` 为空表示匿名 handler 或页面顶层代码，`kind` 为 handler / top_level / callback；`callback` 表示该步是把函数当实参传出后继续推进） |
+| `commits[].uiEntries[]` | 界面证据：`page`（HTML 路径）/ `pageTitle` / `module` / `source`（inline / js_binding / config_bar / page_load 等）/ `attribution`（`direct` / `load` / `indirect` / `heuristic`，证据强度分级）/ `element`（id / label / event）/ `request`（method / paths）/ `backend`（controller / method / path / file / line；`source` = `endpoint-index` 表示工作区端点索引解析，`entrypoint` 表示外部服务不在索引内、用入口自带的类.方法补全）/ `jsPath`（name / kind / file / line；`name` 为空表示匿名 handler 或页面顶层代码，`kind` 为 handler / top_level / callback；`callback` 表示该步是把函数当实参传出后继续推进） |
+| `commits[].uiAttribution` | 该提交 `uiEntries` 的归属计数：`direct` / `load` / `indirect` / `heuristic`（无界面证据时为空对象） |
 | `commits[].uiEntries[].access` | 菜单访问位置：`confidence` = `menu` / `parent` / `none`；`via` = `html`（直接登记，且页面 HTML 真实存在）；`menus[]` = name / parentPath / mode / groups；`parents[]` = page / type（弹出 / 跳转 / 内嵌 / 包含）/ linkSource（element / page_load）/ element / elementLabel / elementEvent / elementSource / opener / via / menus。`.csp` 菜单行不参与归并 |
 | `commits[].unmatchedEntrypoints[]` | 没有前端链路的入口，`reason` 互斥：`client-controller`（服务间门面）/ `feign-interface-mapping`（映射在 Feign 接口，`http` 为空）/ `cross-service-same-name`（前端同名但有效服务不同）/ `no-front-call`（页面未调用） |
 | `commits[].date` / `unitId` | 提交时间与需求号归并键（口径同 `code-impact`） |
@@ -208,7 +252,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 | `commits[].uiGapReason` | `uiEntries` 为空时的归因：`index-stale`（提交晚于索引覆盖点，页面证据不可信）/ `sibling-only`（本提交无页面，证据来自同需求号兄弟提交，即 `siblingUi`）/ 空串（真的没有页面调用） |
 | `commits[].siblingUi[]` | 兄弟证据（本提交 `uiEntries` 为空且存在同 `unitId` 的其他提交时注入）：`hash` / `page` / `pageTitle` / `element` / `source` / `confidence` / `menus[]` / `parentPages[]`，口径同 `uiEntries` 摘要 |
 | `meta.frontChainIndex` | 索引覆盖信息：`builtAt` / `coveredUntil` / `checkoutStale` / `source`（无源指纹时为 `null`）/ `commitsAfterIndex` / `commitsUndetermined` |
-| `meta.stats` | commits / commitsWithUi / entrypoints / matchedEntrypoints / pages / pagesWithMenu / pagesWithParentMenu / pagesNoMenu / unmatchedEntrypoints / unmatchedUnique / unmatchedReasons / `commitsAfterFrontIndex` / `commitsWithSiblingUi` |
+| `meta.stats` | commits / commitsWithUi / entrypoints / matchedEntrypoints / pages / pagesWithMenu / pagesWithParentMenu / pagesNoMenu / `uiAttribution` / unmatchedEntrypoints / unmatchedUnique / unmatchedReasons / `commitsAfterFrontIndex` / `commitsWithSiblingUi` |
 
 **取证边界**（写进评估结论，不得越界解读）：调用图只覆盖 Java 方法级静态调用；DTO/VO/PO、前端、public 基础设施不在图内；BLH 反射断链以同名覆写与启发式补链（`heuristic=true` 必须标注）；Maven 侧只保留直调医生站 Feign 的服务，未命中不等于无交互。`contract.typeFeignMatches` 按类型**全限定名**扫描 Feign 方法签名的 `return_type` / `parameters`（Feign 接口侧解析源码 package / 显式 import / 通配 import，`typeFqn` 记录实际命中类型），跨模块同名 DTO 不会串号；签名里没有的类型再按 `type_nesting.json` 沿字段组合向上展开（最多 4 层），命中明细带 `matchFqn` / `nestedVia`，写报告时必须说明是字段嵌套命中而非直接签名命中（例：综合诊疗 `FeignDiagnoseVO` 经 `FeignEncounterVO` → `FeignOrderLisReturnVO` → `FeignIBUSLisBaseReturnVO` 命中 `AggcareLisInfoClient`）。局部变量、方法体内临时类型仍不在范围内。`contract.typeFeignCallers` 再把命中的 Feign 方法沿工作区调用边上溯到入口（`indirect=true`），补出「页面 → 本地 Controller → BLH → Feign」的间接链路；这类入口只在该上溯非启发式（`depth>=0`）时才作为界面证据，`indirect+heuristic`（`depth=-1` 的兜底候选）只保留在 `entrypoints` 供复核，`commit-impact` 不会据此输出 `uiEntries`。`contract.typeControllerMatches` 按类型**全限定名**扫描工作区 Controller 方法签名（Controller 侧解析显式 import / 同包 / 通配 import，`typeFqn` 记录实际命中类型），命中时在 `entrypoints` 里合成 `heuristic=true`、`via=["type:<类型>"]` 的契约入口，供前端链路衔接页面；它代表该类型的接口影响面，不是方法级可达证据；字段嵌套命中同样按上述 4 层展开，`via` 追加 `nested:<变更类型>><…>><外层类型>`。跨模块同名 DTO（如 ipcare/opcare 各自的 `FeignOeStopMultiDTO`）不会互相命中。命中综合诊疗 `Aggcare*InfoClientController` 这类对外集成接口时，只说明外部系统调用面受影响，不代表有医生站页面。`contract.typeUsageEntrypoints` / `typeUsageMatches` 处理「DTO 只当 BLH/Service 方法入参」的链路（读 `type_usage.json`）：变更类型 + 字段嵌套 1 级外壳作 seed，反向 BFS ≤6 跳追 Controller（节点上限 500、每提交至多 40 个 Controller），只登记有注解 URL 的 Controller，入口同为 `heuristic=true`+`indirect=true`、`via` 带 `usedBy:<Class.method>`。链式 builder（`new FeignPaPatMedicalInfoDTO().setBirthTime(..)`）在方法图里没有调用边，DTO 不因此可追踪，必须靠这条反查；典型如 `FeignPaPatMedicalInfoDTO` → `FeignPCAInfoDTO` 入参 `SaveIhdPaPatDataAbstract#setPatientInfo` → `PaPatIhdDataSaveClientController#save`。这类入口同样不进 `uiEntries`，报告按「对外集成接口 / 契约影响面」表述，不得写成医生站页面受影响。外部 Maven 调用方 Controller 反查到的 `indirect` 入口是真实注解 URL，可以直接交给前端链路；但前端链路只登记「页面元素 handler 可达」的请求，回调函数（如 `ShowChangeCookType(win, DoExchange, prescNo)` 内的 `DoExchange`）和配置注入外的按钮绑定仍会漏，`unmatchedEntrypoints.reason=no-front-call` 不能解读成「该组没有页面」。
 
@@ -220,9 +264,44 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 
 **常量反查的边界**：`reverseProbe` 是「配置常量被谁读 → 读取方法上溯入口 → 前端页面」的静态反查，只能证明常量在代码里被消费；`unmatchedConsumers`（含 `inGraph=false` 的消费点）仍按接口验证。`consumers[]` 中的配置项名字面量（`items`）就是「系统标准配置」里的维护项，联调段用它定位维护入口（见步骤 ④）。外部系统页面（如 msup 药房 `msup/herb/*`）经服务总线调 `*ClientController`，静态链路库只能证明「ClientController 未出现在任何页面请求里」（`client-controller`），不能反证药房页面不存在；这类跨系统页面证据查服务总线绑定索引或运行期日志，不在本步骤范围内。
 
-## 步骤 ④：评估（仅【流程修改 / 业务调整】类提交，混合式）
+## 步骤 ④：评估（评估包 + 子 Agent 批量判读，仅【流程修改 / 业务调整】）
 
-**第一层：高风险三类判定**（先做）。先读步骤 ③.5 的 `code-impact-<label>.json`，用证据触发机械升级，再按业务语义确认。命中任一类 → 调用 `imedicalxc-doctor-business-understanding` skill 做完整链路分析（前端入口 → 前端逻辑 → 后端 Controller→BLH→Service→Mapper），评估段标注命中类别，摘要写入报告附录：
+**上下文约束**：评估不在主上下文逐条做。确定性脚本为每条【流程修改 / 业务调整】提交生成证据摘要包（默认 9 条/包、≤40KB；超限先裁 diff 摘录等字段，仍超限再对半拆分，故实际包数可能多于 9 条/包的分法），子 Agent 每包一个批量判读；`validate-evals.js` 校验并合并。主 Agent **不读** `code-impact-<label>.json` / `front-chains-<label>.json` 原文件。
+
+1. **切包**：
+
+```bash
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-eval-packs.js --label <label> --kind eval
+```
+
+产出同目录 `eval-packs/batch-NN.json` 与 `index.json`。包内每条提交含：五要素草案（classification）、`diffstat`、`diffExcerpt`（≤ `config.batching.maxDiffLines` 行，脚本截取）、`evidenceDigest`——
+
+- `codegraph`：`confidence` / `indexFresh` / `methods` / `counts` / `entrypoints` / `workspaceCallers` / `externalCallers` / `downstreamFeigns` / `skipped` / `coverage`（`methodsInGraph` / `skippedReasons` 原因计数 / `skippedReasonLabels` 中文释义 / `reverseProbeUsed`，用于区分「索引未覆盖」与「确实无页面入口」）/ `reverseProbe` / `contract`（Feign 契约、类型文件、契约入口计数）/ `riskFlags`（`class1Candidates` 一类候选；`class2` / `class3` 按 `config.codegraph.riskThresholds` 机械触发）
+- `ui`：`coverage` / `frontIndexFresh` / `uiGapReason` / `counts`（含 `attribution` 归属计数）/ `pages` / `pageTitles` / `uiEntriesTop5`（每条带 `attribution`，排序时 direct 优先）/ `unmatchedEntrypoints` / `siblingEvidence`
+
+主 Agent 只读控制台摘要与告警行（如「前端链路库无源指纹」「N 条提交不在分类检查点内」）。
+
+2. **派发子 Agent**（每包一个，同一条消息内并行）。提示词必须包含：
+   - 包文件绝对路径：先读该包，只评估本包内的提交；
+   - 指向本 SKILL「步骤 ④」小节，要求子 Agent 只读取评估规则（高风险判定表、影响范围、星级与影响范围评级表、页面级证据定位、测试建议四段式、防编造边界）；
+   - 复核单条提交时可用只读定向查询（`git -C <repo> show <hash>`、`query_front_back_chain.py page|controller|method`），**不得**读取 `code-impact` / `front-chains` 原文件；
+   - 输出：用 Write 写出 `<packs-dir>/batch-NN.evals.json`，schema `{ "schemaVersion": "eval-fragment/v1", "commits": [...] }`；每条字段见下方「片段字段」；hash 与本包逐一对应；**不得**写 `impactEvidence` / `ui` 计数（由脚本注入）、不得直接写 `evaluations-<label>.json`；
+   - 防编造：页面 / 菜单 / 调用方必须来自本包 `evidenceDigest`；有页面证据不得写「无页面入口证据」；`siblingEvidence` 可作【必测】页面，并在 `impactScope` / 评分依据里注明「页面证据来自同需求兄弟提交」；
+   - 回复只报一行结果（包号、条数、文件名、命中高风险数、异常）。
+
+3. **校验并合并**：
+
+```bash
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/validate-evals.js --label <label> --kind eval [--stage preliminary|final]
+```
+
+产出 `evaluations-<label>.json`（顶层 `impactRatingStage=preliminary`、`mergedBy=validate-evals`、按包记录 `batches.passed/degraded`）与 `eval-validation-<label>.json`。脚本校验：哈希覆盖对账、必填字段、枚举、四段式测试建议、低星具体问题、应急系统 2★ 上限、改造方案不得写取证结论、**页面防编造**（引用的 `.html` 必须出现在本包证据中）；`impactEvidence` 与 `ui` 计数按 `code-impact` / `front-chains` 现算注入；`highRiskAuto` 缺失时由 `riskFlags` 自动补齐，机械触发高风险但 `highRiskCategory=无` 输出告警。
+
+4. **失败处理**：退出码 1 → 按报告把失败批次整包退回重跑**一次**；仍失败 → 停止，向用户报告批次与问题，不编造评级。`--allow-degraded` 留档跳过时，缺评估的【流程修改 / 业务调整】提交会导致步骤 ⑤ 校验失败——必须报告后暂停渲染。
+
+### 第一层：高风险三类判定（先做）
+
+读评估包 `evidenceDigest.codegraph.riskFlags`：`class2` / `class3` 是脚本按机械条件给出的命中项，`class1Candidates` 只是一类候选、需业务语义确认。命中任一类 → 由该包的子 Agent 在包内调用 `imedicalxc-doctor-business-understanding` skill 做完整链路分析（前端入口 → 前端逻辑 → 后端 Controller→BLH→Service→Mapper），评估段标注命中类别，摘要由步骤 ⑤ 从证据自动汇总进报告附录：
 
 | 类别 | 判定 |
 |---|---|
@@ -230,16 +309,19 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 | 二类：通用接口的改造 | **机械升级**：满足任一即命中——① `contract.feignInterfaces` 非空（Feign 契约变更）；② `workspaceCallers` 存在 `sameService=false`（跨服务工作区调用方）；③ `externalCallers` 非空（跨仓库/Maven 调用方）；④ `contract.typeFiles` 含 `*PO.java`（新增表结构）。随后按①跨仓库/跨工作站对接规范 ②标准接口设计规范 ③PO 设计合理性 逐项核验 |
 | 三类：其他 | **机械升级**：满足任一即命中——`methods` 数 ≥ `codegraph.riskThresholds.methods`；`entrypoints` 数 ≥ `riskThresholds.entrypoints`；跨服务 `workspaceCallers` 数 ≥ `riskThresholds.crossServiceCallers`；`externalCallers` 数 ≥ `riskThresholds.externalCallers`；`truncatedMethods` 非空（证据被截断） |
 
-> `highRiskAuto` 记录证据触发的类别；一类仍需业务语义确认，`highRiskAuto` 只作提示，避免误升级。
+> `riskFlags.class2/class3` 与 `highRiskAuto` 是脚本机械判定（命中项可复核但不得忽略）；一类仍需业务语义确认，`class1Candidates` 只作提示，避免误升级。
 
-**第二层：轻量评估全覆盖**（每条都做）。用 `git -C <repo> show <hash>` 读 diff，对照模块现有实现与步骤 ③.5 的证据，产出（**提交级一份结论**，不按方法分别出报告）：
+**第二层：轻量评估全覆盖**（每条都做）。以包内 `diffExcerpt` 为主，必要时用 `git -C <repo> show <hash>` 补读 diff；证据取包内 `evidenceDigest`（不够时用定向查询补），产出（**提交级一份结论**，不按方法分别出报告）：
 
 1. **影响范围**：先写一句中文业务功能点（保留「医嘱 / 诊断 / 检查 / 病历 / 配置 / 排班」等模组关键词——邮件影响表的 `determineModule()` 依赖这些词判定功能模组），再按证据分四项输出——
    - 入口：`entrypoints`（Controller / Feign / HTTP；`heuristic=true` 标注 `[启发式]`，`depth=-1` 标注不确定；带 `reverse=<消费方法>` 的标注「配置常量消费点反查」）
    - 工作区调用方：`workspaceCallers`（`sameService=false` 需点名跨服务）
    - 外部 Maven 调用方：`externalCallers`（服务 + 模块）
    - 跨出 Feign：`downstreamFeigns`（接口 + 方法）
-   - `downstream.count` 只写规模，**不得当作回归范围**；`confidence=none` 或所有改动文件均未入图时写「无调用图证据（原因：…）」，此时结论只能来自 diff
+   - `downstream.count` 只写规模，**不得当作回归范围**；`confidence=none` 或所有改动文件均未入图时先读 `coverage`：`skippedReasons` 给出未入图文件的原因计数（`skippedReasonLabels` 为中文释义），据此区分——
+     - `public_layer` / `not_in_graph` / `type_contract`：**索引未覆盖**该类文件，写「索引未覆盖（原因：…）」，不得写成「无页面入口证据」；`reverseProbeUsed=true` 时按常量反查结果补入口；
+     - `frontend` / `resource` / `binary`：本就不适用后端调用图，写「后端调用图不适用（前端/资源文件）」，结论转由前端链路与 diff 给出；
+     - 无跳过文件且无方法命中：才写「无调用图证据」，结论只能来自 diff
 2. **业务设计流程符合性**：符合 / 部分符合 / 不符合，附理由
 3. **星级（1-5★）**：
 
@@ -262,6 +344,8 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 | 1★ | 几乎无业务感知：仅界面呈现、日志记录、非关键配置或行为等价的重构，无需培训、绕行或通知业务科室 |
 
    > 5★ 必须同时满足「阻断」与「大批量」；仅调用方数量多、但业务可通过其他入口或人工流程完成时，最高评为 4★。
+
+   **界面归属与评级**：判定「受影响的业务环节」时以 `uiAttribution.direct` / `uiEntries[].attribution=direct` 的页面为准；`load` 只证明页面加载会调用，`indirect` / `heuristic` 只证明间接受影响。三类证据齐全时按 direct 页面所在环节定级；只有 `load` / `indirect` 时在 `impactRatingReason` 写明「无可确认的直接操作入口，按页面加载 / 间接影响推演」，并不得据此单独上调星级。
 
    **非核心备用系统降级**：门急诊应急系统等仅在正常 HIS 不可用时才启用的备用系统，不属于「挂号→就诊→开方→收费→取药」核心链路，其提交的影响范围评级上限为 2★（初始化类整体不可用记 2★，单点数据或接口类记 1★），并在 `impactRatingReason` 写明「正常 HIS 不受影响、核心链路用户无感知」；此类提交即使命中高风险三类也**不触发深度评估**，按轻量评估处理，在 evaluations 中记 `impactDowngrade` 说明原因，报告附录不单列摘要。
 
@@ -290,16 +374,17 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
    - **多个要点用无序号列表**：同一段需要列出多个页面或多个动作时，用换行分行（或中文分号「；」并列），每个动作一句；出现 2 个以上要点时，邮件把分段标记单独一行、下面每个要点渲染为「·」缩进项，Markdown 存档渲染为子项；只有单句时分段标记才与正文同行。不要把 4 个以上页面塞进一句话——一句话里堆 6～9 个「」页面名，测试人员读不出先后与验收点
    - **邮件改造方案同口径**：邮件「改造方案」取 `changeSummary`（缺失时回退 `evaluation`），只写「改了什么」，用业务语言描述变更内容；**不得写「工作区内未发现活动调用方」「无方法级调用证据」等取证结论或测试安排**——这些内容属于 `testSuggestion` 的【必测】或 `impactScope`；除变更本身外没有其他有效内容时，直接写「无业务逻辑变更」
 8. **页面级证据定位**（写【必测】/【回归】/【联调】前执行，避免臆测页面）：
-   - **以 `front-chains-<label>.json` 为准**：按提交 hash 读 `uiEntries`，优先 `match=controller`、元素触发、`access.confidence` 从高到低（menu > parent > none）。一个提交有多个界面时，按与 `funcPoint` 最接近的业务场景选 1-2 条写【必测】，其余放【回归】。
+   - **以评估包 `evidenceDigest.ui` 为准**（来源为 `front-chains-<label>.json`）：`uiEntriesTop5` 每页只保留一条最佳证据，页面按「菜单置信度 → 该页命中的入口方法数」排序（入口方法数多说明本次改动在该页覆盖更广，不会被同源页面按字母顺序占满名额）。优先元素触发、`access.confidence` 从高到低（menu > parent > none）。一个提交有多个界面时，按与 `funcPoint` 最接近的业务场景选 1-2 条写【必测】，其余放【回归】；包内 `uiEntriesTop5` 不足时用 `query_front_back_chain.py` 定向查该提交入口对应页面（仍不读整份 `front-chains`）。
    - **先看索引覆盖，再看兄弟证据**：`frontIndexFresh=false`（`uiGapReason=index-stale`）时本提交的「无页面」不可信，写「页面证据落后于索引覆盖点（索引重建于 <coveredUntil> 之前），重建后复核」，不写「无页面入口证据」；`uiEntries` 为空但 `siblingUi` 非空（`uiGapReason=sibling-only`）时，用兄弟提交的页面写【必测】/【回归】，并在 `impactEvidence` 标注「页面证据来自同需求 <unitId> 的兄弟提交 <hash>」。配置常量提交（`confidence=partial-reverse`）按 `reverseProbe` 补出的入口继续反查页面；反查不到时写「配置消费点存在但未定位到页面，按接口验证」，配合【联调】的维护入口说明配置生效方式。
+   - **归属分级决定证据强度**：`evidenceDigest.ui.counts.attribution`（以及每条 `uiEntries[].attribution`）分 `direct` / `load` / `indirect` / `heuristic`。`direct` = 元素触发且页面与入口有真实调用边，是判断「页面上有没有可操作入口」和影响范围星级的唯一依据；`load` = 打开页面即触发，可写【回归】并注明「页面加载触发」，不得写成点击步骤；`indirect` = 经 Feign 调用方 / 类型使用 / 常量消费点反查得到，写「经 <消费方法> 间接影响」并只作回归参考；`heuristic` = 仅 URL / 类名兜底，不作为界面证据。整条提交只有 `load` / `indirect` 时，措辞写「页面证据均为页面加载 / 间接触发，无可确认的用户操作入口」，不写「无页面入口证据」。
    - **访问位置只取登记表字段**：`access.menus[].parentPath` + `name` 组成访问位置；`access.parents[].menus` 是父页面的菜单，必须配合 `element` / `linkSource` 还原打开路径。`confidence=none` 时只写页面标题与元素，措辞固定为「无菜单登记（内嵌 / 弹窗页）」，**不得**用页面标题猜一个菜单路径。
    - **`page_load` 不作为点击步骤**：它只证明打开页面会触发请求；【必测】需要用户可执行的操作时，选 `inline` / `js_binding` / `config_bar` 条目。
-   - **没有界面证据的处理**：先确认契约反查已执行——`contract.typeControllerMatches` 非空即说明该类型被 Controller 签名使用，必须按命中的 Controller 方法继续查 `uiEntries`（或写「页面未登记，按接口验证：<Controller>.<方法>」）；`contract.typeFeignCallers` 非空说明契约方法被工作区调用方使用，必须检查 `entrypoints[]` 中 `indirect=true` 的入口能否衔接到页面（如 opreg 排班契约经 opalloc 分诊调用方上溯到「护士分诊」页），**不得**因为 `methods[]` 为空就写「无页面入口证据」。`unmatchedEntrypoints` 非空且没有可用 `uiEntries` 时，【必测】写「无页面入口证据，按接口验证」；`reason=feign-interface-mapping` 说明映射声明在 Feign 接口、前端不直调，不作页面；`client-controller` 是服务间门面，同样不作页面；`indirect=true` 且 `heuristic=true` 的入口只是兜底候选，`commit-impact` 已不据此输出界面证据，不得手工补成页面证据；只有在 `contract.typeFeignMatches`、`contract.typeFeignCallers`、`contract.typeControllerMatches` 均为空且 `entrypoints` 为空时，纯契约提交才写「未发现活动调用方，代码审阅即可」。
+   - **没有界面证据的处理**：先确认契约反查已执行——`contract.typeControllerMatches` 非空即说明该类型被 Controller 签名使用，必须按命中的 Controller 方法继续查 `uiEntries`（或写「页面未登记，按接口验证：<Controller>.<方法>」）；`contract.typeFeignCallers` 非空说明契约方法被工作区调用方使用，必须检查 `entrypoints[]` 中 `indirect=true` 的入口能否衔接到页面（如 opreg 排班契约经 opalloc 分诊调用方上溯到「护士分诊」页），**不得**因为 `methods[]` 为空就写「无页面入口证据」。`unmatchedEntrypoints` 非空且没有可用 `uiEntries` 时，【必测】写「无页面入口证据，按接口验证」；`reason=feign-interface-mapping` 说明映射声明在 Feign 接口、前端不直调，不作页面；`client-controller` 是服务间门面，同样不作页面；`indirect=true` 且 `heuristic=true` 的入口只是兜底候选，`commit-impact` 已不据此输出界面证据，不得手工补成页面证据；只有在 `contract.typeFeignMatches`、`contract.typeFeignCallers`、`contract.typeControllerMatches` 均为空且 `entrypoints` 为空时，纯契约提交才写「未发现活动调用方，代码审阅即可」。若 `codegraph.coverage.skippedReasons` 含 `public_layer` / `not_in_graph` / `type_contract`，说明改动文件未被方法图覆盖（如 docsconfig 常量、public 基础设施），页面证据缺失属索引覆盖问题，写「索引未覆盖<中文原因>，页面证据待补」，不写「无页面入口证据」；`reverseProbeUsed=true` 时以反查结果为准。
    - **契约入口的写法**：`via` 以 `type:` 开头、`heuristic=true` 的入口是契约级影响面，【必测】要写「该字段 / 格式在页面上的展示或提交」（如「申请时间显示格式应与升级前一致」），不得写成该页面本身有逻辑改动；`uiEntries` 的 `match` 仍是 `controller`，回归项按页面既有功能写。
    - **手工兜底**（仅 `front-chains` 缺失 / 不可用时）：证据中出现 Controller 方法名或 HTTP 路径时，才允许到 `src/frontend/hisfront/static/` 检索；必须用完整路径或「方法名 + 服务 / 目录前缀」消歧，并在 `impactEvidence` 记录命中的前端文件与行号（如「前端证据：`static/opreg/opreg-pat/scripts/doc.reportloss.js:9` 卡挂失 / 启用」）。仅凭 `getScheduleInfo`、`getDrugList` 这类通用方法名命中即下结论视为无效证据。Feign 名不能直接搜前端，必须先追消费方 Controller。
    - **禁止推断**：任何「与 XX 页面联调」的表述都必须能回指一条 `uiEntries` 条目或 Controller/页面证据；回指不到就删除该表述，改用「无页面入口证据」。
 
-评估结果落盘为同目录 `evaluations-<label>.json`（同月多期必须带期号后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / `unitId`——需求号归并键（同需求多提交共用一个；有兄弟证据时必填） / funcPoint——面向测试/交付的业务功能点标题，不出现类名、方法名、Feign 名（邮件与影响表的章节标题） / highRiskCategory / highRiskAuto——证据机械触发的类别，供复核 / impactScope——按证据四段式撰写 / impactEvidence——该提交在 `code-impact-<label>.json` 中的计数摘要：methods / entrypoints / workspaceCallers / externalCallers / downstreamFeigns / contract（`feignContracts` / `typeFiles` / `typeFeignMatches` / `typeFeignCallers` / `typeControllerMatches`） / reverseProbe（常量反查：stCode / 消费方法 / 补出入口数） / downstream / confidence / indexFresh / skipped 原因；并附 `ui`——该提交在 `front-chains-<label>.json` 中的界面证据摘要：uiEntries / pages / withMenu / withParentMenu / noMenu / unmatchedEntrypoints（未命中入口数，取该提交 `unmatchedEntrypoints[]` 的长度） / frontIndexFresh / uiGapReason / siblingEvidence——兄弟提交页面证据的来源（`unitId` / `hash` / 页面） / compliance / complianceReason / rating——质量星级 / impactRating——影响范围评级（1-5★，邮件与影响表标题前缀、排序依据） / impactRatingReason——影响范围判定依据一句话 / impactRatingInitial——回评调整时记录的原初评星级（仅调整过的条目） / impactDowngrade——非核心备用系统的降级说明（含为何不深度评估），非此类提交可省略 / changeSummary——面向交付的改造方案（只写变更内容，不写调用方/取证/测试信息；无业务逻辑变更时写「无业务逻辑变更」，缺失时回退 evaluation） / evaluation——评价描述 / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——四段式测试建议），作为步骤 ⑥ 低星问题登记的数据源。
+评估结果由 `validate-evals.js` 合并落盘为同目录 `evaluations-<label>.json`（同月多期必须带期号后缀，避免覆盖其他窗口产物；文件头 `mergedBy=validate-evals`）。子 Agent 片段（`batch-NN.evals.json`）每条只写：`hash / funcPoint / rating / impactRating / impactRatingReason / impactScope / compliance / complianceReason / changeSummary / evaluation / highRiskCategory / highRiskAuto? / specificIssue? / issueItems? / impactDowngrade? / testSuggestion`；`impactEvidence` 与 `ui` 计数由脚本注入，片段里写了也会被覆盖。合并后条目字段：hash / shortHash / subject / author / date / repo / `unitId`——需求号归并键（同需求多提交共用一个；有兄弟证据时必填） / funcPoint——面向测试/交付的业务功能点标题，不出现类名、方法名、Feign 名（邮件与影响表的章节标题） / highRiskCategory / highRiskAuto——证据机械触发的类别，供复核 / impactScope——按证据四段式撰写 / impactEvidence——该提交在 `code-impact-<label>.json` 中的计数摘要：methods / entrypoints / workspaceCallers / externalCallers / downstreamFeigns / contract（`feignContracts` / `typeFiles` / `typeFeignMatches` / `typeFeignCallers` / `typeControllerMatches`） / reverseProbe（常量反查：stCode / 消费方法 / 补出入口数） / downstream / confidence / indexFresh / skipped 原因 / coverage（`skippedReasons` + 释义 + `reverseProbeUsed`）；并附 `ui`——该提交在 `front-chains-<label>.json` 中的界面证据摘要：uiEntries / pages / withMenu / withParentMenu / noMenu / attribution（direct / load / indirect / heuristic 计数）/ unmatchedEntrypoints（未命中入口数，取该提交 `unmatchedEntrypoints[]` 的长度） / frontIndexFresh / uiGapReason / siblingEvidence——兄弟提交页面证据的来源（`unitId` / `hash` / 页面） / compliance / complianceReason / rating——质量星级 / impactRating——影响范围评级（1-5★，邮件与影响表标题前缀、排序依据） / impactRatingReason——影响范围判定依据一句话 / impactRatingInitial——回评调整时记录的原初评星级（仅调整过的条目） / impactDowngrade——非核心备用系统的降级说明（含为何不深度评估），非此类提交可省略 / changeSummary——面向交付的改造方案（只写变更内容，不写调用方/取证/测试信息；无业务逻辑变更时写「无业务逻辑变更」，缺失时回退 evaluation） / evaluation——评价描述 / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——四段式测试建议），作为步骤 ⑥ 低星问题登记的数据源。
 
 ## 步骤 ⑤：归档（确定性渲染）
 
@@ -423,7 +508,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 
 ## 步骤 ⑨：回评（回评模式，测试用例 / 联调用例产出后）
 
-前置：该期报告已归档，用户提供测试用例与联调用例（Excel / 文档路径或腾讯文档链接）。不重新采集提交，不改分类与测试建议，只重评星级并重渲染对外产物。
+前置：该期报告已归档，用户提供测试用例与联调用例（Excel / 文档路径或腾讯文档链接）。不重新采集提交，不改分类与测试建议，只重评星级并重渲染对外产物。回评直接在该期 `evaluations-<label>.json` 的条目上修改（保留 `mergedBy` 与条目顺序）；如需重走子 Agent 评估包流程，改用 `validate-evals.js --stage final` 合并，不手工重拼整份文件。
 
 1. **用例取证**：对 `evaluations-<label>.json` 中 `rating ≤ 2` 及 `impactRating ≥ 3` 的条目，用 `funcPoint` 的业务功能点在测试用例中检索命中的用例编号与业务场景；联调用例按 `externalCallers` / `downstreamFeigns` 的服务与业务场景检索。取证结果写入回评说明（`impactRatingReason` 或评估备注），不得只写「已核对用例」。
 2. **复核质量星级 `rating`**：用例证明问题会破坏流程或产生错误数据的维持低星；用例显示问题不成立（推演误判、实际不可达）的上调并在 `evaluation` 说明；用例暴露的新问题按步骤 ④ 规则补 `specificIssue` / `issueItems`。
@@ -468,3 +553,4 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 - 名单外作者（cuixy、Codex 等）的提交不纳入报告。
 - 影响范围星级在报告期为初评（`impactRatingStage=preliminary`），只能依据 diff 与调用图推演；测试用例 / 联调用例产出并回评定档（`final`）后，才登记低星问题、才可按星级对外定性。初评不得写成「已确认 / 无风险」。
 - 职责边界：步骤 ③.5 只取证（JSON），步骤 ④ 才做业务判断；评估中每条入口 / 调用方 / 联调 / 界面建议都必须能追溯到证据，无证据时明说「无调用图证据」或「无页面入口证据」，不得编造菜单、页面或调用方。
+- 上下文边界：步骤 ③ / ④ 的 LLM 判读只在子 Agent 内进行；主 Agent 不读取 `code-impact` / `front-chains` 原文件与评估包 / 片段正文，只读脚本摘要、包索引与校验报告。评估包与片段是中间产物，`evaluations-<label>.json` 以 `mergedBy=validate-evals` 为合并事实来源。

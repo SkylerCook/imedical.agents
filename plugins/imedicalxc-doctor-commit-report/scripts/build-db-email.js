@@ -70,8 +70,8 @@ function impactPrefix(r) {
 }
 
 function ratingStageNote(stage) {
-  if (stage === 'preliminary') return '；报告生成时测试用例 / 联调用例尚未产出，本期星级为初评，用例产出后回评定档。';
-  if (stage === 'final') return '；本期星级已按测试用例 / 联调用例回评定档。';
+  if (stage === 'preliminary') return '；报告生成时测试用例 / 联调用例尚未产出，本期星级为初评，用例产出后回评定档';
+  if (stage === 'final') return '；本期星级已按测试用例 / 联调用例回评定档';
   return '';
 }
 

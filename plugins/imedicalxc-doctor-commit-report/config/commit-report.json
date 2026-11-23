@@ -26,6 +26,13 @@
   },
   "excludeMerges": true,
   "outputDir": "docs/agents/commit-reports",
+  "batching": {
+    "classificationSize": 30,
+    "evalSize": 9,
+    "evaluationReqTypes": ["流程修改", "业务调整"],
+    "maxDiffLines": 40,
+    "maxPackBytes": 40960
+  },
   "codegraph": {
     "enabled": true,
     "maxMethodsPerCommit": 10,

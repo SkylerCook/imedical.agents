@@ -144,11 +144,14 @@ function uiCounts(frontCommit) {
   if (!frontCommit) return null;
   const entries = frontCommit.uiEntries || [];
   const conf = new Map();
+  const attr = { direct: 0, load: 0, indirect: 0, heuristic: 0 };
   for (const item of entries) {
     const page = item.page || '';
     const level = (item.access && item.access.confidence) || 'none';
     const rank = { menu: 0, parent: 1, none: 2 };
     if (!conf.has(page) || rank[level] < rank[conf.get(page)]) conf.set(page, level);
+    const grade = item.attribution || 'unknown';
+    attr[grade] = (attr[grade] || 0) + 1;
   }
   const count = (level) => [...conf.values()].filter((v) => v === level).length;
   return {
@@ -157,6 +160,7 @@ function uiCounts(frontCommit) {
     withMenu: count('menu'),
     withParentMenu: count('parent'),
     noMenu: count('none'),
+    attribution: attr,
     unmatchedEntrypoints: (frontCommit.unmatchedEntrypoints || []).length
   };
 }
@@ -270,6 +274,15 @@ function validate({ raws, classification, evaluations, impactMap, frontMap, conf
         warnings.push(`evaluations 缺少界面证据摘要 ui：${shortHash(e.hash)}（front-chains 已有数据）`);
       } else {
         for (const k of Object.keys(uiExp)) {
+          if (k === 'attribution') {
+            const gotAttr = got[k] || {};
+            for (const grade of Object.keys(uiExp.attribution || {})) {
+              if (Number(gotAttr[grade] || 0) !== Number(uiExp.attribution[grade] || 0)) {
+                warnings.push(`界面归属与 front-chains 不一致：${shortHash(e.hash)} attribution.${grade} evaluations=${gotAttr[grade] || 0} front-chains=${uiExp.attribution[grade] || 0}`);
+              }
+            }
+            continue;
+          }
           if (Number(got[k]) !== uiExp[k]) {
             warnings.push(`界面证据与 front-chains 不一致：${shortHash(e.hash)} ${k} evaluations=${got[k]} front-chains=${uiExp[k]}`);
           }
@@ -387,13 +400,23 @@ function render({ label, raws, meta, classification, evaluations, db, impactMap,
         ? `（初评 ${e.impactRatingInitial}★ → 定档 ${e.impactRating}★）`
         : '';
     lines.push(`- **影响范围评级**：${e.impactRating}★${ratingStageTag}${initialTag} —— ${e.impactRatingReason}`);
+    const cov = ie.coverage;
+    const covTags = [];
+    if (cov && cov.skippedReasons) {
+      for (const [k, v] of Object.entries(cov.skippedReasons)) {
+        covTags.push(`${(cov.skippedReasonLabels && cov.skippedReasonLabels[k]) || k} ${v}`);
+      }
+    }
+    if (cov && cov.reverseProbeUsed) covTags.push('已走常量反查');
+    const covText = covTags.length ? `；未入图：${covTags.join(' / ')}` : '';
     lines.push(
-      `- **调用图证据**：入口 ${ie.entrypoints || 0} · 工作区调用方 ${ie.workspaceCallers || 0} · 外部 Maven 调用方 ${ie.externalCallers || 0} · 跨出 Feign ${ie.downstreamFeigns || 0} · 可信度 ${ie.confidence || 'none'}（方法 ${ie.methods || 0}，契约 Feign ${ie.feignContracts || 0}，契约文件 ${ie.typeFiles || 0}，契约 Controller ${ie.typeControllerMatches || 0}，截断 ${ie.truncated || 0}）`
+      `- **调用图证据**：入口 ${ie.entrypoints || 0} · 工作区调用方 ${ie.workspaceCallers || 0} · 外部 Maven 调用方 ${ie.externalCallers || 0} · 跨出 Feign ${ie.downstreamFeigns || 0} · 可信度 ${ie.confidence || 'none'}（方法 ${ie.methods || 0}，契约 Feign ${ie.feignContracts || 0}，契约文件 ${ie.typeFiles || 0}，契约 Controller ${ie.typeControllerMatches || 0}，截断 ${ie.truncated || 0}${covText}）`
     );
     if (ie.ui) {
       const ui = ie.ui;
+      const at = ui.attribution || {};
       lines.push(
-        `- **界面证据**：界面条目 ${ui.uiEntries || 0} · 页面 ${ui.pages || 0}（菜单登记 ${ui.withMenu || 0} / 父页面可达 ${ui.withParentMenu || 0} / 无菜单 ${ui.noMenu || 0}） · 无前端链路入口 ${ui.unmatchedEntrypoints || 0}`
+        `- **界面证据**：界面条目 ${ui.uiEntries || 0} · 页面 ${ui.pages || 0}（菜单登记 ${ui.withMenu || 0} / 父页面可达 ${ui.withParentMenu || 0} / 无菜单 ${ui.noMenu || 0}） · 归属 直接 ${at.direct || 0} / 页面加载 ${at.load || 0} / 间接 ${at.indirect || 0} / 启发式 ${at.heuristic || 0} · 无前端链路入口 ${ui.unmatchedEntrypoints || 0}`
       );
     }
     lines.push(`- **影响范围**：${e.impactScope}`);
