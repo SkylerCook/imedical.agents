@@ -99,6 +99,8 @@ node tools/agents-workbench/build/build-offline-package.js verify --package "<�
 
 ### 构建工作台发行包
 
+改动影响工作台或随包文件时，`c + p` 包含提交、推送、从同一提交打包验收并更新 `tools/dist/` 的正式包和发行记录。
+
 从 0.2.1 起，正式发行的源码、编译后的界面、安装器和随包手册必须来自同一 Git 提交。先提交发布所需的代码和文档，再从该提交的干净工作区运行 `stage:release`。它先自动重建界面，再暂存发行所需文件。选用已按 [AI 开发离线环境](../../ai-dev-offline/README.md)清单校验的 Windows x64 Node 原包，解压后将其目录传给打包入口。暂存目录使用工作区外的任务专属新目录。
 
 ```powershell
