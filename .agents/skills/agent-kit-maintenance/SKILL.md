@@ -19,7 +19,7 @@ description: Use when maintaining the imedical.agents repository itself, especia
 
 按任务读取，避免一次性加载过多上下文：
 
-1. 每轮治理先回读根 `AGENTS.md` 的“框架维护首要原则”，再读取根文件其余适用约束和 `memory/agent-kit-maintenance-memory.md`。同一会话内的新治理任务、上下文压缩后恢复、从业务需求转入框架维护时均适用。
+1. 每轮治理先回读根 `AGENTS.md` 的“框架维护首要原则”，再读取根文件其余适用约束和 `memory/agent-kit-maintenance-memory.md`。同一会话内的新治理任务、上下文压缩后恢复、从业务需求转入框架维护时均适用。 执行框架 Review 时，先按该节评估变更，再检查受影响的实现、兼容性与验证证据。
 2. 涉及长期边界、目录分层、thin-index、vendor、adapter 或部署范围时，读 `memory/agent-kit-maintenance-decisions.md`。
 3. 需要了解近期提交和验证状态时，读 `memory/agent-kit-maintenance-log.md`。
 4. 需要判断后续治理优先级时，读 `memory/agent-kit-maintenance-backlog.md`。
