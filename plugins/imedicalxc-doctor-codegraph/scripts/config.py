@@ -125,6 +125,23 @@ WORKSPACE_SERVICES = [
     "curc", "hispa", "ma", "tr", "opalloc", "opreg",
 ]
 
+# 方法调用图额外扫描的公共配置子仓库（不进入 WORKSPACE_REPOS / 穿透起点）
+# 业务模块按 BLH 类型（hiscfsv-ipcare-doctor 等）直接调用这些 jar 级实现，不扫会留下悬空边
+HISCFSV_SCAN_REPOS = [
+    # Tier 1：与业务仓库同名，承接对应模块的 BLH 实现
+    "public/cf/hiscfsv-mediway/hiscfsv-ipcare",
+    "public/cf/hiscfsv-mediway/hiscfsv-opcare",
+    "public/cf/hiscfsv-mediway/hiscfsv-opreg",
+    "public/cf/hiscfsv-mediway/hiscfsv-curc",
+    "public/cf/hiscfsv-mediway/hiscfsv-ma",
+    "public/cf/hiscfsv-mediway/hiscfsv-tr",
+    # Tier 2：跨模块公共 BLH 实现
+    "public/cf/hiscfsv-mediway/hiscfsv-bsp",
+    "public/cf/hiscfsv-mediway/hiscfsv-papat",
+    "public/cf/hiscfsv-mediway/hiscfsv-mr",
+    "public/cf/hiscfsv-mediway/hiscfsv-phin",
+]
+
 # 基础设施仓库（被动包含，不作为起点）
 INFRA_REPOS = [
     "public/his-mediway-boot",

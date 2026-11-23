@@ -44,6 +44,8 @@ def audit_existence(db):
 
     def check(kind, rel):
         rel = (rel or "").strip()
+        # 内联脚本单元 `<页面>#inline#<块序号>` 的实体就是该 HTML 文件本身
+        rel = rel.split("#inline#", 1)[0]
         if not rel or (FRONT_ROOT / rel).is_file():
             return
         missing[kind] += 1

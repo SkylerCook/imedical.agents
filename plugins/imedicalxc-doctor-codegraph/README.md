@@ -167,20 +167,20 @@ python collect_sm_hsb.py --from-json <dump> && python build_aggregation_db.py  #
 
 ## 配置
 
-- 工作区仓库：12 个业务仓库（opcare、ipcare、aggcare、comoe、hispa 等）
+- 工作区仓库：12 个业务仓库（opcare、ipcare、aggcare、comoe、hispa 等）；方法图另扫 10 个 `public/cf/hiscfsv-mediway/hiscfsv-*` 公共配置子模块（`HISCFSV_SCAN_REPOS`，服务名 `hiscfsv`）
 - Maven 仓库路径：环境变量 `MAVEN_REPO`（fallback: 本地 Maven 仓库）
 - 输出目录：`docs/agents/imedicalxc-doctor-codegraph/`（manifest `projectDirectories` 的 `codegraph-index` 声明，`config.py` 解析该声明）
 - 服务总线：MCP `kingbase-87-aggregation`（库 `db_hsb` / schema `sm_hsb`，只读）；输出目录 `docs/agents/imedicalxc-doctor-aggregation/`（`aggregation-index`）
 
-## 当前规模（2026-11-09, javatools 方案 + 相关性过滤）
+## 当前规模（2026-11-23, 补扫 hiscfsv 后）
 
-- Maven biz: 326 jar, 12,120 类, 137,396 方法；原始调用 459,260，过滤后 148,676（55 个相关服务 = 33 直接调用者 + 22 上游 / 44 个剔除）
-- 工作区方法图: 16,326 节点 / 88,199 边（GraphML 53,357 节点 / 87,788 边）
-- 合并后: 125,508 节点 / 202,919 边, 184 服务边界
-- 端点索引: 工作区 1,681 个源文件 → 1,680 个 Controller / 11,514 条 URL / 11,520 个方法映射；Maven 工件 326 jar → 1,666 个 Controller / 9,255 条 URL / 9,260 个方法映射；`impact_db` 中 3,043 个 Controller 节点带 `endpoints`
-- `impact_db.json`: 50.8 MB
-- 穿透第一部分: 53,357 节点（9,948 个外部叶子）/ 87,788 边
-- 穿透第二部分: 396 个调用点（353 条 Controller 根，其中 342 条带注解 URL / 43 条方法根）/ 90 个 Feign 接口 / 33 个 Maven 服务 / 约 630 条分派桥边（以 stats 为准）
+- Maven biz: 328 jar, 12,709 类, 144,642 方法；原始调用 487,574，过滤后 159,138（55 个相关服务 = 33 直接调用者 + 22 上游 / 44 个剔除）
+- 工作区方法图: 19,006 节点 / 110,701 边（GraphML 71,953 节点 / 109,980 边）
+- 合并后: 反向索引 118,860 节点 / 269,839 边, 184 服务边界
+- 端点索引: 工作区 1,689 个源文件 → 1,688 个 Controller / 11,584 条 URL / 11,590 个方法映射；Maven 工件 328 jar → 1,754 个 Controller / 9,720 条 URL / 9,725 个方法映射
+- `impact_db.json`: 62.3 MB
+- 穿透第一部分: 71,953 节点（14,599 个外部叶子）/ 109,980 边
+- 穿透第二部分: 401 个调用点（355 条 Controller 根，其中 342 条带注解 URL / 46 条方法根）/ 33 个 Maven 服务（分派桥边以 stats 为准）
 
 ### 前端（2026-11-09 全量构建）
 

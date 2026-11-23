@@ -214,6 +214,7 @@ def _ui_digest(entry, limit):
         "pageTitle": entry.get("pageTitle") or "",
         "element": element.get("label") or element.get("id") or "",
         "source": entry.get("source") or "",
+        "attribution": entry.get("attribution") or "",
         "confidence": access.get("confidence") or "",
         "menus": [
             {"name": m.get("name") or "", "parentPath": m.get("parentPath") or "",
@@ -326,6 +327,28 @@ CONFIDENCE_RANK = {"menu": 0, "parent": 1, "none": 2}
 SOURCE_RANK = {"inline": 0, "js_binding": 1, "config_bar": 2,
                "config:nurse_exec_button": 2, "js_toolbar": 3, "js_string": 4,
                "page_load": 9}
+ATTRIBUTION_RANK = {"direct": 0, "load": 1, "indirect": 2, "heuristic": 3}
+
+
+def ui_attribution(chain, entry):
+    """界面证据的归属分级（越靠前证据越硬）。
+
+    direct    元素触发 + 入口与页面为真实调用边（match=controller 为最硬）
+    load      打开页面即触发（page_load），只证明页面会调用，不等于用户可操作
+    indirect  经 Feign 调用方 / 类型使用 / 常量消费点反查上溯得到
+              （indirect，或 heuristic 但 depth>=2，或带 reverse=<消费方法>）
+    heuristic 仅靠 URL / 类名推断出的兜底入口，页面与入口之间无真实调用边
+    """
+    if entry.get("heuristic"):
+        depth = entry.get("depth")
+        if entry.get("indirect") or entry.get("reverse") or (isinstance(depth, int) and depth >= 2):
+            return "indirect"
+        return "heuristic"
+    if entry.get("indirect") or entry.get("reverse"):
+        return "indirect"
+    if (chain.get("source") or "") == "page_load":
+        return "load"
+    return "direct"
 
 
 def _split_table_row(line):
@@ -464,15 +487,22 @@ def build_ui_entry(chain, req, backend, entry, db, registry, incoming, depth, la
     functions = db.get("functions") or {}
     js_steps = []
     for step in chain.get("path") or []:
-        if not step.get("file") or not (FRONT_ROOT / step["file"]).is_file():
+        src_file = step.get("file") or ""
+        inline = bool(step.get("inline")) or "#inline#" in src_file
+        if inline:
+            src_file = src_file.split("#inline#", 1)[0]
+        if not src_file or not (FRONT_ROOT / src_file).is_file():
             continue
         name, kind = step_name(step, functions)
-        js_steps.append({
+        rec = {
             "name": name,
             "kind": kind,
-            "file": step["file"],
+            "file": src_file,
             "line": step.get("line"),
-        })
+        }
+        if inline:
+            rec["inline"] = True
+        js_steps.append(rec)
     return {
         "page": page,
         "pageTitle": page_meta.get("title") or "",
@@ -509,6 +539,7 @@ def build_ui_entry(chain, req, backend, entry, db, registry, incoming, depth, la
             "heuristic": bool(entry.get("heuristic")),
         },
         "access": access_for_page(page, registry, incoming, depth, labels),
+        "attribution": ui_attribution(chain, entry),
         "match": "controller",
     }
 
@@ -666,7 +697,8 @@ def cmd_commit_impact(records, index, db, args):
     out_commits = []
     totals = {"commits": 0, "commitsWithUi": 0, "entrypoints": 0,
               "matchedEntrypoints": 0, "unmatchedEntrypoints": 0,
-              "unmatchedReasons": defaultdict(int)}
+              "unmatchedReasons": defaultdict(int),
+              "uiAttribution": defaultdict(int)}
     unmatched_keys = set()
     page_conf = {}
     for commit in impact.get("commits") or []:
@@ -795,6 +827,10 @@ def cmd_commit_impact(records, index, db, args):
             rank = CONFIDENCE_RANK.get(item["access"]["confidence"], 9)
             if current is None or rank < CONFIDENCE_RANK.get(current, 9):
                 page_conf[page] = item["access"]["confidence"]
+        ui_attr = defaultdict(int)
+        for item in ui:
+            ui_attr[item.get("attribution") or "unknown"] += 1
+            totals["uiAttribution"][item.get("attribution") or "unknown"] += 1
         if ui:
             totals["commitsWithUi"] += 1
         totals["matchedEntrypoints"] += len(matched)
@@ -809,6 +845,7 @@ def cmd_commit_impact(records, index, db, args):
             "frontIndexFresh": fresh,
             "uiGapReason": "" if ui else ("index-stale" if fresh is False else ""),
             "entrypoints": len(entrypoints),
+            "uiAttribution": {k: ui_attr[k] for k in ATTRIBUTION_RANK if ui_attr.get(k)},
             "uiEntries": ui,
             "unmatchedEntrypoints": unmatched,
         })
@@ -841,6 +878,8 @@ def cmd_commit_impact(records, index, db, args):
                 "unmatchedEntrypoints": totals["unmatchedEntrypoints"],
                 "unmatchedUnique": len(unmatched_keys),
                 "unmatchedReasons": dict(sorted(totals["unmatchedReasons"].items())),
+                "uiAttribution": {k: totals["uiAttribution"][k]
+                                  for k in ATTRIBUTION_RANK if totals["uiAttribution"].get(k)},
                 "commitsAfterFrontIndex": sum(
                     1 for c in out_commits if c.get("frontIndexFresh") is False),
                 "commitsWithSiblingUi": sibling_attached,
@@ -858,6 +897,9 @@ def cmd_commit_impact(records, index, db, args):
           f"入口 {stats['entrypoints']}（命中前端 {stats['matchedEntrypoints']}） · "
           f"页面 {stats['pages']}（菜单登记 {stats['pagesWithMenu']} / "
           f"父页面可达 {stats['pagesWithParentMenu']} / 无菜单 {stats['pagesNoMenu']}）")
+    attr = stats.get("uiAttribution") or {}
+    print(f"  界面归属：直接 {attr.get('direct', 0)} / 页面加载 {attr.get('load', 0)} / "
+          f"间接 {attr.get('indirect', 0)} / 启发式 {attr.get('heuristic', 0)}")
     reasons = " / ".join(f"{k} {v}" for k, v in stats["unmatchedReasons"].items())
     print(f"  未命中 {stats['unmatchedEntrypoints']}（唯一 controller+http "
           f"{stats['unmatchedUnique']}）：{reasons or '无'}")
@@ -996,6 +1038,15 @@ def cmd_impact(records, index, args):
     emit(uniq, args)
 
 
+def chain_attribution(chain, backends):
+    """impact 命令的归属分级：启发式后端 > 页面加载 > 直接。"""
+    if any((b.get("source") or "") == "heuristic" for b in backends or ()):
+        return "heuristic"
+    if (chain.get("source") or "") == "page_load":
+        return "load"
+    return "direct"
+
+
 def one_line(chain, req, backends):
     elem_id = (chain.get("element") or "").split("#", 1)[-1]
     label = chain.get("label") or elem_id
@@ -1005,12 +1056,13 @@ def one_line(chain, req, backends):
     url_text = " | ".join(f"{req.get('method', '')} {path}" for path in paths)
     backend = (" | ".join(f"{b['controller']}.{b['method']}" for b in backends)
                or f"(工作区外: {service_hint(paths[0] if paths else '')})")
-    return (f"  [{chain['page']}] [{chain.get('source', '')}] {label}  "
+    return (f"  [{chain['page']}] [{chain.get('source', '')}/"
+            f"{chain_attribution(chain, backends)}] {label}  "
             f"({js_path(chain)})  ⇒ {url_text}  → {backend}")
 
 
 def print_detail(chain, req, backends):
-    print(f"\n[{chain.get('source', '')}] {chain['page']}")
+    print(f"\n[{chain.get('source', '')}/{chain_attribution(chain, backends)}] {chain['page']}")
     elem_id = (chain.get("element") or "").split("#", 1)[-1]
     print(f"  元素: {chain.get('label') or elem_id} ({elem_id})  事件 {chain.get('event', '')}")
     for i, step in enumerate(chain.get("path") or []):
@@ -1034,7 +1086,8 @@ def print_detail(chain, req, backends):
 
 def emit(rows, args):
     if args.json:
-        print(json.dumps([{"chain": c, "request": r, "backend": b} for c, r, b in rows],
+        print(json.dumps([{"chain": c, "request": r, "backend": b,
+                           "attribution": chain_attribution(c, b)} for c, r, b in rows],
                          ensure_ascii=False, indent=1))
         return
     if not rows:
@@ -1130,8 +1183,8 @@ def main():
                         help="重建 Controller 注解索引（默认直接读构建产物）")
     parser.add_argument("--label", help="commit-impact 期号（默认取 code-impact 的 meta.label）")
     parser.add_argument("--output", help="commit-impact 输出路径（默认与 code-impact 同目录）")
-    parser.add_argument("--max-ui-entries", type=int, default=40,
-                        help="commit-impact 单提交最多输出的界面条目（默认 40）")
+    parser.add_argument("--max-ui-entries", type=int, default=400,
+                        help="commit-impact 单提交最多输出的界面条目（默认 400；超出时按后端轮转均分，避免同一后端方法组的其余页面被组内排序挤掉）")
     parser.add_argument("--ancestor-depth", type=int, default=2,
                         help="commit-impact 沿 page_links 上溯查找菜单登记的层数（默认 2）")
     parser.add_argument("--registry", default=str(REGISTRY_FILE),

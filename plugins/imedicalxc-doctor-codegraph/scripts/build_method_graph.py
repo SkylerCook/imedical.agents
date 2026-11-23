@@ -20,7 +20,7 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import logging
 
-from config import OUTPUT_DIR, to_repo_relative
+from config import OUTPUT_DIR, to_repo_relative, WORKSPACE_REPOS, HISCFSV_SCAN_REPOS
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -353,20 +353,7 @@ class MethodGraphBuilder:
         logger.info(f"加载 {len(self.feign_interfaces)} 个 Feign 接口")
 
     def build_graph(self):
-        repos = [
-            "care/aggcare-mediway-boot",
-            "care/cfmr-mediway",
-            "care/cfoe-mediway",
-            "care/commr-mediway",
-            "care/comoe-mediway",
-            "care/ipcare-mediway-boot",
-            "care/opcare-mediway-boot",
-            "curc-mediway-boot",
-            "hispa-mediway-boot",
-            "ma-mediway-boot",
-            "opalloc-mediway-boot",
-            "opreg-mediway-boot",
-        ]
+        repos = WORKSPACE_REPOS + HISCFSV_SCAN_REPOS
 
         for repo in repos:
             repo_path = self.workspace_root / repo
@@ -838,6 +825,8 @@ class MethodGraphBuilder:
 
     def _infer_service(self, file_path: Path) -> str:
         path_str = str(file_path)
+        if "hiscfsv-mediway" in path_str:
+            return "hiscfsv"
         if "opcare-mediway-boot" in path_str:
             return "opcare"
         elif "ipcare-mediway-boot" in path_str:

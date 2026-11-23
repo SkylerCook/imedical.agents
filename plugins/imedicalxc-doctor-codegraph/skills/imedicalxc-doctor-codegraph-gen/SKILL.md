@@ -19,7 +19,7 @@ description: |
 
 1. Python 3 + `javatools`（`pip install javatools`，Maven 字节码扫描依赖）
 2. Maven 本地仓库可解析，优先级：`MAVEN_REPO` 环境变量 → `settings.xml` 的 `localRepository` → `D:\java\maven...` / `~/.m2/repository`
-3. 工作区 12 个业务子仓库已检出（`src/backend/**`，见 `config.py` 的 `WORKSPACE_REPOS`）
+3. 工作区 12 个业务子仓库已检出（`src/backend/**`，见 `config.py` 的 `WORKSPACE_REPOS`），以及 `HISCFSV_SCAN_REPOS` 列出的 10 个 `public/cf/hiscfsv-mediway/hiscfsv-*` 子模块
 4. `docs/agents/imedicalxc-doctor-codegraph/` 可写
 
 自检命令：
@@ -57,6 +57,8 @@ python feign_scanner.py \
 | Step 7 | `build_penetration_db.py` | ~5-10s | `penetration_db.json`、`inbound_feign_penetration.graphml` |
 
 Step 2 的节点除 `parent` / `ancestors` 外还带 `interfaces`，供查询侧在实现类、父类与接口声明之间展开同名方法。服务实现类继承 `BaseServiceImpl<Mapper, PO>` 时记录 Mapper 泛型，`this.baseMapper.xxx()` / `baseMapper.xxx()` 均生成 Mapper 调用边，不能只靠字段类型解析。
+
+Step 2 的扫描范围是 `WORKSPACE_REPOS + HISCFSV_SCAN_REPOS`（两遍扫描共用同一列表，父类索引与调用解析都覆盖新增仓库）。业务模块按 BLH 类型（如 `@Resource BusInterfaceConfigBLH`）直接调用 `hiscfsv-*` 的 jar 级实现，只扫业务仓库会让这些调用变成悬空边，导致改动方法不在图上、影响分析退化到 `not_in_graph`。hiscfsv 各子模块按「与业务仓库同名」选取（ipcare / opcare / opreg / curc / ma / tr）加跨模块公共实现（bsp / papat / mr / phin），不整仓扩扫；hiscfsv 不进 `WORKSPACE_REPOS` / `WORKSPACE_SERVICES`，节点服务名记为 `hiscfsv`，穿透口径仍按外部叶子处理。
 
 Step 5 把类级 `@RequestMapping` + 方法级 `@XxxMapping` 的 URL 关系固化成构建产物，同时记录方法的 `return_type` 与 `parameters`，并记录每个 Controller 的类型作用域（`type_scopes`：显式 import / 同包 / 通配 import）：前后端衔接与影响分析直接读取不再重扫，`scan_controller_endpoints.type_index()` 还能在内存里按类型**全限定名**反查 Controller 方法签名（纯 DTO/VO/PO 提交据此拿到契约入口），跨模块同名 DTO（如 ipcare/opcare 各自的 `FeignOeStopMultiDTO`）不会串号。Step 6、Step 7 都是查询 skill 的数据源，不要省略；Step 6 依赖 Step 5 的端点索引，缺失时只输出「跳过 Controller URL 关联」。`penetration_db.json` 是穿透口径的**唯一契约**，只包含两部分：
 
@@ -207,6 +209,7 @@ python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DI
 | 常量 | 作用 |
 |---|---|
 | `WORKSPACE_REPOS` | 12 个业务子仓库（相对 `src/backend`） |
+| `HISCFSV_SCAN_REPOS` | 10 个 `public/cf/hiscfsv-mediway/hiscfsv-*` 公共配置子模块，仅方法调用图额外扫描；节点 `service=hiscfsv` |
 | `SYSTEM_PACKAGES` | 43 个系统/框架包前缀，扫描时过滤 |
 | `MAVEN_REPO_PATHS` | Maven 仓库解析顺序 |
 | `OUTPUT_DIR` | 由插件 manifest 的 `projectDirectories[id=codegraph-index]` 解析（当前为 `docs/agents/imedicalxc-doctor-codegraph`），不要写死目录 |
@@ -216,27 +219,27 @@ python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DI
 
 新增 Maven biz 服务时，同步补 `SERVICE_MODULE_MAP`；新增高频业务方法时补 `METHOD_DESCRIPTION_MAP`，否则影响分析报告只显示方法名。
 
-## 当前规模（2026-11-09 修复 this/super 自调用后测量）
+## 当前规模（2026-11-23 补扫 hiscfsv 后测量）
 
 | 指标 | 数值 |
 |---|---|
-| 工作区节点 / 边（JSONL 原始签名） | 16,326 / 88,199 |
-| `method_call_graph.graphml` 节点 / 边 | 53,357（16,100 声明 + 37,257 占位）/ 87,788（去重后） |
-| impact_db 工作区节点 / 边 | 16,100（去重去参后）/ 88,199 |
-| Maven biz jar / 类 / 方法（扫描原始调用） | 326 / 12,120 / 137,396（459,260） |
-| Maven 相关性过滤后服务 / 边 | 55 个服务保留（33 个直接调用 Feign + 22 个上游）、44 个剔除 / 148,676 边 |
+| 工作区节点 / 边（JSONL 原始签名） | 19,006 / 110,701（跳过无法解析调用 22,414 次） |
+| `method_call_graph.graphml` 节点 / 边 | 71,953（19,006 声明 + 53,314 占位，含 hiscfsv）/ 109,980（去重后） |
+| impact_db 工作区节点 / 边 | 18,639（去重去参后）/ 110,701；maven 边 159,138 |
+| Maven biz jar / 类 / 方法（扫描原始调用） | 328 / 12,709 / 144,642（487,574） |
+| Maven 相关性过滤后服务 / 边 | 55 个服务保留（33 个直接调用 Feign + 22 个上游）、44 个剔除 / 159,138 边（丢弃 283,145） |
 | 服务边界映射 | 184 |
-| Feign 接口 / 方法 | 226 / 404（226 个由本工作区业务仓库发布） |
-| 穿透第一部分（工作区业务仓库 + 外部叶子） | 53,357 节点（9,948 个外部叶子）/ 87,788 边 |
-| 穿透第二部分（Maven 入站 Feign） | 396 个调用点（353 条 Controller 根 / 43 条方法根）/ 90 个 Feign 接口 / 33 个 Maven 服务 / 约 630 条分派桥边（以 `stats.dispatch_edges_used` 为准） |
-| 穿透链路的 Controller 根带注解 URL | 342 / 353（其余 11 条映射声明在父类/接口，字节码不携带） |
-| 合并全图节点 / 边 | 125,508 / 202,919 |
-| `controller_endpoints.json` | 7.5 MB（1,681 源文件 / 1,680 Controller / 11,514 URL / 11,520 方法映射 + 1,680 类型作用域） |
-| `type_nesting.json` | 2.7 MB（38,768 源文件 / 38,534 类 / 7,782 个被嵌套类型 / 23,112 条字段边） |
-| `type_usage.json` | 1.4 MB（16,326 方法签名 / 3,224 个被使用类型 / 12,784 条引用 / 5 个无作用域方法 / 3,642 个未解析参数类型） |
-| `maven_controller_endpoints.json` | 3.1 MB（326 jar / 1,666 Controller / 9,255 URL / 9,260 方法映射） |
-| `impact_db.json` | 50.8 MB（含 Controller 方法注解 URL） |
-| `penetration_db.json` | 41.6 MB |
+| Feign 接口 / 方法 | 220（`feign_interfaces.json` 现存口径） |
+| 穿透第一部分（工作区业务仓库 + 外部叶子） | 71,953 节点（14,599 个外部叶子，含 hiscfsv）/ 109,980 边 |
+| 穿透第二部分（Maven 入站 Feign） | 401 个调用点（355 条 Controller 根 / 46 条方法根）/ 33 个 Maven 服务（`stats.dispatch_edges_used` 为准） |
+| 穿透链路的 Controller 根带注解 URL | 342 / 355（其余 13 条映射声明在父类/接口，字节码不携带） |
+| 合并全图 | 反向索引 118,860 节点 / 269,839 边（maven 159,138 + 工作区 110,701） |
+| `controller_endpoints.json` | 7.9 MB（1,689 源文件 / 1,688 Controller / 11,584 URL / 11,590 方法映射） |
+| `type_nesting.json` | 2.8 MB（38,969 源文件 / 38,735 类 / 7,846 个被嵌套类型 / 23,356 条字段边） |
+| `type_usage.json` | 1.6 MB（19,006 方法签名 / 3,561 个被使用类型 / 14,670 条引用 / 0 个无作用域方法 / 4,396 个未解析参数类型） |
+| `maven_controller_endpoints.json` | 3.3 MB（328 jar / 1,754 Controller / 9,720 URL / 9,725 方法映射） |
+| `impact_db.json` | 62.3 MB（含 Controller 方法注解 URL） |
+| `penetration_db.json` | 55.8 MB |
 
 保留的服务（55 个）：`admission`、`anappointment`、`ansurgeryschedule`、`api`、`appointment`、`arinv`、`audt`、`chpc`、`comar`、`comcons`、`comem`、`comemr`、`cons`、`cpw`、`dayappointment`、`daysurgeryschedule`、`daysurgerystation`、`emar`、`emcare`、`emdt`、`emnur`、`emph`、`emrdata`、`emrq`、`emsd`、`emtr`、`hisbsp`、`hispay`、`hissyscf`、`infoclct`、`insu`、`ipar`、`ipbmc`、`ipemr`、`ipnemr`、`ipnur`、`opar`、`opemr`、`opspcol`、`outappointment`、`outsurgeryschedule`、`ph`、`phm`、`plannedoperation`、`postopdiagnosis`、`preopdiagnosis`、`requ`、`rmis`、`server`、`stat`、`statistic`、`stro`、`surgeryschedule`、`trau`、`trbu`。
 

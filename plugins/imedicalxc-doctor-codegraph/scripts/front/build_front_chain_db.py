@@ -285,6 +285,7 @@ class ChainBuilder:
         self.callback_edges = set()
         self.dropped_prefixes = set()
         self.page_prefixes = {}
+        self.inline_scripts_by_page = {}
 
     # ── 载入 ────────────────────────────────────────────────────
     def load(self):
@@ -316,13 +317,57 @@ class ChainBuilder:
             self.config_by_file[file] = rec.get("config_calls", [])
         # 页面内联脚本的前缀变量（var appPath = ...）：同一 JS 被多页复用时按页回填
         self.page_prefixes = {}
+        self.inline_scripts_by_page = {}
         for rec in _read_jsonl(PAGES_FILE):
+            page_file = rec.get("file", "")
+            if not page_file:
+                continue
+            # 内联脚本的函数体（initServerObj 等）：入口写在 HTML 里，
+            # 按页注册成独立"脚本"，随 effective unit 一起参与 handler / 页面加载解析
+            keys = []
+            for block in rec.get("inline_scripts") or []:
+                if not any(block.get(k) for k in (
+                        "functions", "bindings", "config_calls", "inline_elements",
+                        "toolbar_bindings", "bar_bindings")):
+                    continue
+                key = f"{page_file}#inline#{block.get('index', 0)}"
+                self._register_inline_script(key, block)
+                keys.append(key)
+            if keys:
+                self.inline_scripts_by_page[page_file] = tuple(keys)
             consts = rec.get("inline_constants") or []
             if not consts:
                 continue
-            bucket = self.page_prefixes.setdefault(rec.get("file", ""), {})
+            bucket = self.page_prefixes.setdefault(page_file, {})
             for con in consts:
                 bucket.setdefault(con.get("name", ""), []).append(con)
+
+    def _register_inline_script(self, key, block):
+        qmap = {}
+        nmap = defaultdict(list)
+        for fn in block.get("functions") or []:
+            qual = fn.get("qualified") or fn.get("name") or ""
+            if not qual:
+                continue
+            fn["id"] = f"{key}::{qual}"
+            fn["file"] = key
+            fn["requests"] = fn.get("requests", [])
+            fn["calls"] = fn.get("calls", [])
+            fn["opens"] = fn.get("opens", [])
+            self.fn_by_id[fn["id"]] = fn
+            qmap[qual] = fn["id"]
+            nmap[fn.get("name", "")].append(qual)
+        self.file_qualified[key] = qmap
+        self.file_names[key] = nmap
+        self.top_vars_by_file[key] = set(block.get("top_vars") or [])
+        self.constants_by_file[key] = defaultdict(list)
+        for con in block.get("constants") or []:
+            self.constants_by_file[key][con.get("name", "")].append(con)
+        self.bindings_by_file[key] = block.get("bindings") or []
+        self.toolbar_by_file[key] = block.get("toolbar_bindings") or []
+        self.inline_by_file[key] = block.get("inline_elements") or []
+        self.bar_by_file[key] = block.get("bar_bindings") or []
+        self.config_by_file[key] = block.get("config_calls") or []
 
     def resolve_callbacks(self):
         """回调实参边：只认同文件唯一同名函数，不跨文件回退。
@@ -798,6 +843,8 @@ class ChainBuilder:
             fn = self.fn_by_id[fid]
             step = {"function": fid, "name": fn["name"],
                     "file": fn["file"], "line": fn["line"]}
+            if "#inline#" in (fn["file"] or ""):
+                step["inline"] = True
             if prev is not None and (prev, fid) in self.callback_edges:
                 step["kind"] = "callback"
             steps.append(step)
@@ -961,6 +1008,17 @@ class ChainBuilder:
                 effective_scripts_cache[page_file] = tuple(uniq)
             return effective_scripts_cache[page_file]
 
+        inline_units_cache = {}
+
+        def inline_units(page_file):
+            """父页面可获得的内联脚本单元（自身 + 片段），已按页隔离注册。"""
+            if page_file not in inline_units_cache:
+                keys = []
+                for frag in [page_file] + included_pages(page_file):
+                    keys.extend(self.inline_scripts_by_page.get(frag, ()))
+                inline_units_cache[page_file] = tuple(keys)
+            return inline_units_cache[page_file]
+
         elements_by_page = defaultdict(list)
         for elem in elements:
             elements_by_page[elem["page"]].append(elem)
@@ -1020,7 +1078,7 @@ class ChainBuilder:
             raw_elements = list(elements_by_page.get(page_file, []))
             for frag in included_pages(page_file):
                 raw_elements.extend(elements_by_page.get(frag, []))
-            page_scripts = effective_scripts(page_file)
+            page_scripts = effective_scripts(page_file) + inline_units(page_file)
 
             seen_sig = set()
             actionable = []
@@ -1232,9 +1290,9 @@ class ChainBuilder:
                 out_elements[elem["key"]] = {k: v for k, v in elem.items() if k != "key"} | {
                     "requests": chain_reqs, "chain_count": len(chain_reqs)}
 
-            # 页面加载：顶层脚本
+            # 页面加载：顶层脚本（含页面内联脚本的顶层执行）
             load_ids = []
-            for script in effective_scripts(page_file):
+            for script in page_scripts:
                 top = self.file_qualified.get(script, {}).get("__top_level__")
                 if top:
                     load_ids.append(f"{script}::__top_level__")
@@ -1344,6 +1402,7 @@ class ChainBuilder:
         loaded_files = set()
         for page_file in page_map:
             loaded_files.update(effective_scripts(page_file))
+            loaded_files.update(inline_units(page_file))
         reachable_keys = set()
         for req in out_requests.values():
             for path in req.get("url_paths") or ():

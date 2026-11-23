@@ -76,7 +76,7 @@ python html_scan.py && python js_scan.py && python build_front_chain_db.py
 
 | 步骤 | 脚本 | 耗时（2026-11-06 实测） | 输出 |
 |---|---|---|---|
-| Step 1 | `html_scan.py` | ~30s（6,253 页） | `front_pages.jsonl`、`front_elements.jsonl` |
+| Step 1 | `html_scan.py` | ~40s（6,317 页） | `front_pages.jsonl`、`front_elements.jsonl` |
 | Step 2 | `js_scan.py` | ~3min（9,810 个 JS，8 进程） | `front_js_index.jsonl` |
 | Step 3（可选） | `import_menu_snapshot.py --from-db` | ~5s（3,700 菜单 / 1,126 按钮） | `menu_snapshot.json` |
 | Step 4（可选） | `explore_config_injection.py --from-db` | ~10s（5 个场景） | `config_injection_snapshot.json` |
@@ -90,8 +90,8 @@ Step 1 / Step 2 互相独立，可并行；Step 3、Step 4 只依赖数据库，
 
 - **页面集合只来自磁盘扫描**：`pages` = `static/` 下实际扫描到的 HTML。菜单快照、配置注入、URL 模板都不能新增页面；弹窗 / 跳转 / iframe 目标不在页面集合时只计数（`unresolved_open_targets` / `open_targets_non_page`），不建边。
 - **`.csp` / `.rpx` / 接口 / 外部协议不是页面**：归入 `open_targets_non_page`，不得进入 `pages`、`page_links` 或菜单归属。旧菜单快照里的 `.csp` 名称只代表历史产品页面。
-- **脚本必须存在**：`pages[].scripts`、`chains[].path[].file` 都应是 `static/` 下的实体文件；解析不到文件的脚本引用不写入链路。
-- **路径步骤的推进方式**：`chains[].path[]` 每步是 `{function,name,file,line}`；经回调边推进的一步额外带 `kind="callback"`（见踩坑 37），无该字段表示普通调用/入口。
+- **脚本必须存在**：`pages[].scripts`、`chains[].path[].file` 都应是 `static/` 下的实体文件；解析不到文件的脚本引用不写入链路。唯一例外是页面内联脚本：路径步骤的 `file` 为 `<页面>#inline#<块序号>` 并带 `inline=true`，实体就是该 HTML 文件本身（踩坑 39）。
+- **路径步骤的推进方式**：`chains[].path[]` 每步是 `{function,name,file,line}`；经回调边推进的一步额外带 `kind="callback"`（见踩坑 37），所在单元是页面内联脚本时带 `inline=true`，无这些字段表示普通调用/入口。
 - **合成节点不是方法名**：`__handler_N`（匿名事件处理）和 `__top_level__`（页面顶层代码）是扫描器内部编号，源码中没有同名函数。`functions` 里以 `kind` 区分，下游展示时名称留空并用「匿名事件处理 / 页面顶层代码」说明，不得当作 JS 方法名引用。
 - **构建后校验**：运行 `audit_front_coverage.py --json`，`existence.missing` 必须为空；出现缺失说明构建引入了非实体页面/脚本，先修扫描或归一化逻辑，不放行。
 
@@ -131,7 +131,7 @@ mtime 比对只覆盖本地改动；提交级新鲜度以库内源指纹为准�
 
 | 文件 | 内容 | 来源 |
 |---|---|---|
-| `front_pages.jsonl` | 每页标题、注释标题、模块、脚本引用、iframe/导航引用、`csp-include` 片段引用（`includes`）、页面内元素、页面内联脚本里的 URL 前缀变量（`inline_constants`，如 `var appPath = ...`） | Step 1 |
+| `front_pages.jsonl` | 每页标题、注释标题、模块、脚本引用、iframe/导航引用、`csp-include` 片段引用（`includes`）、页面内元素、页面内联脚本的完整扫描结果（`inline_scripts`：函数体/请求/绑定，行号已换算成页面文件行号）与 URL 前缀变量（`inline_constants`，如 `var appPath = ...`） | Step 1 |
 | `front_elements.jsonl` | 扁平化操作元素（页面、id/name、标签、文案、事件、handler 表达式） | Step 1 |
 | `front_js_index.jsonl` | 每文件函数定义（含 parent/calls/requests）、URL 常量、事件绑定、datagrid 工具栏按钮、`marybtnbar` 配置、JS 字符串内联元素 | Step 2 |
 | `menu_snapshot.json` | 菜单 → 页面、配置按钮栏 → handler；可选 | Step 3 |
@@ -208,6 +208,7 @@ mtime 比对只覆盖本地改动；提交级新鲜度以库内源指纹为准�
 - 函数体内的局部常量要单独补扫：`_scan_body_constants()` 遍历每个 def（含箭头函数、函数声明）的赋值语句，主循环只覆盖对象字面量方法体。弹窗与请求共用同一套 `url_terms` 解析。
 - 被丢弃的引用若是**前缀位**（`baseAppPath`、`appPath`、`baseURL` 等），记入请求记录的 `url_prefix`（逗号分隔、排序去重），作为「该接口前缀由哪个运行时变量提供」的定位线索，不参与链路。
 - **页面级前缀回填**：`appPath` 这类前缀变量常常定义在页面内联 `<script>` 里（`var appPath = menuWin.baseAppPath + "ipcare/oeord/ipCare"`），而共用 JS 里只写 `appPath + "Controller/method"`。Step 1 把页面内联脚本里的前缀常量抽到 `front_pages.jsonl.inline_constants`，Step 5 按「自身页面 + `csp-include` 片段」合并后回填，同一份 JS 被门诊/住院页面复用时各页取自己的前缀。前缀与后续字面量直接拼接（可能没有 `/`，与后端 `@RequestMapping("/ipcare/oeord/ipCareOeOrdItemCMEntry")` 的命名一致），不要擅自补斜杠。路径解析结果按页可能不同，因此请求 id 用 `@<页面>` 区分，后处理页面不得覆盖先处理页面的解析结果。
+- **内联脚本函数体同样建链路**：住院/门诊很多页把初始化函数（`initServerObj()`）和事件 handler 直接写在 HTML 的内联 `<script>` 里，请求就写在函数体内。Step 1 用同一套 `js_scan.scan_text()` 扫描每个内联块，结果存 `inline_scripts[]`（行号已换算成页面文件行号）；Step 5 按 `<页面>#inline#<块序号>` 注册成页面私有脚本单元，与页面脚本一起参与 handler 解析和页面加载探索，路径步骤带 `inline=true`。`inline=true` 的 `__top_level__` 也会进页面加载——这类请求只证明「打开页面即调用」，不等于用户可操作。
 - **页面级前缀可能有多个取值**：共用页会在初始化函数里按 `admType` 把顶层 `appPath` 再赋值成另一套服务前缀（`initURLParamsObj()` 里 `appPath = menuWin.baseAppPath + "opcare/oeord/opCare"`）。Step 1 收集页面级变量的**全部**赋值（顶层声明 + 同名变量的函数内再赋值），Step 5 展开成多条 `url_paths`，两套前缀的后端证据都保留。只取首条声明会把 `opcare` 一侧的命中整体丢掉（2026-11-09 复测：`comoe/ord` 共用页只剩 `ipcare` 前缀，5 个页面的后端证据丢失）。
 - **EasyUI 组件数据源**：`datagrid/treegrid/combobox/...` 的 `{url: ...}` 选项与 `$("#grid").datagrid("options").url = ...` 记为请求（`wrapper="easyui-url"`，`method` 取选项里的 `method`，默认 GET）。组件渲染即发请求，调用点通常没有显式 ajax 形态。
 - 解析结果必须是路径字符集（无空格、括号、引号），且长度 ≤ 300；不满足则视为未解析。
@@ -393,3 +394,4 @@ python query_front_chain.py menu <菜单名片段>         # 菜单 → 页面�
 36. **`csp-include` 片段不是独立页面**：片段 HTML 没有 `<script>`，元素按页面归属会变成孤立元素——`doc.opregistmain.html` 的「更新/保存」等按钮在旧索引里完全查不到链路，挂号改造影响面因此评估偏小。构建时按 `includes` 建「包含」边，把片段闭包（≤3 层、去环）的元素并入父页面，事件绑定 / 配置分组 / 页面加载改用「自身脚本 + 片段脚本」的有效脚本列表；片段元素保留 `origin_page`（`doc.opregistmain` 合并后元素 16→137、链路 174→288）。`includes` 里可能混有 `CustomObj.InPageFlag` 这类非页面引用，构建时按页面集合过滤，不建边；不要给片段单独建页面节点，那会把同一按钮算两次。
 37. **把函数当实参传出的链路要建回调边**：`ShowChangeCookType("ChangeCookTypeWin", DoExchange, prescNo)`（`msup/herb/scripts/ipdisp.js`）只把 `DoExchange` 当引用传出，请求写在 `DoExchange` 体内，普通调用边到 `ShowChangeCookType` 就断了——药房 ipdisp / opdisp / batchexecute 三页的煎药转换请求因此查不到。`js_scan.py::_callback_args` 对每个调用点收集「单 token 标识符实参」，`_export_functions` 只保留同名于本文件声明、且不是本函数形参/局部的名字，写入 `functions[].callbacks`；`build_front_chain_db.py::resolve_callbacks()` 用成员调用口径（同文件唯一定义）解析成 `callback_targets` 与 `callback_edges`。探索分两阶段：阶段一保持原 BFS 结果不变，阶段二用独立预算把回调目标可达的请求/弹窗追加在后——把回调并入主 BFS 会挤占 `max_requests`，实测丢 33 条既有链路（emtr `__page_load__` 卡请求、ipcare `Add_Order_btn` 医嘱保存）。两阶段方案重建后链路 30,386→33,172、页面 94→100，原链路零丢失。`chains[].path[]` 与 `uiEntries[].jsPath` 的回调步标 `kind="callback"`。重建后必须做「新旧链路三元组差集」比对，确认新增只来自回调目标。
 38. **页面级前缀变量在函数里会被再赋值，不能只取第一条**：`comoe/ord/html/oeOrdArcosItem.hui.html` 顶层 `var appPath = menuWin.baseAppPath + "ipcare/oeord/ipCare"`，`initURLParamsObj()` 里又按 `admType` 改成 `opcare/oeord/opCare`。`_inline_script_constants()` 旧实现只收 `owner` 为顶层/空的常量，函数内再赋值被过滤，22 个门/住院共用页只剩 `ipcare` 前缀；查询期表现为 `Clear` 等元素的 `url_paths` 全部是 `ipCareOeOrdArcosDriveCom/...`，旧证据里的 `OpCareOeOrdArcosDriveComController` / `OpCareOrderQtyDriveComController` 全部丢失（5 个页面、15 条后端）。修复：先收集本页所有前缀变量赋值，再保留「顶层已声明过的同名变量」的函数内再赋值；构建侧 `scope_constants()` 的顶层兜底不再 `[:1]` 截断，由 `resolve_term_variants()` 去重并受 `MAX_URL_VARIANTS` 约束。纯函数局部变量仍不收集，避免把别的模块的基址串进来。修复后该页同时登记 `ipcare` / `opcare` 两套 URL，`uiEntries` 恢复 `itemBillUom` / `itemDoseUom` / `calPackQty` 的 opcare 证据。
+39. **内联 `<script>` 的函数体不能只当常量来源**：`ipcare/oeord/html/patorderview.html` 的 `initServerObj()`（顶层第 112 行调用）把 `$ipost("/ipcare/oeord/ipCareInPatOrderView/getInitViewData")` 直接写在 HTML 里，旧扫描只从内联块抽前缀常量，整个函数体不进索引——`page_load` 只剩空壳，`getInitViewData` 在链路库里完全查不到，影响分析会判成「无前端入口」。修复：`html_scan.py::_inline_script_blocks()` 对每个非 `src` 内联块跑 `js_scan.scan_text()`，保留 functions/bindings/config_calls/inline_elements 并把行号换算为页面文件行号；`build_front_chain_db.py` 以 `<页面>#inline#<块序号>` 注册成页面私有单元，随自身页面与 `csp-include` 片段一起进入 handler 解析与页面加载探索，路径步骤标 `inline=true`（查询侧 `jsPath` 同步保留该步并指回 HTML 文件）。页面内联函数同名时优先于其他文件的全局同名函数（`nr/test/html/alltest.html` 的 `submitForm` / `restapitest.html` 的 `sendRequest` 由跨文件误配改为页面自身实现）。重建后 1,564 页 5,825 个内联块 12,356 个函数入库，带内联步骤的 page_load 链路新增 3,900 条、未解析 handler 1,753→1,460。因为行号变化会改 `__jsstr_<line>_<n>` / `__toolbar_<line>_<n>` 元素键，重建后做新旧链路差集时，先排除页面自身或所载脚本在两次检出间有变更的部分。

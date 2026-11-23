@@ -141,15 +141,37 @@ def _page_comment_title(text):
     return ""
 
 
-def _inline_script_constants(text):
-    """页面内联脚本里的路径前缀变量（appPath 等）。
+_INLINE_LINE_KEYS = ("calls", "callbacks", "requests", "opens")
 
-    JS 里 `appPath + "OeOrdItemCMEntry/xxx"` 的前缀由页面决定（同一份 JS 被
-    门诊 / 住院页面共用），这里按页收集字面量部分，供链路构建时回填。
+
+def _shift_lines(rec, delta):
+    """把内联脚本里的行号从「脚本块内」换算成「页面文件内」。"""
+    if not delta:
+        return
+    for fn in rec.get("functions") or []:
+        if fn.get("line"):
+            fn["line"] += delta
+        for key in _INLINE_LINE_KEYS:
+            for item in fn.get(key) or []:
+                if isinstance(item, dict) and item.get("line"):
+                    item["line"] += delta
+    for key in ("constants", "bindings", "toolbar_bindings", "bar_bindings",
+                "config_calls", "inline_elements"):
+        for item in rec.get(key) or []:
+            if isinstance(item, dict) and item.get("line"):
+                item["line"] += delta
+
+
+def _inline_script_blocks(text):
+    """页面内联脚本：函数体（含 $ipost 等请求）+ 路径前缀变量。
+
+    页面把初始化函数（如 `initServerObj()`）写在 HTML 里，入口只能靠内联脚本
+    的函数体解析出来；前缀变量（appPath 等）由页面决定，同一份 JS 被门诊 /
+    住院页面共用，这里按页收集字面量部分，供链路构建时回填。
     """
     from js_scan import scan_text
 
-    cands = []
+    blocks, cands = [], []
     for i, m in enumerate(_SCRIPT_BLOCK_RE.finditer(text)):
         block = m.group(0)
         open_end = block.find(">")
@@ -163,6 +185,7 @@ def _inline_script_constants(text):
         except Exception:  # 内联脚本语法怪异不影响页面其余信息
             continue
         base_line = text.count("\n", 0, m.start())
+        _shift_lines(rec, base_line)
         for con in rec.get("constants", []):
             name = con.get("name") or ""
             if name.rsplit(".", 1)[-1] not in PREFIX_VARS:
@@ -171,9 +194,21 @@ def _inline_script_constants(text):
                 "name": name,
                 "expr": con.get("expr") or "",
                 "terms": con.get("terms") or [],
-                "line": base_line + (con.get("line") or 1),
+                "line": con.get("line") or 1,
                 "owner": con.get("owner") or "",
             })
+        blocks.append({
+            "index": i,
+            "line": base_line + 1,
+            "functions": rec.get("functions") or [],
+            "top_vars": rec.get("top_vars") or [],
+            "constants": rec.get("constants") or [],
+            "bindings": rec.get("bindings") or [],
+            "toolbar_bindings": rec.get("toolbar_bindings") or [],
+            "bar_bindings": rec.get("bar_bindings") or [],
+            "config_calls": rec.get("config_calls") or [],
+            "inline_elements": rec.get("inline_elements") or [],
+        })
     # 页面级前缀变量在初始化函数里可能被再次赋值：门/住院共用页按 admType
     # 切换 `appPath`，两条前缀都是该页运行时可取值，不能只留首条声明。
     top_level = {c["name"] for c in cands
@@ -189,7 +224,7 @@ def _inline_script_constants(text):
         out.append({"name": c["name"], "expr": c["expr"],
                     "terms": c["terms"], "line": c["line"]})
     out.sort(key=lambda item: (item["line"], item["name"], item["expr"]))
-    return out
+    return blocks, out
 
 
 def scan_page(rel_path, text):
@@ -302,7 +337,8 @@ def scan_page(rel_path, text):
             rec = dict(base, event=event, handler=handler)
             elements.append(rec)
 
-    inline_constants = _inline_script_constants(text)
+    inline_scripts, inline_constants = _inline_script_blocks(text)
+    inline_functions = sum(len(b["functions"]) for b in inline_scripts)
 
     return {
         "file": rel_path,
@@ -312,10 +348,13 @@ def scan_page(rel_path, text):
         "scripts": scripts,
         "frames": frames,
         "includes": includes,
+        "inline_scripts": inline_scripts,
         "inline_constants": inline_constants,
         "elements": elements,
         "stats": {"bytes": len(text), "elements": len(elements),
-                  "includes": len(includes), "inline_constants": len(inline_constants)},
+                  "includes": len(includes), "inline_constants": len(inline_constants),
+                  "inline_scripts": len(inline_scripts),
+                  "inline_functions": inline_functions},
     }
 
 

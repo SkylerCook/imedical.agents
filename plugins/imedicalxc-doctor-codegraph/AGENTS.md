@@ -39,7 +39,7 @@
 ### 索引构建（gen）
 
 1. **源码内部调用链梳理**（方法级精度）
-   - 从 12 个业务仓库出发，提取所有 Java 类和方法
+   - 从 12 个业务仓库 + 10 个 `hiscfsv-*` 公共配置子模块（`HISCFSV_SCAN_REPOS`）出发，提取所有 Java 类和方法；业务模块按 BLH 类型跨 jar 调用 hiscfsv 实现，只扫业务仓库会留下悬空边
    - 构建方法级调用图（精确到 `package.Class.method(params)returnType`）
    - 识别 Feign 接口注入（@Autowired、@Resource、private final + @RequiredArgsConstructor）
    - 追踪方法内部的 Feign 调用和内部方法调用

@@ -1137,6 +1137,21 @@ def classify_skip(rel_path, exists_in_graph):
     return "no_method_change"
 
 
+RENAME_BRACE_RE = re.compile(r"^(.*)\{(.*?) => (.*?)\}(.*)$")
+
+
+def expand_rename_path(path):
+    """把 git diffstat 的改名写法展开为 (旧路径, 新路径)；非改名返回 None。"""
+    m = RENAME_BRACE_RE.match(path)
+    if m:
+        prefix, old, new, suffix = m.groups()
+        return prefix + old + suffix, prefix + new + suffix
+    if " => " in path:
+        old, new = path.split(" => ", 1)
+        return old, new
+    return None
+
+
 def locate_commit(repo_abs, commit, by_file, max_methods, db=None):
     """返回 (methods, skipped, truncated)；Mapper/XML 可回映到反向边中的接口 seed"""
     all_files = commit.get("files", [])
@@ -1147,25 +1162,42 @@ def locate_commit(repo_abs, commit, by_file, max_methods, db=None):
     if exists.returncode != 0:
         return [], [{"file": f["path"], "reason": "commit_unavailable"} for f in all_files], []
 
-    source_files = [
-        f["path"] for f in all_files
-        if str(f.get("path", "")).endswith(".java") or str(f.get("path", "")).endswith("Mapper.xml")
-    ]
-    if not source_files:
+    # 先展开改名写法（`{old => new}` 的结尾是 `}`，直接 endswith(".java") 会漏判）
+    specs = []
+    for f in all_files:
+        p = str(f.get("path", ""))
+        renamed = expand_rename_path(p)
+        old_rel, new_rel = renamed if renamed else (p, p)
+        if new_rel.endswith(".java") or new_rel.endswith("Mapper.xml"):
+            specs.append((old_rel, new_rel))
+    if not specs:
         return [], [{"file": f["path"], "reason": classify_skip(f["path"], False)} for f in all_files], []
 
-    diff = git(repo_abs, "show", "-U0", "--pretty=format:", "--no-color", commit["hash"], "--", *source_files).stdout
+    pathspecs = sorted({x for old_rel, new_rel in specs for x in (old_rel, new_rel) if x})
+
+    diff = git(repo_abs, "show", "-U0", "--pretty=format:", "--no-color", commit["hash"], "--", *pathspecs).stdout
     ranges = parse_diff(diff)
 
     candidates = []
     skipped = []
-    for rel, r in ranges.items():
+    file_rows = []
+    for old_rel, new_rel in specs:
+        r = ranges.get(new_rel)
+        if r is None:
+            # 100% 改名没有 hunk；也可能 pathspec 未产出 diff
+            renamed_only = old_rel != new_rel
+            graph_methods = by_file.get(normalize(to_repo_relative(Path(repo_abs) / new_rel)), {})
+            reason = "no_method_change" if (renamed_only or graph_methods) else classify_skip(new_rel, False)
+            skipped.append({"file": new_rel, "reason": reason})
+            continue
+        file_rows.append((new_rel, old_rel, r))
+    for rel, old_rel, r in file_rows:
         if r.get("binary"):
             skipped.append({"file": rel, "reason": "binary"})
             continue
 
         new_content = git_show(repo_abs, f"{commit['hash']}:{rel}")
-        old_content = git_show(repo_abs, f"{commit['hash']}^:{rel}") if r["old"] else ""
+        old_content = git_show(repo_abs, f"{commit['hash']}^:{old_rel or rel}") if r["old"] else ""
         is_xml = rel.endswith("Mapper.xml")
         if is_xml:
             pkg, new_statements = parse_mapper_xml(new_content)
@@ -1277,6 +1309,35 @@ def index_fresh(index_mtime, commit_date):
         return True
 
 
+SKIP_REASON_LABELS = {
+    "public_layer": "public 基础设施文件未纳入方法图",
+    "not_in_graph": "源码文件未生成方法节点",
+    "type_contract": "契约类型（DTO/VO/PO，无方法体）",
+    "no_method_change": "无方法级变更（常量/字段/注释）",
+    "resource": "资源文件",
+    "frontend": "前端文件",
+    "binary": "二进制文件",
+    "parse_failed": "解析失败",
+    "repo_unavailable": "仓库不可用",
+    "commit_unavailable": "提交不可用",
+}
+
+
+def build_coverage(skipped, probe, kept_methods, fresh):
+    """提交级覆盖摘要：区分「索引未覆盖」与「确实无页面入口」。"""
+    reasons = defaultdict(int)
+    for s in skipped:
+        reasons[s.get("reason") or "unknown"] += 1
+    ordered = {k: reasons[k] for k in sorted(reasons)}
+    return {
+        "indexFresh": fresh,
+        "methodsInGraph": len(kept_methods),
+        "skippedReasons": ordered,
+        "skippedReasonLabels": {k: SKIP_REASON_LABELS.get(k, k) for k in ordered},
+        "reverseProbeUsed": bool(probe),
+    }
+
+
 def build(raw_path, output_path, label, max_methods, depth, with_maven):
     raw = json.loads(Path(raw_path).read_text(encoding="utf-8"))
     commits = raw.get("commits", raw) if isinstance(raw, dict) else raw
@@ -1383,6 +1444,7 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
         confidence = ("graph" if kept_methods
                       else ("partial-reverse" if reverse_entrypoints
                             else ("partial" if type_files else "none")))
+        fresh = index_fresh(index_mtime, commit.get("date", ""))
 
         result_commits.append({
             "hash": commit["hash"],
@@ -1392,9 +1454,10 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
             "date": commit.get("date", ""),
             "subject": commit.get("subject", ""),
             "unitId": commit.get("unitId") or extract_unit_id(commit.get("subject", "")),
-            "indexFresh": index_fresh(index_mtime, commit.get("date", "")),
+            "indexFresh": fresh,
             "source": "graph" if kept_methods else "fallback",
             "confidence": confidence,
+            "coverage": build_coverage(skipped, probe, kept_methods, fresh),
             "methods": method_rows,
             "entrypoints": entrypoints,
             "workspaceCallers": workspace,
@@ -1444,6 +1507,7 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
                 "契约类型出现在 BLH/Service 方法签名入参时，按 type_usage.json 取「变更类型 + 字段嵌套 1 级外壳」作 seed，沿方法图反向 BFS ≤6 跳追到 Controller（节点上限 500、每提交至多 40 个 Controller），只登记有注解 URL 的 Controller（heuristic=true、indirect=true、via 带 usedBy:<方法>）；方法体局部变量中没有该类型签名时不在范围内",
                 "外部 Maven 调用方中 rootType=controller 的调用链根按 maven_controller_endpoints.json 反查注解 URL，作为 indirect 入口参与前端页面反查（药房、护理、医保等服务由此可达）；rootType=method 的方法根没有 URL，不产生入口",
                 "常量类（路径含 /constant/ 且不在方法图）按 reverseProbe 反查：从本次变更的常量字段与 stCode 出发 grep 工作区消费点，对消费方法跑影响分析补入口；该证据 confidence=partial-reverse，入口行带 reverse=<消费方法>，不代表常量本身被页面直接引用",
+                "每条提交带 coverage：skippedReasons 按原因计数、reverseProbeUsed 标是否走过常量反查。entrypoints=0 时先读 coverage 区分「索引未覆盖该文件类型」与「确实无页面入口」，不要直接写成无页面入口证据；coverage.skippedReasonLabels 给出原因释义",
             ],
         },
         "commits": result_commits,

@@ -4,6 +4,7 @@ description: |
   HIS 医生站代码调用图检索。基于已生成的 impact_db.json / penetration_db.json / 调用图 JSONL / 前端链路库，提供变更影响分析（6 段式）、方法调用者与被调用者查询、Feign 接口使用方查询、跨服务依赖追踪、提交级批量取证（周报联动）、前后端链路衔接（HTML 页面 → 操作元素 → JS 方法 → HTTP 请求 → 后端 Controller），后端方法 → 受影响按钮（含经 Feign 间接入口），以及提交级入口 → 界面 → 菜单访问位置联动（结合前端界面入口登记）。
   Use when 查谁调用了某方法、某方法影响哪些下游、某 Controller 对应哪个 Feign 接口、某 Feign 被哪些工作区服务或 Maven 模块调用、需要按服务/模块汇总影响范围、给定一批 git 提交需要结构化的入口/调用方/下游 Feign 证据、需要从某个 HTML 页面/按钮/URL 追到后端 Controller 的完整链路、需要从改动的方法反查受影响的按钮、或需要把提交入口批量落到界面与菜单访问位置。
   索引未生成或已过期时，先用 imedicalxc-doctor-codegraph-gen 构建；前端链路库缺失时先用 imedicalxc-doctor-codegraph-front-gen 构建。
+  周报联动的批量证据（code-impact / front-chains）只经 build-eval-packs.js 切包摘要消费，主上下文不读整份证据 JSON。
 ---
 
 # 医生站调用图检索
@@ -338,6 +339,8 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 
 > 不是所有改动都能入图：前端（hisfront）、DTO/VO/PO、public 基础设施不在图内；BLH 反射断链以同名覆写 + 启发式补链（`heuristic=true`）。常量类例外：`reverseProbe` 会按消费点补出入口，报告应引用这些页面并注明「配置由 <消费方法所在功能> 读取」。消费方（周报）必须在结论中标注「无调用图证据」，不得把空结果解读为「无影响」。
 
+**上下文边界（周报联动）**：`code-impact-<label>.json` 与 8.1 的 `front-chains-<label>.json` 是 MB 级批量产物，**只由 `build-eval-packs.js` 切包消费**；主 Agent 只读包索引与 `validate-evals.js` 的校验摘要，不把两份证据 JSON 整体读入上下文。判读由子 Agent 按包进行（包内已含单提交的 `entrypoints` / `uiEntriesTop5` / `callers` / `diffExcerpt` 摘要）。需要复核单条链路时改用定向查询：`git -C <repo> show <hash> -- <path>`、`query_front_back_chain.py page|controller|method|impact`、`impact_analyzer.py <Class.method> --impact`，而不是重读整份批量文件。
+
 **从证据落到前端页面**（消费方写【必测】/【回归】/【联调】前执行）：
 
 - **优先走确定性联动**：把 `code-impact-<label>.json` 直接交给查询 8.1 的 `commit-impact`，一次产出每个提交的 `uiEntries[]`（页面 / 元素 / 请求 / Controller / 菜单访问位置）与 `unmatchedEntrypoints[]`。周报不要逐条手工 grep；只有脚本缺失或需要核对单条链路时才用下面的手工方式。
@@ -388,7 +391,7 @@ python query_front_back_chain.py stats --refresh-endpoints
 
 **注解兜底（URL 名 ≠ 方法名）**：`url` / `method` 在前端链路库查不到时，从 `controller_endpoints.json`（工作区）与 `maven_controller_endpoints.json`（Maven 工件）输出注解声明的端点并标注「无前端链路」/「Maven jar」。例：`url regPreAccount` 命中工作区 ESB 端点；`method PatchecklevController.saveGroupHurtData` 命中 Maven 工件端点 `emtr/trim/trbu/patchecklev/savegrouphurtdata`。这类端点多是对外 ESB / 内部接口，前端没有页面，不能据此写成「链路缺失」。
 
-**`stats` 口径（2026-11-09 复跑，19 仓库）**：1,680 个 Controller / 11,514 条 URL；6,243 页面 / 30,120 链路 / 12,474 请求；**9,371 条链路落到工作区 Controller**（页面加载 4,343 / js_binding 2,250 / config_bar 1,218 / js_toolbar 863 / inline 603 / js_string 63 / 护理执行单配置 31），涉及 2,073 个页面；URL 路径命中 2,384 / 7,442 = **32.0%**，覆盖 699 个 Controller / 2,496 个方法。只扫 12 个业务仓库时为 639 Controller / 3,051 端点、2,895 条链路、7.8%，可见基础设施仓库占前端调用面的大头。
+**`stats` 口径（2026-11-23 复跑，19 仓库）**：1,688 个 Controller / 11,584 条 URL；6,317 页面 / 43,376 链路 / 18,878 请求；**12,481 条链路落到工作区 Controller**（页面加载 6,449 / js_binding 2,676 / config_bar 1,310 / js_toolbar 1,028 / inline 653 / js_string 304 / 护理执行单配置 37 / 医嘱视图右侧菜单 24），涉及 2,456 个页面；URL 路径命中 3,714 / 11,199 = **33.2%**，覆盖 1,081 个 Controller / 3,675 个方法。只扫 12 个业务仓库时为 639 Controller / 3,051 端点、2,895 条链路、7.8%，可见基础设施仓库占前端调用面的大头。
 
 **为什么只有 32.0%**：剩余前端 URL 首段集中在 `api` / `ar` / `msup` / `mrm` / `mchs` / `phkm` / `comcph` / `emnur` / `ipnur-station` / `cons` / `phpreadt` / `ipnur` / `cbph` / `emrq` / `phprev`，这些医疗/药事/护理/接口平台产品不在本地 19 个后端仓库里。这些链路在前端库里仍是完整的「页面 → 元素 → JS → 请求」，只是本工作区没有对应 Controller 源码。报告里必须写成「不属于本工作区后端仓库」，不能写成「链路缺失」。
 
@@ -416,18 +419,20 @@ python query_front_back_chain.py impact /tmp/impact.json
 
 验证场景（改「预挂号」）：直接 5 个页面（`doc.opregistmain` / `doc.allocopregist` / `doc.rapidregist` / `iphis.doc.rapidregist` / `doc.pilotpro.rapidregist`）+ `dhcem.patchecklev.hisui`（确认/保存/分诊，经 `PatchecklevController.savePatcheckData → OpregistBrokerClient.opRegistAll` 间接进入）。全流程约 2 秒（影响分析 0.6s + 按钮反查 1.0s）。
 
+输出每行带 `[来源/归属]` 标签（如 `[js_binding/direct]`、`[page_load/load]`、`[js_binding/heuristic]`），`--json` 每条附 `attribution`；归属口径同查询 8.1。
+
 ### 查询 8.1：提交级入口 → 界面 → 菜单访问位置（`commit-impact`）
 
-周报联动专用：消费查询 7 的 `code-impact-<label>.json`，把每个提交的 `entrypoints[]` 反查成前端链路，再叠加《前端界面入口登记表》的菜单信息，输出 `front-chains-<label>.json`。只给证据，不写测试结论。
+周报联动专用：消费查询 7 的 `code-impact-<label>.json`，把每个提交的 `entrypoints[]` 反查成前端链路，再叠加《前端界面入口登记表》的菜单信息，输出 `front-chains-<label>.json`。只给证据，不写测试结论。产出的 `front-chains` 同样只交给 `build-eval-packs.js` 切包，不整体读入主上下文（见查询 7 的「上下文边界」）。
 
-**实体存在性硬约束**：输出的每个 `page`、`parents[].page`、`jsPath[].file` 都必须能在 `src/frontend/hisfront/static/` 下找到实体文件；登记表中 `.csp` 行和指向不存在 HTML 的行一律忽略，不做名称归并。页面或脚本找不到时该条目不输出，不得用名称猜测替代。
+**实体存在性硬约束**：输出的每个 `page`、`parents[].page`、`jsPath[].file` 都必须能在 `src/frontend/hisfront/static/` 下找到实体文件；登记表中 `.csp` 行和指向不存在 HTML 的行一律忽略，不做名称归并。页面或脚本找不到时该条目不输出，不得用名称猜测替代。页面内联 `<script>` 里的函数步骤例外地指回该 HTML 文件本身，并带 `inline=true`（如 `initServerObj` 在 patorderview.html:97）。
 
 ```bash
 python query_front_back_chain.py commit-impact \
   docs/agents/commit-reports/<label>/code-impact-<label>.json --label <label>
 ```
 
-可选：`--output <path>`（默认与 code-impact 同目录）、`--max-ui-entries 40`（单提交上限；截断按「来源 → 页面 → 元素」选条目，不受菜单置信度影响，保证补登记不会换掉页面集合）、`--ancestor-depth 2`（沿 `page_links` 上溯层数）、`--registry <md>`（默认 `docs/knowledge/前端界面入口登记/界面入口登记表.md`）。
+可选：`--output <path>`（默认与 code-impact 同目录）、`--max-ui-entries 400`（单提交上限，默认 400；超出时按「来源 → 页面 → 元素」排序后以后端方法为组轮转均分，保证同一后端方法的其余页面不被组内排序挤掉）、`--ancestor-depth 2`（沿 `page_links` 上溯层数）、`--registry <md>`（默认 `docs/knowledge/前端界面入口登记/界面入口登记表.md`）。
 
 输出结构：
 
@@ -437,6 +442,7 @@ python query_front_back_chain.py commit-impact \
            "matchedEntrypoints": 309, "pages": 74, "pagesWithMenu": 25,
            "pagesWithParentMenu": 11, "pagesNoMenu": 38,
            "unmatchedEntrypoints": 607, "unmatchedUnique": 321,
+           "uiAttribution": {"direct": 388, "load": 141, "indirect": 63, "heuristic": 0},
            "commitsAfterFrontIndex": 0, "commitsWithSiblingUi": 11,
            "unmatchedReasons": {"client-controller": 179, "cross-service-same-name": 5,
                                 "feign-interface-mapping": 4, "no-front-call": 419}},
@@ -450,9 +456,11 @@ python query_front_back_chain.py commit-impact \
     "hash": "...", "shortHash": "...", "subject": "...", "date": "...",
     "unitId": "BOS7621028|null", "entrypoints": 8,
     "frontIndexFresh": true, "uiGapReason": "" ,
+    "uiAttribution": {"direct": 1, "load": 0, "indirect": 0, "heuristic": 0},
     "uiEntries": [{
       "page": "comoe/exam/html/doc.examapply.html", "pageTitle": "检查申请单集成界面", "module": "comoe",
       "source": "inline",
+      "attribution": "direct|load|indirect|heuristic",
       "element": {"id": "bt_sendreq", "label": "发送", "event": "click"},
       "request": {"method": "POST", "paths": ["ipcare/exam/examEntryController/saveExamApply"]},
       "backend": {"controller": "com.mediway.his.ipcare...IpcareExamEntryController",
@@ -483,13 +491,14 @@ python query_front_back_chain.py commit-impact \
 }
 ```
 
-`jsPath[]` 的命名口径：普通函数 `name` 为源码中的方法名；扫描器合成的匿名 handler / 页面顶层代码没有源码同名函数，此时 `name` 为空、`kind` 为 `handler` 或 `top_level`，只保留真实文件与行号。展示时用「匿名事件处理」「页面顶层代码」，不得把 `__handler_N` / `__top_level__` 当作 JS 方法名写进报告。`kind="callback"` 表示这一步经回调实参推进（如 `ShowChangeCookType(win, DoExchange, prescNo)` 后的 `DoExchange`），方法名是真实函数，照常展示。
+`jsPath[]` 的命名口径：普通函数 `name` 为源码中的方法名；扫描器合成的匿名 handler / 页面顶层代码没有源码同名函数，此时 `name` 为空、`kind` 为 `handler` 或 `top_level`，只保留真实文件与行号。展示时用「匿名事件处理」「页面顶层代码」，不得把 `__handler_N` / `__top_level__` 当作 JS 方法名写进报告。`kind="callback"` 表示这一步经回调实参推进（如 `ShowChangeCookType(win, DoExchange, prescNo)` 后的 `DoExchange`），方法名是真实函数，照常展示。函数写在页面内联 `<script>` 里时该步带 `inline=true`，`file` 为页面 HTML、行号为页面文件行号（`source=page_load` 的内联初始化函数即此类，只证明打开页面会调用）。
 
 链路覆盖与兄弟证据（链路探索缺陷 2b/2c 的整改口径）：
 
 - `meta.frontChainIndex` 记录链路库扫的是哪一份前端代码（`builtAt` / `source.head` / `coveredUntil` / `checkoutStale`），构建时 `html_scan` / `js_scan` / `build_front_chain_db` 三者都会打印同一指纹；`front_scan_stats.json` 里同名平铺字段（`source_head` / `source_head_date` / `source_checkout_stale`）便于核对。
 - `commits[].frontIndexFresh=false` 表示提交晚于链路库扫描的检出，`uiGapReason=index-stale`；`meta.stats.commitsAfterFrontIndex > 0` 或 `source=null`（旧库）时脚本会向 stderr 报警——此时**不得**把 `uiEntries` 为空写成「无页面入口证据」，应先 fetch 前端并重建链路库。
-- `siblingUi` 只在 `uiEntries` 为空且提交有 `unitId`（同需求号）时出现，内容是同需求号兄弟提交的页面摘要（页面 / 标题 / 元素 / 菜单 / 父页面）；此时 `uiGapReason=sibling-only`。周报可据此写「同需求变更影响页面」并注明来自兄弟提交；兄弟证据不能改写本提交自己的入口命中数。
+- `uiEntries[].attribution` 是归属分级（`commits[].uiAttribution` / `meta.stats.uiAttribution` 给出计数）：`direct` = 元素触发且入口与页面有真实调用边（含 `config_bar` 配置栏按钮、`js_string` 字符串绑定）；`load` = `page_load`，只证明打开页面会触发；`indirect` = 入口经 Feign 调用方 / 类型使用 / 常量消费点反查上溯（`indirect=true` 或带 `reverse=<消费方法>`），页面与改动之间隔了消费方法；`heuristic` = 仅靠 URL / 类名兜底的入口。周报判断「有没有可操作入口」以 `direct` 为准，`load` 只作回归依据，`indirect` / `heuristic` 注明来源。`meta.stats.uiAttribution` 是全体 `uiEntries` 计数（截断后）。
+- `siblingUi` 只在 `uiEntries` 为空且提交有 `unitId`（同需求号）时出现，内容是同需求号兄弟提交的页面摘要（页面 / 标题 / 元素 / 菜单 / 父页面，带 `attribution`）；此时 `uiGapReason=sibling-only`。周报可据此写「同需求变更影响页面」并注明来自兄弟提交；兄弟证据不能改写本提交自己的入口命中数。
 - 常量反查入口（`entrypoints[].reverse`）与普通入口一样参与页面反查；它证明「配置项被哪个功能读取」，不证明常量本身被页面直接引用。
 
 `access.confidence` 的消费口径：
@@ -597,7 +606,7 @@ python query_front_back_chain.py commit-impact \
 11. **入站 ≠ 下游**：`entrypoints` / `workspaceCallers` / `externalCallers` 表示「谁调用了它」，`downstreamFeigns` 表示「它又调了谁」。给入口方法做影响评估时，前者是调用方、后者是下游，不可互换。
 12. **提交批量取证的方法定位按提交版本**：`query_commit_impact.py` 用 `git show <hash>:<path>` 解析方法边界，同一文件在后续提交被重构时（如方法拆分）行区间会不同，以证据里的 `changedLines` / `classMethod` 为准，不要拿当前工作区源码核对行号。
 13. **前后端链路结论必须五段齐全**：HTML 页面 → 操作元素 → JS 方法 → HTTP 请求 → Controller。缺任一段要说明原因：`config_bar` 元素无 HTML id（来自配置表）、URL 属于工作区外产品（无后端源码，行尾标注 `(工作区外: <URL 首段>)`）、内联 `onclick` 无元素 id。只给「元素 → URL」或「URL → Controller」的结论都不是前端链路。
-14. **提交级界面证据以 `front-chains` 为准**：`uiEntries[].access.confidence=none` 不得升级成菜单路径；`page_load` 条目只在证明页面加载行为时使用，写点击步骤优先用元素触发条目；`unmatchedEntrypoints` 必须原样反映「无页面入口证据」，不能因为同一提交的其他入口有界面就省略。
+14. **提交级界面证据以 `front-chains` 为准**：`uiEntries[].access.confidence=none` 不得升级成菜单路径；`page_load` 条目只在证明页面加载行为时使用，写点击步骤优先用元素触发条目；`attribution=direct` 才可写成「页面上有可操作入口」，`load` / `indirect` / `heuristic` 必须按分级注明（页面加载触发 / 经消费方法间接 / 兜底入口）；`unmatchedEntrypoints` 必须原样反映「无页面入口证据」，不能因为同一提交的其他入口有界面就省略。
 
 ## 检索踩坑
 
