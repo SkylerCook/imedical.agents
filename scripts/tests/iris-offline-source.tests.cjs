@@ -409,3 +409,31 @@ test('OS008 conditional compilation gates formal Review and Pack', {skip:!window
  passed(framework(f,'pack'));
  passed(framework(f,'verify'));
 });
+test('OS009 gates storage while allowing the same value for display', {skip:!windows || process.arch !== 'x64'}, t=>{
+ const f=fixture(t), file=path.join(f.code,f.a);
+ const source=sink=>['Class Demo.A Extends DHCDoc.Util.RegisteredObject','{','',
+   'ClassMethod Value(day)','{','    Set formatted=..%ZD(day)_" "_..%ZT(day)',sink,'    Quit','}','}'].join('\n');
+ const base=source('    Write day');
+ for(const dir of [f.original,f.code]) {
+   write(path.join(dir,f.a),base);
+   write(path.join(dir,f.b),'Class Demo.B Extends %Persistent\n{\nProperty Stamp As %TimeStamp;\n}');
+ }
+ write(f.scope,JSON.stringify({files:[f.a,f.b]}));
+ git(f.code,'add',f.a,f.b);
+ git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','timestamp fixture');
+ passed(framework(f,'prepare'));
+ write(file,source('    &sql(Update Demo.B Set Stamp=:formatted)'));
+ for(const command of ['review','pack']){
+   const result=framework(f,command); assert.equal(result.status,1); assert.match(result.stderr,/OS009: display-formatted/);
+ }
+ write(file,source('    &sql(Update Other.T Set Stamp=:formatted)'));
+ const pending=framework(f,'review');
+ assert.equal(pending.status,1);
+ assert.match(framework(f,'pack').stderr,/OS009-review-required/);
+ passed(framework(f,'review',['--review-token',JSON.parse(pending.stdout).token,'--reason','Target column verified as display text']));
+ passed(framework(f,'pack'));
+ passed(framework(f,'verify'));
+ f.output=path.join(f.project,'docs/delivery/display');
+ write(file,source('    Write formatted'));
+ passed(framework(f,'review')); passed(framework(f,'pack')); passed(framework(f,'verify'));
+});

@@ -73,7 +73,7 @@ function missingDocumentation(lines, declaration) {
   return requirements.filter(group => !group.some(tag => tags.has(tag.toLowerCase()))).map(group => group[0]);
 }
 
-function inspect(source, selected = () => true, baseline = '', sessionLines = selected) {
+function inspect(source, selected = () => true, baseline = '', sessionLines = selected, schemas) {
   const lexer = loadLexer();
   const attrs = lexer.GetLanguageAttributes('COS');
   const lines = source.split(/\r\n|\n|\r/);
@@ -99,6 +99,18 @@ function inspect(source, selected = () => true, baseline = '', sessionLines = se
     else issues.push({line:item.line, column:item.column,
       ...(item.manual || item.conditional ? {status:'manual-review'} : {}),
       message:item.conditional ? 'OS008: verify the active preprocessor branches and namespace protection in the target build' : item.manual ? 'OS008: verify the calling frame and namespace restoration on each exit path' : item.manualRestore ? 'OS008: a manual ZN restore can be skipped on error; use a local call with New $Namespace and Set $Namespace' : 'OS008: isolate the temporary switch in a called local context; New $Namespace must precede Set'});
+  }
+  const {timestampIssues} = require('./cls-timestamp-write');
+  const previousWrites = new Map();
+  const writeKey = item => JSON.stringify([item.key,item.target,item.source,item.status,item.origin]);
+  for (const item of timestampIssues(oldLines,oldParsed,previous,lexer,schemas?.before)) {
+    const id = writeKey(item);
+    previousWrites.set(id,(previousWrites.get(id) || 0)+1);
+  }
+  for (const item of timestampIssues(lines,parsed,current,lexer,schemas?.after)) {
+    const id = writeKey(item);
+    if (previousWrites.get(id)) previousWrites.set(id,previousWrites.get(id)-1);
+    else issues.push({line:item.line,column:item.column,status:item.status,message:item.message});
   }
   for (const [key, declaration] of declarations) {
     if (oldDeclarations.has(key)) continue;
@@ -148,7 +160,28 @@ function stagedFiles(dir) {
   });
 }
 
-function reviewFiles(changes, originals, paths) {
+// Use only snapshots from the validated task scope. Both entry points project
+// staged changes over the same frozen originals, including unchanged data classes.
+function timestampSchemas(baseline, changes, paths) {
+  const before = new Map(), after = new Map();
+  const changed = new Set(paths.map(file => file.split(path.sep).join('/')));
+  const manifest = JSON.parse(fs.readFileSync(path.join(baseline,'manifest.json'),'utf8').replace(/^\uFEFF/,''));
+  function register(map,source) {
+    if (!/%(?:Library\.)?Persistent\b/i.test(source)) return;
+    const schema = require('./cls-timestamp-write').timestampSchema(source,loadLexer());
+    if (schema.persistent) map.set(schema.table,map.has(schema.table) ? null : schema);
+  }
+  for (const item of manifest.items) {
+    if (!/\.cls$/i.test(item.path)) continue;
+    const old = fs.readFileSync(path.join(baseline,item.path),'utf8');
+    register(before,old);
+    register(after,changed.has(item.path.split(path.sep).join('/')) ? fs.readFileSync(path.join(changes,item.path),'utf8') : old);
+  }
+  return {before,after};
+}
+
+function reviewFiles(changes, originals, paths, baseline = originals) {
+  let schemas;
   const binding = [];
   const digest = bytes => require('node:crypto').createHash('sha256').update(bytes).digest('hex');
   const output = [];
@@ -163,7 +196,9 @@ function reviewFiles(changes, originals, paths) {
     if (diff.status !== 1) throw new Error('cls-gate-diff-failed: ' + relative);
     const ranges = [...diff.stdout.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)]
       .map(match => [Number(match[1]), Number(match[2] ?? 1)]);
-    const issues = inspect(current.toString('utf8'), n => ranges.some(([start,count]) => n >= start && n < start+count), original.toString('utf8'));
+    schemas ??= timestampSchemas(baseline,changes,paths);
+    const changedLine = n => ranges.some(([start,count]) => n >= start && n < start+count);
+    const issues = inspect(current.toString('utf8'), changedLine, original.toString('utf8'), changedLine, schemas);
     for (const issue of issues) {
       const message = relative + ':' + issue.line + ':' + issue.column + ' ' + issue.message;
       if (issue.status === 'manual-review') manual.push(message);
@@ -182,7 +217,10 @@ function readReview(baseline, token) {
 
 function reviewRequirements(review,kind,receipt) {
   const pending = [];
-  if (review.manual.length && !receipt.os008?.trim()) pending.push('OS008-review-required: '+review.manual.join('\n'));
+  if (review.manual.length && !(receipt.sourceReview || receipt.os008)?.trim()) {
+    const rules = [...new Set(review.manual.map(message => /:\d+:\d+ (OS\d+):/.exec(message)?.[1] || 'source'))];
+    pending.push(rules.join('+')+'-review-required: '+review.manual.join('\n'));
+  }
   if (kind === 'standard' && review.changed.length &&
       (!['passed','no-visible-impact'].includes(receipt.i18n?.result) || !receipt.i18n.evidence?.trim())) pending.push('i18n-review-required');
   return pending;
@@ -192,13 +230,13 @@ if (require.main === module) {
   try {
     const changes = path.join(process.argv[2],'changes');
     const paths = stagedFiles(changes).map(file => path.relative(changes,file));
-    const review = reviewFiles(changes,path.join(process.argv[2],'rollback'),paths);
+    const review = reviewFiles(changes,path.join(process.argv[2],'rollback'),paths,process.argv[3]);
     const kind = process.argv[4];
     if (!['standard','project'].includes(kind)) throw new Error('explicit-demand-kind-required');
     const receipt = readReview(process.argv[3], review.token);
     const pending = reviewRequirements(review,kind,receipt);
     if (pending.length) throw new Error(pending.join('\n'));
-    if (review.manual.length) console.log([...review.manual,receipt.os008].join('\n'));
+    if (review.manual.length) console.log([...review.manual,receipt.sourceReview || receipt.os008].join('\n'));
     if (kind === 'standard') console.log('i18n '+receipt.i18n.result+' '+receipt.i18n.evidence);
 
   }

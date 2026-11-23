@@ -7,7 +7,7 @@ const crypto = require('node:crypto');
 const {spawnSync} = require('node:child_process');
 const workspace = require('../../../../scripts/lib/workspace-context');
 const development = require('../../../../scripts/lib/iris-remote-operations');
-const HELP = 'source-delivery.js prepare|review|pack|verify|xml-unpack|xml-pack|xml-verify --project-root <workspace> (--source-directory <editable-root> | --export-directory <export-root>) --baseline-directory <ContextRoot/work/task/baseline> [--original-directory <incoming-root> --batch-id <batch> --scope-file <files.json>] [--input-xml <incoming.xml>] [--out <delivery-directory> --notes-file <notes.md>] [--kind standard|project] [--review-token <token> --reason <OS008 finding evidence> | --i18n-result passed|no-visible-impact --i18n-evidence <review finding>] [--allow-partial] [--powershell powershell.exe|pwsh.exe]\nLocal only. Scope JSON: {"files":["relative/source.cls"]}; XML scope uses objects/000001.xml. Prepare/Unpack binds a declared SourceRoot/GitRoot; Pack/Verify reuse the frozen scope. No Git commits, hospital connections or object creation/deletion/renaming. PowerShell implementation requires Windows.';
+const HELP = 'source-delivery.js prepare|review|pack|verify|xml-unpack|xml-pack|xml-verify --project-root <workspace> (--source-directory <editable-root> | --export-directory <export-root>) --baseline-directory <ContextRoot/work/task/baseline> [--original-directory <incoming-root> --batch-id <batch> --scope-file <files.json>] [--input-xml <incoming.xml>] [--out <delivery-directory> --notes-file <notes.md>] [--kind standard|project] [--review-token <token> --reason <source review evidence> | --i18n-result passed|no-visible-impact --i18n-evidence <review finding>] [--allow-partial] [--powershell powershell.exe|pwsh.exe]\nLocal only. Scope JSON: {"files":["relative/source.cls"]}; XML scope uses objects/000001.xml. Prepare/Unpack binds a declared SourceRoot/GitRoot; Pack/Verify reuse the frozen scope. No Git commits, hospital connections or object creation/deletion/renaming. PowerShell implementation requires Windows.';
 function fail(code) { throw new Error(code); }
 function physical(file) {
   let probe=path.resolve(file);const suffix=[];
@@ -124,8 +124,8 @@ function main(argv=process.argv.slice(2)) {
     if (options.reason || options['i18n-result'] || options['i18n-evidence'] || options['review-token']) {
       if (options['review-token'] !== review.token) fail('source-review-binding-invalid');
       if (options.reason) {
-        if (!review.manual.length || !options.reason.trim()) fail('OS008-review-conclusion-invalid');
-        receipt.os008 = options.reason.trim();
+        if (!review.manual.length || !options.reason.trim()) fail('source-review-conclusion-invalid');
+        receipt.sourceReview = options.reason.trim();
       }
       if (options['i18n-result'] || options['i18n-evidence']) {
         if (state.kind !== 'standard' || !['passed','no-visible-impact'].includes(options['i18n-result']) || !options['i18n-evidence']?.trim()) fail('i18n-review-conclusion-invalid');

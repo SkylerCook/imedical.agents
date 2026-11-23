@@ -390,3 +390,5 @@ MCP helper 的 `tools` / `call` 已包含配置检查，已知参数可直接调
 运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.coding-iris-plugin` 节。 现有工程沿原更新器 Write 迁移已识别字段。
 
 受管源码的[正式 Review](references/iris-offline-development.md#正式-review)自动绑定冻结任务范围，标版纯前端包同样核对 i18n 结论。已有工程更新能力包后使用原任务基线。
+
+0.34.7 的受管 Review 和 Pack 增加[时间戳写入门禁 OS009](rules/iris_coding_backend.md#时间戳写入os009)。已有工程正常更新即可使用。

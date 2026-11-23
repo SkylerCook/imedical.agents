@@ -140,4 +140,4 @@ OS004 按变更行检查 [登录科室和用户](cls-coding-format.md#登录科�
 
 受管源码执行 `source-delivery.js review`，沿用 Prepare 的 project-root、source-directory（或 export-directory）和 baseline-directory。工具自动定位原件和对应 Git 提交，检查冻结范围内的最终差异，包括已提交改动。Prepare 从项目配置取得需求类型，任务另有确认时传 `--kind standard|project`。旧基线缺少类型时使用相同配置或显式类型。
 
-标版每次检查所有改动文件，包括纯前端、后端消息、字典和打印。沿需求提交的[标版 i18n 复核](../../demand-delivery-plugin/skills/demand-commit/SKILL.md#标版-i18n-复核)判断是否有可见影响。首次 Review 返回本次差异的 token 和待复核项。审完后在同一 review 命令附加 `--review-token <token> --i18n-result passed|no-visible-impact --i18n-evidence <实际依据>`。OS008 待复核时附加 `--reason <调用入口与退出路径依据>`，可以在同一次调用中记录两项。仍有缺陷时修复后重跑。Pack 在临时包内重新计算文件范围及前后字节摘要，缺少有效结论返回非零。
+标版每次检查所有改动文件，包括纯前端、后端消息、字典和打印。沿需求提交的[标版 i18n 复核](../../demand-delivery-plugin/skills/demand-commit/SKILL.md#标版-i18n-复核)判断是否有可见影响。首次 Review 返回本次差异的 token 和待复核项。审完后在同一 review 命令附加 `--review-token <token> --i18n-result passed|no-visible-impact --i18n-evidence <实际依据>`。OS008 或 OS009 待复核时附加 `--reason <逐项核对依据>`，分别说明调用及退出路径、字段类型及写入转换，可以在同一次调用中记录两项。仍有缺陷时修复后重跑。Pack 在临时包内重新计算文件范围及前后字节摘要，缺少有效结论返回非零。

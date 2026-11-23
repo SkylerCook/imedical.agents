@@ -137,3 +137,24 @@ test('OS008 only credits guards included by conditional compilation', {skip:proc
   assert.deepEqual(findings(['#if 1-1',save,'#endif',change]),['manual-review']);
   assert.deepEqual(findings(['    /*','#if 0','    */',save,change]),[]);
 });
+test('OS009 follows the display producer through a local alias to typed write destinations', {skip:process.platform !== 'win32' || process.arch !== 'x64'}, () => {
+  const source=(sink,expr='##class(websys.Conversions).DateLogicalToHtml(day)')=>[
+    'Class Demo.A Extends %Persistent','{','Property Stamp As %DateTime [ SqlFieldName = changed_at ];',
+    'Property Caption As %String;','Method Run(day)','{','    Set value='+expr,'    Set alias=value',sink,'    Quit','}','}'].join('\n');
+  const check=(sink,expr,old='')=>inspect(source(sink,expr),()=>false,old).filter(i=>i.message.startsWith('OS009')).map(i=>i.status);
+  assert.deepEqual(check('    Write alias'),[]);
+  assert.deepEqual(check('    Set obj=##class(Demo.A).%New()\n    Set obj.Stamp=alias'),['fail']);
+  assert.deepEqual(check('    Set ..Caption=alias'),[]);
+  for(const sink of ['    Set ..Stamp=alias','    &sql(Update Demo.A Set changed_at=:alias)',
+    '    &sql(Insert Into Demo.A (Caption,changed_at) Values (:day,:alias))']){
+    assert.deepEqual(check(sink),['fail']);
+    assert.deepEqual(check(sink,'$zdt($h,3)'),[]);
+    assert.deepEqual(check(sink,'..UnknownHelper(day)'),['manual-review']);
+    assert.deepEqual(check(sink,undefined,source(sink)),[]);
+  }
+  assert.deepEqual(check('    &sql(Update Other.Table Set changed_at=:alias)'),['manual-review']);
+  assert.deepEqual(check('    &sql(Update Demo.A Set Caption=:alias Where changed_at=:alias)'),[]);
+  const shared=source('    &sql(Update Outside.T Set stamp=:alias)','..%ZD(day)_" "_..%ZT(day)').replace('%Persistent','DHCDoc.Util.RegisteredObject');
+  assert.ok(inspect(shared).some(i=>i.status==='manual-review' && i.message.startsWith('OS009')));
+  assert.ok(!inspect(shared.replace('%ZD(day)','%ZD(day,3)').replace('%ZT(day)','%ZT(day,1)')).some(i=>i.message.startsWith('OS009')));
+});
