@@ -12,7 +12,7 @@
 
 | 要找的信息 | 从哪里查看 | 如何核对 |
 |---|---|---|
-| BOS 查询地址、访问密钥、Token、人员和组 | `BOS_MCP_CONFIG` 指向的私有文件中 `bos-demand-query` 段，字段见下节 | `defaults` 离线校验；`check` 连接远端并发现查询工具 |
+| BOS 查询地址、访问密钥、Token、人员和组 | 默认打开 `%LOCALAPPDATA%\imedical-agents\bos\config.json`，查看 `bos-demand-query` 段。自定义路径见下方 BOS 小节 | `defaults` 离线校验；`check` 连接远端并发现查询工具 |
 | BOS 代码日志地址、Token、关联项目 | 同一文件的 `bos-code-update-log` 段 | 按[日志说明](../../plugins/bos-plugin/references/code-update-log.md)使用 `defaults`，两类 Token 不互相代用 |
 | 知识检索提供方、公司网关和 Embedding 凭据 | `KNOWLEDGE_RAG_CONFIG` 指向的仓外 JSON，按 providers 分段，默认 company | 无服务时直接本地检索；配置与公司索引选装见[检索指南](knowledge-retrieval.md) |
 | MCP 名称、启动命令、URL、headers、启用状态 | 当前客户端实际加载的用户级或项目级 MCP 配置 | 核对客户端工具发现结果，文件存在不等于已加载 |
@@ -26,7 +26,11 @@
 
 ## BOS：一个私有文件，两种用途
 
-Windows 可直接执行以下只读命令查看路径，不读取凭据：
+**去哪里改 BOS 配置？** 在 Windows 文件资源管理器地址栏粘贴 `%LOCALAPPDATA%\imedical-agents\bos`，用文本编辑器打开 `config.json`。这是首次初始化的默认位置。
+
+**在哪里设置文件路径？** 在 Windows 开始菜单搜索“编辑帐户的环境变量”，在“用户变量”中找到 `BOS_MCP_CONFIG`。它的值是配置文件的完整路径。如果这里指定了其他位置，打开该路径。首次使用可让 Agent 执行“初始化 BOS 个人配置”，它会创建配置文件、设置用户变量并返回实际路径。
+
+要核对当前 PowerShell 实际继承的路径（`CurrentProcess`）和用户变量保存的路径（`User`），运行：
 
 ```powershell
 [pscustomobject]@{
