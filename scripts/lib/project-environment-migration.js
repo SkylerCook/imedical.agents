@@ -25,6 +25,8 @@ function validatedValue(section,key,value) {
   if (flags.has(key)) {
     if (section === 'iris' && ['true','false'].includes(String(value).toLowerCase())) return value;
     if (typeof value === 'boolean') return value;
+  } else if (section === 'web' && key === 'frontendTransport') {
+    if (['atelier','sftp'].includes(value)) return value;
   } else if (key === 'port') {
     if (Number.isInteger(value) || typeof value === 'string' && /^\d+$/.test(value)) return value;
   } else if (key === 'args' || key === 'ignorePatterns') {

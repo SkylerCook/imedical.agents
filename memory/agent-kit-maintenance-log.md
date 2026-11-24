@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 工程配置迁移保留 Web 前端部署通道，省略时沿用 SFTP。插件状态保存兼容带或不带 UTF-8 BOM 的 base64 输入。工程配置专项 9 项通过。
+
 - Windows IRIS 会话从 System32 调用 whoami.exe 和 icacls.exe。IPC 专项覆盖同名程序遮蔽以及会话宿主启动与连接，Windows 上 6 项通过、1 项 Unix 专用测试跳过。
 
 - coding 0.34.11 明确新增 ObjectScript 命令、内建函数及特殊变量优先使用官方简写并统一小写，包含事务命令 ts、tro、tc，保留块式控制流的全拼约定。

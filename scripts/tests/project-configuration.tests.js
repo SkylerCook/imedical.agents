@@ -94,12 +94,13 @@ test('framework CLI and workbench use the same validated field writes and detect
     edits:[{path:['projectContext','contextMode'],value:'invalid'}]}),/invalid-project-config-value/);
 });
 
-test('legacy project environment migrates credentials separately and preserves effective target', t=>{
+for (const transport of [undefined,'atelier','sftp']) test('legacy environment preserves credentials and frontend transport: '+transport, t=>{
   const {root,context,put,text} = fixture(t);
   const host = 'first.invalid';
   const iris = {host,port:52773,namespace:'TEST',scheme:'https',username:'test-user',password:'fixture-only',tlsVerify:false};
   const legacy = {iris,mcp:{serverName:'iris-agentic-dev'},web:{basePath:'/fixture',cookie:'cookie-fixture'},
     sftp:{enabled:false,host:'sftp.invalid',password:'sftp-fixture'}};
+  if (transport !== undefined) legacy.web.frontendTransport = transport;
   put('.agents/config/project-env.json',legacy);
   put('.mcp.json',{mcpServers:{'iris-agentic-dev':{command:'iris-agentic-dev',args:['mcp'],env:{
     IRIS_HOST:host,IRIS_WEB_PORT:'52773',IRIS_NAMESPACE:'TEST',IRIS_SCHEME:'https',
@@ -117,11 +118,26 @@ test('legacy project environment migrates credentials separately and preserves e
   assert.equal(text('.mcp.json'),projection);
   const readback = environment.read(context);
   assert.equal(readback.config.iris.password,'fixture-only');
+  assert.equal(readback.config.web.frontendTransport,transport);
+  const deploy = require('../../plugins/coding-iris-plugin/scripts/iris-tools/deploy-protected');
+  assert.equal(deploy.frontendTransport(readback.config),transport ?? 'sftp');
   assert.equal(readback.config.web.cookie,'cookie-fixture');
   assert.equal(readback.config.sftp.password,'sftp-fixture');
   assert.equal(require('../lib/iris-selected-target').selected(context,{requireBindings:true}).profile.host,host);
   assert.doesNotMatch(JSON.stringify(config.read(context)),/fixture-only|cookie-fixture|sftp-fixture/);
   assert.deepEqual(config.migrate(context,'Write'),[]);
+});
+
+test('plugin profile save accepts base64 stdin with or without a UTF-8 BOM', t=>{
+  const {root,text} = fixture(t);
+  const script = require.resolve('../lib/project-plugin-profile');
+  for (const prefix of ['', '\uFEFF']) {
+    const notes = prefix ? '带签名' : '无签名';
+    const payload = {rows:{example:{status:'enabled',notes}}};
+    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64');
+    execFileSync(process.execPath,[script,'save',path.join(root,'.agents')],{input:prefix+encoded+'\r\n'});
+    assert.equal(io.parse(text('.agents/config/project.jsonc')).plugins.example.notes,notes);
+  }
 });
 
 test('conflicting legacy files only block the affected configuration',t=>{

@@ -153,7 +153,7 @@ if (require.main === module) {
             const rows = Object.entries(state.entries).map(([plugin,entry])=>({plugin,...Object.fromEntries(columns.slice(1).map(k=>[k,entry[k]??'']))}));
             process.stdout.write(Buffer.from(JSON.stringify({exists:state.exists,rows}),'utf8').toString('base64'));
         } else if (action === 'save') {
-            const text = Buffer.from(fs.readFileSync(0,'ascii').trim(),'base64').toString('utf8');
+            const text = Buffer.from(fs.readFileSync(0,'utf8').trim(),'base64').toString('utf8');
             const {rows,aliases} = JSON.parse(text);
             save(root,rows,aliases);
         } else throw Error('Unknown profile action');

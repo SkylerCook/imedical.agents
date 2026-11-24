@@ -106,6 +106,7 @@ const sections = {
     web:group('Web','框架访问 Web、CSP 和 Broker 时使用的路径。',{
       basePath:text('Web 根路径','用于读取或部署 Web 项目的应用路径。'),
       cspBasePath:text('CSP 根路径','CSP 应用的路径前缀。'),
+      frontendTransport:text('前端部署通道','可选择 Atelier 或 SFTP，省略时使用 SFTP。',{options:['atelier','sftp']}),
       brokerPath:text('Broker 路径','Broker 的相对路径。'),
       credentialRef:credential,
     }),

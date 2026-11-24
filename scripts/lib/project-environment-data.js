@@ -5,7 +5,7 @@ const {isDeepStrictEqual} = require('node:util');
 const credentialFile = 'iris-profile-credentials.json';
 const sections = {
   iris:['scheme','host','port','namespace','tlsVerify','alias','description','pathPrefix','webBasePath'],
-  web:['basePath','cspBasePath','brokerPath'],
+  web:['basePath','cspBasePath','brokerPath','frontendTransport'],
   mcp:['serverName','serverPath','nodeTlsRejectUnauthorized','includeBuiltInSkills'],
   sftp:['enabled','runtime','serverName','command','args','scriptPath','keyFile','knownHosts',
     'allowRemoteCommands','host','port','localPath','remotePath','ignorePatterns'],
