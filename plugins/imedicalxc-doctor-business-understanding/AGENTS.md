@@ -28,6 +28,13 @@
 
 - `vendor/superpowers/`：提供 `verification-before-completion` 等流程 skill。
 
+## 依赖的外部索引
+
+- 结构索引由 `imedicalxc-doctor-codegraph` 插件提供：后端 `impact_db.json` / `penetration_db.json` / 端点索引，前端 `front_chain_db.json`。
+- Phase 0 检查索引存在与新鲜度；缺失或过期时按 codegraph 的 gen / front-gen 重建，本插件不内置索引脚本。
+- 索引口径与查询命令以 `imedicalxc-doctor-codegraph-search` 为准；本插件只负责业务判定、关联评级、质疑门禁与方案评估。
+- 索引不可用（且重建失败）时，Phase 3-5 降级为 rg + `frontend-analyze.js` AST 证据，并在报告头标注降级原因。
+
 ## 引用说明
 
 本插件的业务实现探索方法论参考自番薯(AI编码辅助)的企业工程实践文章（腾讯云开发者社区，文章 ID: 2676110），其从前端界面入口到后端数据的跨层调用链追踪策略与 Phase 1-3 的追溯流程一致。

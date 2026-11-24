@@ -1,8 +1,9 @@
 ﻿---
 name: imedicalxc-doctor-business-understanding
-version: 1.0.0
+version: 1.1.1
 description: |
   HIS 医生站业务实现理解与变更影响分析。从前端界面入口定位 -> 前端逻辑追踪 -> 后端调用链追溯 -> 业务实现方法罗列 -> 变更影响评估 -> 跨业务依赖分析 -> 结论输出。
+  前后端检索默认消费 imedicalxc-doctor-codegraph 的确定性索引（调用图 / 前端链路库 / 端点索引），本 skill 负责业务判定、关联评级与质疑门禁；索引缺失或过期时按 Phase 0 重建。
   Use when 需要理解一个HIS业务流程的前后端完整实现链路，或评估一项需求变更对当前工程实现的影响范围和改造方案。
 role: analyst
 scope: analysis-to-decision
@@ -13,42 +14,37 @@ priority: high
 # HIS 医生站业务实现理解与变更影响分析
 
 ## 概述
-## 输出目录结构
-
-所有分析报告、AST JSON 文件、评估文档统一输出到 `docs/agents/imedicalxc-doctor-business-understanding/` 下，按阶段分目录存放。文件命名格式：`{YYYY-MM-DD}-{主题}.md`（日期 + 主题名称）。
-
-```
-docs/agents/imedicalxc-doctor-business-understanding/
-├── phase1-initial-explore/          # 初步探索
-│   └── YYYY-MM-DD-初步探索报告.md
-├── phase2-brainstorming/            # 需求头脑风暴
-│   └── YYYY-MM-DD-头脑风暴文档.md
-├── phase3-ui-entry/                 # 页面入口定位
-│   ├── YYYY-MM-DD-HTML分析报告.json
-│   └── YYYY-MM-DD-JS调用图.json
-├── phase4-frontend-trace/           # 前端逻辑追踪
-│   └── YYYY-MM-DD-后端调用链.md
-├── phase5-backend-trace/            # 后端调用链追溯
-│   └── YYYY-MM-DD-门禁审计报告.md
-├── phase6-gate/                     # 质疑点门禁把关
-│   └── YYYY-MM-DD-设计文档.md
-├── phase7-design/                     # 综合分析与设计文档
-│   └── YYYY-MM-DD-变更识别.md
-               # 多方案评估
-│   └── YYYY-MM-DD-评估报告.md
-└── phase10-conclusion/              # 结论输出
-    └── YYYY-MM-DD-结论报告.md
-├── phase8-change-identification/    # 变更方法识别
-│   └── {timestamp}_{name}_evaluation-report.md
-└── phase9-conclusion/              # 结论输出
-    └── {timestamp}_{name}_final-report.md
 
 本 Skill 指导 Agent 从用户描述的业务场景出发，**从前端界面入口追踪到后端数据库**，完整还原业务的前后端实现链路，然后基于用户的目标需求评估变更影响范围和多种改造方案。
 
+**结构索引底座**：Phase 3-5 的前后端检索默认消费 `imedicalxc-doctor-codegraph` 的确定性索引（后端调用图 / 前端链路库 / 端点索引）。codegraph 提供结构候选证据，本 Skill 负责业务语义判定（关联评级、质疑门禁、方案评估）；命令与口径以 `imedicalxc-doctor-codegraph-search` 为准，本 Skill 不重复维护检索脚本。索引缺失或过期时按 Phase 0 重建。
+
 **核心原则**：
+
 - 先理解当前实现，再评估变更影响 — 不跳过现状分析直接进入方案设计
-- 每个追溯步骤必须用代码搜索命令验证，不接受推测
+- 每个追溯步骤必须用代码搜索或索引查询验证，不接受推测；★4-5 的方法必须打开源码复核行号
+- codegraph 索引输出是候选证据；图外内容（反射 / BLH 反射断链 / 工作区外产品 / not_in_graph）不得当作"无影响"
+- 前后端链路必须五段齐全：HTML 页面 → 操作元素 → JS 方法 → HTTP 请求 → Controller
 - 方法论参考自番薯(AI编码辅助)的企业工程实践：从前端入口到后端数据的跨层调用链追踪
+
+## 输出目录结构
+
+所有分析报告、AST JSON 文件、索引检查记录、评估文档统一输出到 `docs/agents/imedicalxc-doctor-business-understanding/` 下，按阶段分目录存放。文件命名格式：`{YYYY-MM-DD}-{主题}.md`（日期 + 主题名称）；JSON 数据文件保留脚本默认命名。
+
+```
+docs/agents/imedicalxc-doctor-business-understanding/
+├── phase0-preflight/                # 索引前置检查记录（索引指纹 / 重建记录）
+├── phase1-initial-explore/          # 初步探索
+├── phase2-brainstorming/            # 需求头脑风暴
+├── phase3-ui-entry/                 # 页面入口定位
+├── phase4-frontend-trace/           # 前端逻辑追踪（含 AST 深挖 JSON）
+├── phase5-backend-trace/            # 后端调用链追溯
+├── phase6-gate/                     # 质疑点门禁审计
+├── phase7-design/                   # 综合分析与设计文档
+├── phase8-change-identification/    # 变更方法识别
+├── phase9-evaluation/               # 多方案评估
+└── phase10-conclusion/              # 结论输出
+```
 
 ## 何时使用
 
@@ -57,34 +53,67 @@ docs/agents/imedicalxc-doctor-business-understanding/
 - 排查 Bug 时需要理解完整的前后端调用链路
 - 新接手模块需要快速掌握某业务流程的代码实现
 
-## 核心流程（10 阶段）
+## 核心流程（Phase 0 + 10 阶段）
 
-本 Skill 将完整分析过程拆解为 10 个阶段，按顺序推进，每个阶段完成后才进入下一步。
+本 Skill 将完整分析过程拆解为 Phase 0 和 10 个阶段，按顺序推进，每个阶段完成后才进入下一步。
 
 ```
+Phase 0: 索引前置检查
++------------------------------+
+| codegraph 索引存在/新鲜度     |
+| 缺失或过期 -> 重建或标注降级  |
++------------------------------+
+        │
+        ▼
 Phase 1: 初步探索         Phase 2: 需求头脑风暴      Phase 3: UI入口定位
 +-------------------+    +-------------------+     +-----------------------+
-| 关键字检索工程      |  ->  | 业务界面范围        |  ->  | 用户业务描述 ->      |
-| 罗列探索结果        |     | 功能点范围          |     | 页面URL/path定位     |
-| 二次探索至全面      |     | 现状与目标          |     | 页面组件识别         |
+| 关键字检索工程     |  ->  | 业务界面范围        |  ->  | 页面/元素/菜单定位    |
+| 罗列探索结果       |     | 功能点范围          |     | 链路库优先 + rg兜底   |
+| 二次探索至全面     |     | 现状与目标          |     | 后端命中/工作区外标注 |
 +-------------------+    +-------------------+     +-----------------------+
 
 Phase 4: 前端逻辑追踪     Phase 5: 后端调用链追溯    Phase 6: 质疑点门禁把关
 +-------------------+    +-------------------+     +-----------------------+
-| Controller定位       |     | 审计所有质疑点       |  ->  | 前后端方法清单       |
-| BLH/Service/DAO链    |     | 关联评分             |     | 调用关系图           |
-| 数据映射追踪         |     | 用户确认             |     | 数据流组装           |
+| 元素→JS→请求链    |     | 请求→Controller     |  ->  | 质疑点逐条审计       |
+| 归属分级           |     | 下游/上游/Feign链    |      | 索引口径漏检审查     |
+| AST深挖（按需）    |     | SQL明细（rg）        |      | 用户确认             |
 +-------------------+    +-------------------+     +-----------------------+
+
 Phase 7: 综合分析设计文档         Phase 8: 变更方法识别     Phase 9: 多方案评估       Phase 10: 结论输出
-+----------------------+  +--------------------+  +-------------------+
-| 目标需求 ->           |     | 方案A/B/C...        |     | 各方案评估结论       |
-| 需调整方法罗列        |     | 评估维度评分        |     | 建议与风险提示       |
-| 依赖关系标注          |     | 跨业务影响分析      |     | 用户选择等待         |
-+----------------------+  +--------------------+  +-------------------+
-+------------------+
++----------------------+  +--------------------+  +-------------------+  +------------------+
+| 目标需求 ->           |     | 方案A/B/C...       |     | 各方案评估结论     |     | 五段链路+证据分层 |
+| 需调整方法罗列        |     | 评估维度评分        |     | 影响矩阵（含服务） |     | 评分依据引用      |
+| 依赖关系标注          |     | 证据来源标注        |     | 跨业务依赖         |     | 用户选择等待      |
++----------------------+  +--------------------+  +-------------------+  +------------------+
 ```
 
-> **注意**：每个阶段都必须执行。不要跳过 Phase 1-2、Phase 3-5 和 Phase 6 直接进入方案设计。
+> **注意**：每个阶段都必须执行。不要跳过 Phase 0、Phase 1-2、Phase 3-5 和 Phase 6 直接进入方案设计。
+
+---
+
+### Phase 0：索引前置检查（强制）
+
+在执行 Phase 1 之前确认 codegraph 索引可用，并把索引指纹写入后续每份报告头。
+
+```bash
+# 后端索引
+cd .agents/plugins/imedicalxc-doctor-codegraph/scripts
+python -c "import sys; sys.path.insert(0,'.'); from config import OUTPUT_DIR; print({k: (OUTPUT_DIR/k).exists() for k in ['impact_db.json','penetration_db.json','feign_interfaces.json','merged_service_boundary.json','controller_endpoints.json']})"
+
+# 前端链路库指纹（生成时间 / 检出 sha / 远端快照 / 是否脏检出）
+python -c "import json; from front.config import DB_FILE; m=json.loads(DB_FILE.read_text(encoding='utf-8'))['meta']; s=m.get('source') or {}; print(m.get('generated_at'), s.get('head'), s.get('originMaster'), s.get('checkoutStale'))"
+```
+
+处理规则：
+
+| 状态 | 动作 |
+|---|---|
+| 文件齐全、`checkoutStale=false`、前端 `source.head` 不早于分析涉及的前端改动 | 记录指纹，进入 Phase 1 |
+| 后端索引缺失或过期 | 按 `imedicalxc-doctor-codegraph-gen` 的增量表重建；无可用增量时全量刷新（命令见 codegraph 插件 AGENTS.md「全量刷新命令」） |
+| 前端链路库缺失或过期 | 按 `imedicalxc-doctor-codegraph-front-gen` 重建：`html_scan.py && js_scan.py && build_front_chain_db.py` |
+| 重建失败或环境不可用 | 报告头标注「索引不可用：Phase 3-5 降级为 rg + AST 证据」，继续执行 |
+
+报告头固定记录：后端索引生成时间、前端 `generated_at` + 检出 sha、是否发生重建。重建属本地只读生成、不写远端；增量通常 1-3 分钟，全量约 10 分钟，重建后必须重跑本检查。
 
 ---
 
@@ -112,6 +141,19 @@ rg -rn "{关键字}" src/backend/ -g "*.java" -l
 #### 1.4 探索结论
 
 汇总探索结果，形成全景关联图作为 Phase 2 的输入。
+
+#### 1.5 索引交叉校验
+
+用同一批关键字查询前端链路库，确认关键字能落到已知页面/按钮，避免纯 rg 词面漏配：
+
+```bash
+cd .agents/plugins/imedicalxc-doctor-codegraph/scripts
+python front/query_front_chain.py url <关键字>
+python front/query_front_chain.py element <关键字>
+python query_front_back_chain.py page <关键字>
+```
+
+命中结果并入 1.4 的全景关联图，Phase 3 直接复用，不重复检索。
 
 ---
 ### Phase 2：需求头脑风暴
@@ -142,52 +184,111 @@ rg -rn "{关键字}" src/backend/ -g "*.java" -l
 
 ### Phase 3：UI 入口定位
 
-从用户的业务描述出发，在前端工程中找到对应的页面入口。
+从用户的业务描述出发，在前端工程中找到对应的页面入口。**优先消费前端链路库**（`front_chain_db.json`，6,000+ 页 / 4 万级链路），rg 作为兜底。
 
 #### 前置步骤：阅读前端项目概览
 
-先读取 `src/frontend/README.md`（如存在），获取前端项目结构概览、模块分类、页面路由约定和导航说明。这能帮助快速定位用户描述的业务在哪个模块/目录下，避免盲目搜索。
+先读取 `src/frontend/README.md`（如存在），获取前端项目结构概览、模块分类、页面路由约定和导航说明，缩小搜索范围。
 
 ```bash
 cat src/frontend/README.md
 ```
 
-#### 搜索入口方法
+#### 搜索入口方法（索引优先）
 
 ```bash
-# 方法0：在 README 中搜索模块/页面关键词，获取目录定位
-rg -i "{关键词}" src/frontend/README.md
+cd .agents/plugins/imedicalxc-doctor-codegraph/scripts
 
-# 方法1：按 README 定位的模块目录缩小搜索范围后，通过菜单关键词搜索
-# HISUI 菜单配置通常在 menu/ 或 nav/ 目录
-rg -i "{关键词}" src/frontend/hisfront/ --type html -l
-rg -i "{关键词}" src/frontend/hisfront/ --type js -l
+# 方法1：页面路径/标题片段（后者同时给出 URL → Controller）
+python front/query_front_chain.py page <页面文件名或标题片段>
+python query_front_back_chain.py page <页面文件名或标题片段>
 
-# 方法2：按功能名称搜索页面标题
-rg -i "页面标题|功能名称" src/frontend/hisfront/ -g "*.html" -g "*.jsp" -l
+# 方法2：按钮 id / 按钮文案（跨页面反查同一按钮）
+python query_front_back_chain.py element <元素id或文案片段>
 
-# 方法3：搜索 EasyUI data-options / href / url 中的页面引用
-rg -i "页面文件名关键词" src/frontend/hisfront/ -g "*.js" -g "*.html" -l
+# 方法3：请求 URL / 接口名
+python query_front_back_chain.py url <URL片段> --detail
+
+# 方法4：JS 方法名 → 所在页面与链路
+python front/query_front_chain.py function <方法名>
 ```
+
+菜单访问位置查《前端界面入口登记表》，按页面 HTML 路径 grep，得到「父菜单路径 / 界面名称 / 菜单管理模式 / 授权安全组」：
+
+```bash
+rg -n "<页面路径片段>" docs/knowledge/前端界面入口登记/界面入口登记表.md
+```
+
+rg 兜底（索引未覆盖的页面、内嵌片段、中文编码问题）：
+
+```bash
+rg -i "{关键词}" src/frontend/README.md
+rg -i "{关键词}" src/frontend/hisfront/ -g "*.html" -g "*.js" -l
+rg -i "{页面文件名关键词}" src/frontend/hisfront/ -g "*.js" -g "*.html" -l
+```
+
+**结果口径**：
+
+- 索引输出中 `→ (工作区外: <URL 首段>)` 的条目：前端链路完整，但后端源码不在本工作区 19 个仓库内（`api` / `ar` / `msup` / `phm` / `mrm` 等）。写「不属于本工作区后端仓库」，不写「链路缺失」。
+- 登记表查不到：写「无菜单登记（内嵌/弹窗页）」，不编造菜单路径。
+- `config_bar` 按钮在 HTML 中查不到 id 属正常，按钮来自配置表（`front/config_injection_snapshot.json`）。
 
 #### 输出
 
 | 项目 | 内容 |
 |------|------|
-| 页面路径 | `src/frontend/hisfront/.../xxx.html` 或 `xxx.jsp` |
-| 对应 JS 文件 | `src/frontend/hisfront/.../xxx.js` |
-| 菜单配置 | 对应 menu 配置项 |
+| 页面路径 | `src/frontend/hisfront/static/.../xxx.html` |
+| 对应 JS 文件 | `.../xxx.js`（含关键方法行号） |
+| 菜单访问位置 | 父菜单路径 / 界面名称（来源：登记表）或「无菜单登记」 |
+| 入口元素 | 元素 id / 文案 / 事件 |
+| 后端命中 | `Controller.method`（或「工作区外: 首段」） |
 | 页面功能简述 | 从页面元素和业务描述推断 |
 
 ---
 
 ### Phase 4：前端逻辑追踪
-> **输出约束**：本阶段的分析报告仅描述现有代码的实现方式和调用关系。禁止包含任何倾向性的改造建议、修改方向或建议改造位置等涉及变更的表述。所有涉及"如何修改"的分析推迟到 Phase 7-9（变更方法识别、多方案评估、结论输出）。本阶段以"现状是什么"为终点，不以"如何改"为目标。
+> **输出约束**：本阶段的分析报告仅描述现有代码的实现方式和调用关系。禁止包含任何倾向性的改造建议、修改方向或建议改造位置等涉及变更的表述。所有涉及"如何修改"的分析推迟到 Phase 8-10（变更方法识别、多方案评估、结论输出）。本阶段以"现状是什么"为终点，不以"如何改"为目标。
 > 
 > **必须回应 Phase 1 中列出的质疑点**（强制）——通过代码探索验证或补充质疑点中涉及的范围、功能、现状描述和目标冲突等维度，在报告中体现验证结论。
 
 
-前端分析提供两种路径：**Node.js AST 静态分析**（推荐，适合复杂溯源）和**手动 grep 溯源**（轻量备选，适合简单场景）。复杂场景（跨文件调用链、接口逆向）优先使用 AST 分析；简单场景（单页面查询按钮逻辑）可手工 grep。
+前端分析有两条路径：
+
+| 路径 | 适用场景 | 数据源 |
+|---|---|---|
+| **A. 链路库查询（默认）** | 页面/按钮/URL/函数级链路、上下游客栈、请求、页面关系 | `front_chain_db.json`（`front/query_front_chain.py`、`query_front_back_chain.py`） |
+| **B. AST 深挖（按需）** | 链路库 BFS 请求配额截断、需要全量双向 `funcCall` 统计、4.8 变量初始化追踪、对象属性赋值配置块 | `frontend-analyze.js` 生成的 `html-js-load-report.json` / `js-call-graph.json` |
+
+跨文件调用链、接口逆向先用 A；A 无法回答上述四类问题时再走 B。单页面查询按钮逻辑可手工 grep（4.5）。
+
+#### 4.0 路径 A：链路库查询（默认）
+
+```bash
+cd .agents/plugins/imedicalxc-doctor-codegraph/scripts
+
+# 页面视角：元素 → JS → 请求（--detail 展开调用栈）
+python query_front_back_chain.py page <页面片段>
+python query_front_back_chain.py url <URL片段> --detail
+python query_front_back_chain.py element <元素id或文案>
+
+# 函数视角：声明 / 调用 / 被调用 / 请求 / 相关链路
+python front/query_front_chain.py function <方法名>
+python front/query_front_chain.py page <页面片段>
+python front/query_front_chain.py links <页面片段>     # 弹窗 / 跳转 / 内嵌 / 包含关系
+```
+
+4.7 的「向上 / 向下 / API」三张表直接用 `function` 输出填充：`被调用` → 向上调用链，`调用` → 向下调用链，`请求` → API 请求。
+
+**归属分级（链路证据强度）**，与业务关联评级并列标注：
+
+| attribution | 含义 | 用法 |
+|---|---|---|
+| `direct` | 元素触发，且入口与页面有真实调用边 | 可写成「页面上有可操作入口」 |
+| `load` | 页面加载自动触发（`page_load`） | 只证明「打开页面会触发」，不能代替点击步骤 |
+| `indirect` | 经 Feign 调用方 / 类型使用 / 常量消费点间接上溯 | 注明「经消费方法间接」 |
+| `heuristic` | 仅 URL / 类名兜底 | 必须标明「启发式」，不算界面证据 |
+
+> 链路库是静态 BFS，单个 handler 的请求数有配额上限；出现「明显应该有的请求缺失」时，改用路径 B 或回源码确认。
 
 #### 前置校验（仅 AST 分析需要）
 
@@ -218,9 +319,9 @@ if (-not (Test-Path "$pkgDir/node_modules/cheerio")) {
 
 > 如果 Node.js 或脚本缺失，自动回退到 2.5 手动 grep 溯源方案。Windows 路径反斜杠与 glob 兼容问题在脚本中已内置 `.replace(/\\/g, '/')` 自动处理。
 
-#### 4.1 生成 AST 分析报告
+#### 4.1 生成 AST 分析报告（路径 B）
 
-在前端工程目录下运行脚本，生成两份 JSON 报告：
+仅当路径 A 无法回答 4.0 所述问题（配额截断 / 全量统计 / 变量初始化 / 对象属性赋值）时执行。在前端工程目录下运行脚本，生成两份 JSON 报告：
 
 ```bash
 # 脚本路径
@@ -228,7 +329,7 @@ $script = ".agents/plugins/imedicalxc-doctor-business-understanding/scripts/fron
 # 前端静态目录（按需替换为具体模块路径，如 opcare/adm）
 $frontendDir = "src/frontend/hisfront/static/opcare"
 # 输出目录（按阶段自动创建）
-$outputDir = "docs/agents/imedicalxc-doctor-business-understanding/phase2-frontend-trace"
+$outputDir = "docs/agents/imedicalxc-doctor-business-understanding/phase4-frontend-trace"
 # 工作名称（用于文件命名，如 opcare_adm）
 $workName = "module_name"
 
@@ -359,6 +460,8 @@ rg -n "\.ajax\(" src/frontend/hisfront/ -g "*.js"
 
 **评级方式**：分析完成后对照用户描述的功能来逐个判断。不依赖 AST 自动推导，由 Agent 基于对业务逻辑的理解人工判定。
 
+**证据约束**：评级（业务相关度）与 attribution（链路证据强度）并列标注；★★★★★ 必须同时满足 `attribution=direct` 且已打开源码复核行号，否则降一级并注明证据来源。`load` / `indirect` / `heuristic` 条目不得评 5★。
+
 **输出表格格式**：
 
 | # | 评级 | 类别 | 方法/代码段 | 文件:行号 | 作用 | 关联 API / URL |
@@ -370,7 +473,9 @@ rg -n "\.ajax\(" src/frontend/hisfront/ -g "*.js"
 | 5 | ★★☆☆☆ | 联动 | `ChangeorderFreqTimeDoseList` | OEOrder.List.Custom.js | 频次变化时联动剂量列表，非核心控制路径 | — |
 | 6 | ★☆☆☆☆ | 工具 | `GetCellData` | OEOrder.Common.js | 全局行数据读取函数，所有功能共享 | — |
 
-> **说明**：评级必须在 Phase 7（变更方法识别）中使用 — 高星方法（★★★★★/★★★★☆）的调整对用户功能影响最大，低星方法（★☆☆☆☆）通常可以安全调整而不影响目标功能。
+> **说明**：评级必须在 Phase 8（变更方法识别）中使用 — 高星方法（★★★★★/★★★★☆）的调整对用户功能影响最大，低星方法（★☆☆☆☆）通常可以安全调整而不影响目标功能。
+
+> 表中示例行号（如 `GetStyleConfigObj:6393`）来自历史分析；源码演进后行号会漂移，实际执行时以 `query_front_chain.py function` / rg 的当前输出为准。
 
 #### 4.7 关联方法调用链说明
 
@@ -412,9 +517,6 @@ rg -n "\.ajax\(" src/frontend/hisfront/ -g "*.js"
 - 多个入口路径时按分支展示（如 ├─ 或: addSelectedFav 从收藏夹）
 - ★★★★☆ 串联关联的调用链图同样按此格式输出，5 星和 4 星的链仅在评级分类上区分
 
-信息获取方式：
-```
-
 **信息获取方式**：
 
 ```bash
@@ -450,15 +552,15 @@ console.log('上级调用者:', JSON.stringify(callers, null, 2));
 4. API 请求标注在后端 URL 路径（从 UrlList 定义映射）
 5. 归属页面信息来自 html-js-load-report.json 的 externalJs 反向关联
 
-**调用链替代 `rg` 的场景**：
+**调用链替代 `rg` 的场景**（路径 A 的 `query_front_chain.py function` 已覆盖前四项，AST 仅用于配额截断或统计口径补充）：
 
 ```
-rg 无法做的事                    ← AST 报告可做
+rg 无法做的事                    ← 链路库 / AST 可做
 ─────────────────────────────────┼────────────────────────
-"这个方法是被谁调用的？"        → funcCall 反向查找所有调用者
-"这几个方法之间的关系？"        → 双向调用链递归展示
-"这个方法发起了哪些 API？"      → apiRequest 按 caller 筛选
-"这个 API 被哪些页面调用了？"    → url→函数→页面 三级反向追溯
+"这个方法是被谁调用的？"        → function 输出「被调用」
+"这几个方法之间的关系？"        → function 输出「调用 / 相关链路」
+"这个方法发起了哪些 API？"      → function 输出「请求」
+"这个 API 被哪些页面调用了？"    → url 子命令 / 链路反查
 ```
 
 > 注意：对象属性赋值不触发 `CallExpression`，不在 AST 调用链中。这类配置型逻辑仍需配合 `rg` 定位。
@@ -561,134 +663,137 @@ rg -n "GetCellData.*{字段名}" <文件名> | head -5
               └─ 终端: API 响应中 ARCIM 项目的主数据
 ```
 
-> **初始化链路的作用**：Phase 7（变更方法识别）中评估变更影响时，需要判断改变一个变量是否需要修改其初始化来源。例如要改变 `orderDoseQty` 的禁用逻辑，不仅需要修改行 6454，还需要确认 `orderType` 的赋值不受影响 — 而 `orderType` 来自 API 响应，只需要前端逻辑判断即可，不需要改后端。
+> **初始化链路的作用**：Phase 8（变更方法识别）中评估变更影响时，需要判断改变一个变量是否需要修改其初始化来源。例如要改变 `orderDoseQty` 的禁用逻辑，不仅需要修改行 6454，还需要确认 `orderType` 的赋值不受影响 — 而 `orderType` 来自 API 响应，只需要前端逻辑判断即可，不需要改后端。
 
 ---
 
 ### Phase 5：后端调用链追溯
-> **输出约束**：本阶段的分析报告仅描述现有代码的实现方式和调用关系。禁止包含任何倾向性的改造建议、修改方向或建议改造位置等涉及变更的表述。所有涉及"如何修改"的分析推迟到 Phase 7-9（变更方法识别、多方案评估、结论输出）。本阶段以"现状是什么"为终点，不以"如何改"为目标。
+> **输出约束**：本阶段的分析报告仅描述现有代码的实现方式和调用关系。禁止包含任何倾向性的改造建议、修改方向或建议改造位置等涉及变更的表述。所有涉及"如何修改"的分析推迟到 Phase 8-10（变更方法识别、多方案评估、结论输出）。本阶段以"现状是什么"为终点，不以"如何改"为目标。
 
 > **必须回应 Phase 1 中列出的质疑点**（强制）——通过代码探索验证或补充质疑点中涉及的范围、功能、现状描述和目标冲突等维度，在报告中体现验证结论。
 
-#### 5.1 Controller 定位
-
-根据前端 AJAX URL 路径追踪到后端 Controller：
+#### 5.1 Controller 定位（前端请求 → Controller）
 
 ```bash
-rg -rn "前端URL路径中的关键词" src/backend/ -g "*.java" -l
-rg -n "@RequestMapping|@PostMapping|@GetMapping" src/backend/.../Controller.java
+cd .agents/plugins/imedicalxc-doctor-codegraph/scripts
+
+# 前端请求 URL → Controller 方法（含文件行号；工作区外标注首段）
+python query_front_back_chain.py url <前端请求路径片段> --detail
+
+# 已知 Controller / 方法，反查被哪些页面/按钮触发
+python query_front_back_chain.py controller <Controller短名>
+python query_front_back_chain.py method <Class.method>
 ```
 
-#### 5.2 BLH -> Service -> Mapper 链路追溯
+查不到前端链路时走注解兜底，结果分别标注「无前端链路」/「Maven jar」：
 
 ```bash
-rg -n "xxxBlh|xxxService\." src/backend/.../Controller.java
-rg -n "xxxService\." src/backend/.../XxxBlh.java
-rg -n "xxxMapper\." src/backend/.../XxxServiceImpl.java
-rg -n "select|insert|update|delete" src/backend/.../XxxMapper.java
+python query_front_back_chain.py url <URL片段> --detail
 ```
 
-#### 5.3 Feign 跨服务调用追踪
-
-如果接口通过 Feign 跨服务调用：
+#### 5.2 BLH → Service → Mapper 链路（调用图下游追踪）
 
 ```bash
-rg -rn "FeignClient|@FeignClient" src/backend/.../feign/ -g "*.java" -l
-rg -rn "class.*Impl implements.*Client" src/backend/ -g "*.java" -l
+# 基础模式四段：工作区内部影响 → Feign 边界 → Maven 入站 → （--reverse 时）反向追踪
+python impact_analyzer.py <Class.method> --select 1
+
+# 需要上游 Controller 与外部调用方时用 6 段式
+python impact_analyzer.py <Class.method> --impact
+
+# 反向：谁调用了这个方法
+python impact_analyzer.py <方法名> --reverse --select 1
+python query_callers.py <Class.method>
 ```
 
-#### 5.4 后端输出清单
+- BLH 覆写族按 `extends` / `implements` 自动展开，输出带 `[BLH覆写]`；深度 `??` 或 `[启发式]` 的入口必须标注为兜底候选。
+- 图里没有的方法（反射调用、BLH 反射分发、上游接口、ESB 适配器）标 `not_in_graph`，再用 rg/源码确认，**不得判「未使用」**。
 
-| 层级 | 类名 | 方法 | 文件:行号 | 入参 | 出参 | 备注 |
-|------|------|------|----------|------|------|------|
-| Controller | `XxxController` | `getXxx()` | XxxController.java:35 | `@RequestBody XxxDTO` | `XxxVO` | URL: `/api/...` |
-| BLH | `XxxBlh` | `queryXxx()` | XxxBlh.java:52 | `XxxParam` | `XxxResult` | 参数组装 |
-| Service | `XxxServiceImpl` | `findXxx()` | XxxServiceImpl.java:88 | `XxxQueryDTO` | `List<Xxx>` | 分页查询 |
-| Mapper | `XxxMapper` | `selectXxx()` | XxxMapper.java:12 | `XxxQueryDTO` | `List<Xxx>` | SQL: join a,b,c |
+#### 5.3 Feign 跨服务调用
+
+```bash
+python query_method_feign.py <Class.method>       # 该方法调用了哪些 Feign
+python query_who_calls_feign.py <Client短名>       # 该 Feign 被哪些工作区 / Maven 服务调用
+```
+
+#### 5.4 Mapper SQL 明细（图不覆盖，保留 rg）
+
+调用图只到 `Mapper.method` 节点，不含 SQL 文本。需要 SQL 时按 namespace + statement id 在 XML 中定位：
+
+```bash
+rg -rn "<statement id 或方法名>" src/backend/<模块>/ -g "*Mapper.xml"
+```
+
+#### 5.5 后端输出清单
+
+| 层级 | 类名 | 方法 | 文件:行号 | 入参 | 出参 | 证据来源 | 备注 |
+|------|------|------|----------|------|------|----------|------|
+| Controller | `XxxController` | `getXxx()` | XxxController.java:35 | `@RequestBody XxxDTO` | `XxxVO` | graph | URL / 页面入口 |
+| BLH | `XxxBlh` | `queryXxx()` | XxxBlh.java:52 | `XxxParam` | `XxxResult` | graph / `[BLH覆写]` | 参数组装 |
+| Service | `XxxServiceImpl` | `findXxx()` | XxxServiceImpl.java:88 | `XxxQueryDTO` | `List<Xxx>` | graph | 分页查询 |
+| Mapper | `XxxMapper` | `selectXxx()` | XxxMapper.java:12 | `XxxQueryDTO` | `List<Xxx>` | graph + rg(XML) | SQL 摘要 |
+
+> ★4-5 的每个方法都必须打开 `file_path` 指向的源码确认行号与逻辑；`[启发式]` 条目必须注明不确定性。
 
 ---
 
 ### Phase 6：质疑点门禁把关
 
-对质疑点清单（初始 + 新增）进行统一审计，确认是否在 Phase 3-5 的探索中得到了充分验证。执行流程：
+对质疑点清单（初始 + 新增）统一审计，确认是否在 Phase 3-5 的探索中得到了充分验证。
 
-### 步骤 A：质疑点补充
+#### 步骤 A：质疑点补充
 
-基于 Phase 1-4 的探索结果，识别是否有新的质疑点出现，补充到清单中：
+基于 Phase 1-5 的探索结果补充新质疑点：
 
-- 审查 Phase 3-5 的输出报告，对比 Phase 1 的质疑点清单，判断是否存在未被 Phase 1 覆盖的新范围质疑
-- 例如：Phase 2 中发现某个页面也实现了相关功能但未在 Phase 1 中提及，则补充为该页面的质疑点
+- 对比 Phase 3-5 输出与 Phase 1 清单，找出未被覆盖的新范围
+- 例如 Phase 2 发现某页面也实现了相关功能但 Phase 1 未提及，则补充该页面的质疑点
 
-### 步骤 B：自动化遗漏审查
+#### 步骤 B：遗漏审查
 
-对 Phase 2-4 检索到的关联内容进行审查，判断是否因工具特性导致遗漏或忽略：
+**表 A：通用检索遗漏**
 
 | 检查项 | 说明 | 判定方式 |
 |--------|------|----------|
-| AST 函数定义捕获 | 脚本只捕获 FunctionDeclaration，嵌套函数可能被忽略 | 对关键文件以 rg 全文搜索交叉验证 |
-| AST 路径兼容 | Windows 下 path.join 产生反斜杠影响 glob 匹配 | 确认报告中文件数是否合理 |
-| rg 编码 | rg 对 UTF-8 无 BOM 文件中的中文搜索可能失效 | 对未匹配项以 Select-String 验证 |
+| AST 函数定义捕获 | 只捕获 FunctionDeclaration/FunctionExpression，嵌套函数或闭包可能被忽略 | 关键文件用 rg 全文交叉验证 |
+| AST 路径兼容 | Windows 反斜杠影响 glob | 确认报告文件数是否合理 |
+| rg 编码 | UTF-8 无 BOM 文件中的中文搜索可能失效 | 对未匹配项用 Select-String 验证 |
 | API 关键字遗漏 | 脚本 keyword 列表可能不完整 | 检查前端自定义 AJAX 封装方法名 |
 | 搜索范围遗漏 | 子模块未被纳入搜索路径 | 确认 submodule 状态并补充搜索 |
 
-> 记录遗漏项：如发现遗漏，说明遗漏原因并记录到报告。严重的遗漏需从 Phase 2 重新探索。
-
-### 步骤 C：统一审计
-
-1. 逐条比对：将质疑点清单（含新增）与 Phase 2-4 的输出报告逐条核对
-2. 关联评分：对每条质疑点按 5 星标准进行关联性评估
-   - ★★★★★ 强关联
-   - ★★★★☆ 关联
-   - ★★★☆☆ 弱关联
-   - ★★☆☆☆ 微弱关联
-   - ★☆☆☆☆ 无关联
-3. 门禁判断：未探索的质疑点从 Phase 2 重新开始探索
-4. 用户确认：展示评分表，用户确认后方可进入 Phase 6
-
-> 注意：此步骤不产生新的代码分析，仅对 Phase 3-5 的探索结果做审计和评分。
-
-> 记录遗漏项：如发现遗漏，说明遗漏原因并记录到报告。严重的遗漏需从 Phase 2 重新探索。
-
-### 步骤 C：统一审计
-
-1. 逐条比对：将质疑点清单（含新增）与 Phase 2-4 的输出报告逐条核对
-2. 关联评分：对每条质疑点按 5 星标准进行关联性评估：
-   - ★★★★★ 强关联：质疑点对应的功能/界面被明确验证存在直接关联
-   - ★★★★☆ 关联：质疑点的内容在探索中被部分验证
-   - ★★★☆☆ 弱关联：质疑点有间接参考价值
-   - ★★☆☆☆ 微弱关联：仅有边缘性参考
-   - ★☆☆☆☆ 无关联：质疑点经过验证与当前需求无关
-3. 门禁判断：如果存在未探索的质疑点，将该质疑点作为提示词，从 Phase 2 重新开始探索；循环直到所有质疑点都完成探索
-4. 用户确认：将最终的评分表展示给用户，请用户确认关联关系是否需要调整。用户确认后方可进入 Phase 7。
-
-> 注意：此步骤不产生新的代码分析，仅对 Phase 3-5 的探索结果做审计和评分。
-对 Phase 2-4 检索到的关联内容进行审查，判断是否因工具特性导致**遗漏或忽略**：
+**表 B：codegraph 索引口径**（默认证据源，漏检必须逐项确认）
 
 | 检查项 | 说明 | 判定方式 |
-|--------|------|----------|
-| AST 函数定义捕获 | 脚本只捕获 FunctionDeclaration/FunctionExpression，嵌套函数或闭包中的函数可能被忽略 | 对关键文件以 rg 全文搜索交叉验证 |
+|---|---|---|
+| 索引新鲜度 | 后端索引 / 前端链路库是否早于分析涉及的源码 | 核对 Phase 0 指纹；过期须重建或标注降级 |
+| URL 命中率 | 工作区 URL 命中约 33%，属跨仓库口径而非漏扫 | 未命中先看 URL 首段是否工作区外产品 |
+| `[启发式]` 入口 | BLH 反射断链后的关键词匹配 | 全部列入待源码复核清单 |
+| `indirect` / `depth=-1` | 间接上溯或兜底候选 | 不得当作界面证据 |
+| `page_load` / `load` | 页面加载自动触发 | 只证明打开页面触发，不代替点击 |
+| `config_bar` | 按钮来自配置表，HTML 无 id | 查 `config_injection_snapshot.json` 的 code/handler |
+| `front-orphan` | URL 只出现在未装载脚本 | 不等于无页面，需运行时或总线证据 |
+| `not_in_graph` | 前端 / DTO/VO/PO / public / 反射链 | 不得作为"无影响"依据 |
+| Maven 服务边界截断 | 保留服务的下游在边界处截断 | 不据此推断"无下游" |
+| 链路库 BFS 配额 | 单 handler 请求数有上限 | 缺失请求回源码或走 AST 深挖 |
 
-> **记录遗漏项**：如发现遗漏，说明遗漏原因并记录到报告。严重的遗漏需从 Phase 2 重新探索。
+> 记录遗漏项：说明遗漏原因并写入报告；严重遗漏从 Phase 2 重新探索。
 
-### 步骤 C：统一审计
+#### 步骤 C：统一审计
 
-1. **逐条比对**：将质疑点清单（含新增）与 Phase 2-4 的输出报告逐条核对
-2. **关联评分**：对每条质疑点按 5 星标准进行关联性评估：
-   - ★★★★★ 强关联：质疑点对应的功能/界面被明确验证存在直接关联
-   - ★★★★☆ 关联：质疑点的内容在探索中被部分验证
-   - ★★★☆☆ 弱关联：质疑点有间接参考价值
+1. **逐条比对**：质疑点清单（含新增）与 Phase 3-5 报告逐条核对
+2. **关联评分**：
+   - ★★★★★ 强关联：功能/界面被明确验证存在直接关联
+   - ★★★★☆ 关联：内容在探索中被部分验证
+   - ★★★☆☆ 弱关联：有间接参考价值
    - ★★☆☆☆ 微弱关联：仅有边缘性参考
-   - ★☆☆☆☆ 无关联：质疑点经过验证与当前需求无关
-3. **门禁判断**：如果存在**未探索**的质疑点，将该质疑点作为提示词，从 Phase 2 重新开始探索；循环直到所有质疑点都完成探索
-4. **用户确认**：将最终的评分表展示给用户，请用户确认关联关系是否需要调整。用户确认后方可进入 Phase 6。
+   - ★☆☆☆☆ 无关联：经验证与当前需求无关
+3. **门禁判断**：存在未探索的质疑点时，以其为提示词回到 Phase 2 重新探索，循环至全部完成
+4. **用户确认**：展示评分表，用户确认后方可进入 Phase 7
 
-> **注意**：此步骤不产生新的代码分析，仅对 Phase 2-4 的探索结果做审计和评分。
-> **注意**：此步骤不产生新的代码分析，仅对 Phase 2-4 的探索结果做审计和评分。
+> 此步骤不产生新的代码分析，仅对 Phase 3-5 的探索结果做审计和评分。
 
 ---
 ### Phase 7：综合分析与设计文档
 
-结合 Phase 1-6 的所有报告（初步探索、头脑风暴、UI入口定位、前端逻辑追踪、后端调用链追溯、质疑点门禁把关），使用 `superpowers:brainstorming` skill 探索需求并生成设计文档。
+结合 Phase 1-6 的所有报告（初步探索、头脑风暴、UI入口定位、前端逻辑追踪、后端调用链追溯、质疑点门禁把关）与 Phase 0 索引检查记录，使用 `superpowers:brainstorming` skill 探索需求并生成设计文档。
 
 
 ---
@@ -709,6 +814,8 @@ rg -rn "class.*Impl implements.*Client" src/backend/ -g "*.java" -l
       |-> 对应的Controller接口
         |-> 对应的前端JS/页面组件
 ```
+
+> 每层结论标注证据来源：`graph`（调用图 / 链路库）、`source`（源码复核）、`fallback`（rg / 启发式）。图里缺失的层级不得直接判定"无需调整"，须按 Phase 6 表 B 的口径补证。
 
 #### 8.2 可能存在的多种调整方向
 
@@ -732,10 +839,25 @@ rg -rn "class.*Impl implements.*Client" src/backend/ -g "*.java" -l
 | 维度 | 说明 | 评分标准（1-5） |
 |------|------|----------------|
 | **健壮性 (Robustness)** | 改动后系统的容错能力、异常处理完整性、是否引入新的失败风险 | 5=改动最小化，不影响现有路径；1=高风险，影响面广 |
-| **可维护性 (Maintainability)** | 代码结构的清晰度、后续维护的成本、是否符合现有代码风格 | 5=清晰扩展，与现有模式一致；1=代码复杂，埋下技术债 |
+| **可维护性 (Maintainability)** | 代码结构的清晰度、后续维护的成本、是否符合现有代码风格；配置层的卫生度（见下方负评价审计） | 5=清晰扩展，与现有模式一致，无重复/冲突配置；1=代码复杂、配置重复或与现网冲突，埋下技术债 |
 | **可扩展性 (Extensibility)** | 方案对未来需求变化的适应能力、复用程度 | 5=抽象良好，易于扩展；1=硬编码，难以复用 |
 | **影响范围 (Impact Scope)** | 对其他现有业务功能的影响程度 | 5=仅限于当前业务；1=多个模块需要联动修改 |
 | **工作量 (Effort)** | 实施所需的代码变更量 | 5=小范围改动(1-2文件)；1=跨模块、大量改动 |
+
+**可维护性负评价审计（配置层，逐方案执行）**：每个方案先查是否引入以下三类负项，再给可维护性打分。
+
+| 负项 | 判定口径 | 查证入口 |
+|---|---|---|
+| 重复配置 | 同一语义的配置项已在字典表 / 参数表 / 开关表中存在，方案又新增一份 | 后端：按配置 key、中文名、业务字段在字典/参数表检索；前端：`front/config_injection_snapshot.json` 查同 code / handler |
+| 与功能目标重复的配置 | 一个业务目标被拆成多处配置表达（如开关 + 字典 + 硬编码白名单同时控制同一行为） | 梳理方案涉及的配置点，按「同一行为」归组，组内多于一处即判负 |
+| 与当前配置不兼容 | 新配置与现网已生效值语义冲突：互斥开关、同一 key 不同取值口径、类型 / 长度 / 枚举范围不符、默认值覆盖现网设置 | 对比方案默认值与现网实际值（库中现网配置 + 前端注入快照）；无法确认现网值时标「待确认」 |
+
+降档规则：
+
+- 出现任一负项：可维护性最高 **3/5**
+- 出现两项及以上：可维护性最高 **2/5**
+- 负项必须写入 9.2 的评分依据，并在 Phase 10 风险提示中列明合并 / 迁移 / 兼容处理方式
+- 负项不自动否决方案；但「与当前配置不兼容」且未给出迁移或兼容方案的，该方案不得评为推荐方案
 
 #### 9.2 方案评分
 
@@ -748,31 +870,48 @@ rg -rn "class.*Impl implements.*Client" src/backend/ -g "*.java" -l
 | 工作量 | 5/5 | 3/5 | 2/5 |
 | **综合评分** | **中** | **高** | **中-高** |
 
-> 评分不能凭空判断，必须在 Phase 3-5 的探索结果基础上给出依据。
+> 评分不能凭空判断，必须在 Phase 3-5 的探索结果基础上给出依据；可维护性须同时给出 9.1 负评价审计的三类配置负项结论（有/无 + 查证结果）。
 
 #### 9.3 跨业务影响分析
 
-针对方案中每一处方法调整，排查：
+针对方案中每一处方法调整，用索引一次拿全影响面：
 
 ```bash
-# 排查该方法被哪些其他前端页面/JS调用
-rg -n "方法名\(" src/frontend/hisfront/ -g "*.js"
+cd .agents/plugins/imedicalxc-doctor-codegraph/scripts
 
-# 排查该方法接口被哪些其他后端模块引用（Feign调用方）
-rg -rn "FeignClient" src/backend/ -g "*.java" -l
-rg -rn "Client\.方法名\(" src/backend/ -g "*.java"
+# 1) 6 段式影响面：下游 / 上游 Controller / Feign / Maven 外部调用方 / 工作区跨服务
+python impact_analyzer.py <Class.method> --impact
 
-# 排查该方法调用的Mapper被哪些其他Service使用
-rg -rn "XxxMapper\." src/backend/ -g "*.java"
+# 2) 前端页面与按钮：哪些页面会触发该 Controller / 请求
+python query_front_back_chain.py controller <Controller短名>
+python query_front_back_chain.py method <Class.method>
+python query_front_back_chain.py url <请求路径片段> --detail
+python front/query_front_chain.py function <JS方法名>
+
+# 3) Feign 侧调用方（工作区 + Maven 入站）
+python query_who_calls_feign.py <Client短名>
+
+# 4) Mapper 被哪些 Service 使用（图内）
+python query_callers.py <Mapper.method>
 ```
+
+rg 只补图外内容：
+
+```bash
+# XML 动态 SQL 引用、字符串/配置引用
+rg -rn "<Mapper方法名>" src/backend/ -g "*.java" -g "*Mapper.xml"
+rg -n "<常量名>" src/backend/ -g "*.java"
+```
+
+> `--impact` 第四、五节是「谁通过 Feign 调用了该接口」，不是下游；两者不可互换。下游总数含 DTO/PO/VO 取值器，评估改造面时先按 Service/BLH/Feign 筛选，不要用总数直接判断。
 
 #### 9.4 影响分析输出
 
-| 方法 | 被哪些业务环节使用 | 调整后的影响 | 是否需要同时调整 |
-|------|------------------|-------------|----------------|
-| `XxxService.findList()` | 门诊医生站(患者列表)、住院医生站(入院记录) | 新增字段后可能与现有前端展示冲突 | 住院医生站前端需评估 |
-| `XxxMapper.selectList()` | `XxxService.findList()`, `ExportService.export()` | SQL 加 join 可能影响 export 性能 | ExportService 需评估分页 |
-| `xxx.js:42 searchPat()` | 页面加载、手动点击查询、双击患者 | 如果后端返回结构变化，JS解析逻辑需调整 | 无其他前端依赖 |
+| 方法 | 被哪些业务环节使用 | 调整后的影响 | 证据来源 | 是否需要同时调整 |
+|------|------------------|-------------|----------|----------------|
+| `XxxService.findList()` | 门诊医生站(患者列表)、住院医生站(入院记录) | 新增字段后可能与现有前端展示冲突 | graph + source | 住院医生站前端需评估 |
+| `XxxMapper.selectList()` | `XxxService.findList()`, `ExportService.export()` | SQL 加 join 可能影响 export 性能 | graph + rg(XML) | ExportService 需评估分页 |
+| `xxx.js:42 searchPat()` | 页面加载、手动点击查询、双击患者 | 如果后端返回结构变化，JS解析逻辑需调整 | direct/load | 无其他前端依赖 |
 
 ---
 
@@ -783,33 +922,39 @@ rg -rn "XxxMapper\." src/backend/ -g "*.java"
 ```
 # 业务实现分析报告
 
+## 报告头
+- 索引指纹：后端生成时间 / 前端 generated_at + 检出 sha / 是否重建
+- 分析范围：业务场景、页面、涉及服务
+
 ## 一、业务概述与现状
 - 用户描述的业务场景
 - 当前实现的核心流程（1-2句话）
 
-## 二、前后端实现链路（Phase 2-4 汇编结果：UI入口定位、前端逻辑追踪、后端调用链追溯）
-- UI入口：{页面路径}
-- 前端关键方法：表格式列出
-- 后端关键方法：表格式列出
+## 二、前后端实现链路（Phase 3-5 汇编结果）
+- 五段链路：HTML 页面 → 操作元素 → JS 方法 → HTTP 请求 → Controller
+- 前端关键方法：表格列出，含 attribution（direct/load/indirect/heuristic）
+- 后端关键方法：表格列出，含证据来源（graph/source/fallback）
 - 完整调用链图
+- 菜单访问位置（登记表；查不到写「无菜单登记（内嵌/弹窗页）」）
 
-## 三、需求变更范围（Phase 6-7 分析结果：业务实现汇编、变更方法识别）
+## 三、需求变更范围（Phase 6-8 分析结果）
 - 用户目标需求摘要
-- 需要调整的方法清单（含依赖关系）
+- 需要调整的方法清单（含依赖关系与证据来源）
 - 多种可能的调整方向
 
-## 四、方案评估（Phase 8 分析结果）
+## 四、方案评估（Phase 9 分析结果）
 ### 方案 A：{方案名称}
 - 核心思路：...
 - 修改清单：{文件:行号} 列表
 - 评估得分：健壮性 X/5, 可维护性 X/5, 可扩展性 X/5, 影响范围 X/5, 工作量 X/5
+- 配置负评价审计：重复配置 / 与功能目标重复的配置 / 与当前配置不兼容（逐项写有/无 + 查证结果）
 - 综合风险：低/中/高
 
 ### 方案 B：{方案名称}
 - ...
 
 ## 五、综合建议
-- 推荐方案及理由
+- 推荐方案及理由（引用六段式证据与源码复核记录）
 - 如果选择推荐方案，需要确认的事项
 - 备选方案什么情况下更适合
 
@@ -819,13 +964,33 @@ rg -rn "XxxMapper\." src/backend/ -g "*.java"
 #### 10.2 输出规范
 
 1. 不包含 "TODO"、"占位符"、"后续完善" 等未完成表述
-2. 评估评分必须附上依据（引用 Phase 2-4 的探索结果）
+2. 评估评分必须附上依据（引用 Phase 3-5 的索引证据与源码复核记录）
 3. 影响范围分析必须具体到文件和行号
-4. 最终以用户选择确定下一步行动方向
+4. 每条页面入口写全五段链路；缺段必须写明原因（`config_bar` 无 id / 工作区外产品 / 内联 onclick 无 id）
+5. 图外结论标注 `not_in_graph` / 「工作区外」，不得写成"无影响"
+6. 每个方案必须有配置负评价审计结论；不得以「本方案不涉及配置」跳过——新增开关、字典项、白名单、默认值变更都算配置
+7. 最终以用户选择确定下一步行动方向
 
 ---
 
 ## 通用搜索命令速查
+
+### 索引查询（默认，工作目录 `.agents/plugins/imedicalxc-doctor-codegraph/scripts`）
+
+| 目的 | 命令 |
+|------|------|
+| 页面 → 元素 → JS → 请求 → Controller | `python query_front_back_chain.py page <片段>` |
+| 按钮 id / 文案反查 | `python query_front_back_chain.py element <id或文案>` |
+| URL → 全部触发入口 | `python query_front_back_chain.py url <片段> --detail` |
+| Controller → 页面/按钮 | `python query_front_back_chain.py controller` / `method` |
+| 函数调用关系与请求 | `python front/query_front_chain.py function <方法名>` |
+| 页面关系（弹窗/跳转/内嵌） | `python front/query_front_chain.py links <页面>` |
+| 变更影响（6 段式） | `python impact_analyzer.py <Class.method> --impact` |
+| 下游链路 / 反向调用者 | `python impact_analyzer.py <类.方法>` / `python query_callers.py <类.方法>` |
+| 方法 → Feign / Feign → 调用方 | `python query_method_feign.py` / `python query_who_calls_feign.py` |
+| 菜单访问位置 | `rg -n "<页面路径片段>" docs/knowledge/前端界面入口登记/界面入口登记表.md` |
+
+### 源码级检索（图外兜底）
 
 | 目的 | 命令 |
 |------|------|
@@ -839,5 +1004,5 @@ rg -rn "XxxMapper\." src/backend/ -g "*.java"
 
 ## 引用说明
 
-本 Skill 的业务实现探索方法论参考自番薯(AI编码辅助)的企业工程实践文章（腾讯云开发者社区，文章 ID: 2676110），其从前端界面入口到后端数据的跨层调用链追踪策略与本文 Phase 1-2 + Phase 3-5 的追溯流程一致。在此基础上扩展了变更影响评估（Phase 7-8）和多方案结论输出（Phase 9），形成完整的 analysis-to-decision 工作流。
+本 Skill 的业务实现探索方法论参考自番薯(AI编码辅助)的企业工程实践文章（腾讯云开发者社区，文章 ID: 2676110），其从前端界面入口到后端数据的跨层调用链追踪策略与本文 Phase 1-2 + Phase 3-5 的追溯流程一致。在此基础上扩展了变更影响评估（Phase 8-9）和多方案结论输出（Phase 10），形成完整的 analysis-to-decision 工作流。
 
