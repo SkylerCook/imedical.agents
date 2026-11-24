@@ -16,7 +16,7 @@
 只有 `taskKind=business-demand`、由其派生的 `feedbackReviewApplicable=true`、需求处于 `accepted`，且命中反馈信号（框架缺陷、规则冲突、可复用新经验或用户要求）、Agent 已完成只读反馈审查并向用户报告建议动作后，才检查以下条件：
 
 1. 本次任务是否读取了 `.agents/` 下的框架文件（rules、skills、templates、references、scripts、agents、workflows 等）？
-2. 是否在该业务需求的真实使用过程中发现并修正了框架问题（不只是独立维护框架本身）？
+2. 是否在该业务需求的真实使用过程中发现了可定位到框架文件的独立问题（不只是独立维护框架本身）？
 
 **两个条件都满足且用户明确授权生成该 framework feedback 时**，执行反馈生成。授权来源与已明确授权的源仓隔离待审补丁模式，统一遵循 [feedback skill](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)；该模式形成源仓待审 diff 时不重复复制整份反馈包。否则正常结束，不生成反馈。技术验证、commit、部署、Verifier 完成、框架文件已修正或纯框架维护已完成，都不等于用户验收，也不构成反馈写入授权。
 
@@ -26,7 +26,7 @@
 1. 记录当前仓库 git hash：git rev-parse HEAD
 2. 创建反馈目录：{FRAMEWORK_ROOT}/feedback/framework/YYMMDDHHmmss/
    - YYMMDDHHmmss 为当前时间戳，精确到秒
-3. 将修正后的框架文件按原路径结构复制到反馈目录
+3. 部署副本只读时，将上一步的反馈目录放在项目约定的交付目录，按 owner 原路径复制受影响文件并在包内修正，可在同版本隔离镜像验证。已有授权修正的文件可直接收入包中。
    - 修正了 plugins/i18n-iris-plugin/rules/i18n_coding_backend.md
      → 放入 {FRAMEWORK_ROOT}/feedback/framework/YYMMDDHHmmss/plugins/i18n-iris-plugin/rules/i18n_coding_backend.md
    - 修正了 scripts/update-agents.ps1

@@ -23,7 +23,7 @@ description: Review accepted business demands for reusable experience or framewo
 
 - 项目根 `AGENTS.md` 路由到本 skill 时，仍先检查反馈信号；常驻收尾入口本身不构成信号。
 - 本次发现具有新增价值、验证证据和跨场景依据的经验线索；按下文准入条件筛选，普通修复完成本身不构成信号。
-- 本次在业务需求真实使用过程中发现并修正了 `.agents/` 下的框架文件（rules、skills、templates、references、scripts、agents、workflows 等）。
+- 本次在业务需求真实使用过程中发现了可定位到框架文件的独立问题（rules、skills、templates、references、scripts、agents、workflows 等）。
 - 用户明确要求“生成反馈”“记录本次发现”“沉淀经验”或“提升到 plugin rule”。
 
 调用本 skill 的默认动作仅为只读审查，不等于写文件。仅报告通过准入的经验候选、有效已有命中或独立框架问题及建议动作，不为报告完整而凑条目。新增条目、命中次数更新、framework feedback 或 rule 提升，按下文[写入授权与自动待审补丁](#写入授权与自动待审补丁)核对当前有效授权。on-signal 无候选时正常收尾，不生成空反馈、不例行报告；正式 run 可记录 skipped/no-signal，不能冒充 completed 审查。
@@ -116,14 +116,14 @@ description: Review accepted business demands for reusable experience or framewo
 
 提升后在经验条目追加“已提升”路径。尚不成熟、owner 不明确时保持已合格的共享经验，不提升；可能只适用于单一项目或共享准入证据不足时留在项目内，不进入共享候选。命中次数本身不是提升依据。
 
-需求经验提升本身不再递归生成一份 `{FRAMEWORK_ROOT}/feedback/framework/`；只有任务独立发现并修正了框架缺陷时，才继续执行框架修正分支。
+需求经验提升本身不再递归生成一份 `{FRAMEWORK_ROOT}/feedback/framework/`；只有任务独立发现了可定位的框架缺陷时，才继续执行框架修正分支。
 
 ## 框架修正分支
 
 ### 1. 记录版本
 
 ```bash
-git rev-parse HEAD
+git -C {FRAMEWORK_ROOT} rev-parse HEAD
 ```
 
 ### 2. 请求 framework feedback 写入授权
@@ -132,15 +132,15 @@ git rev-parse HEAD
 
 ### 3. 创建反馈目录
 
-目录名使用当前时间戳 `YYMMDDHHmmss`（精确到秒），如 `260608143022`。
+先确定可写落点。部署副本只读时在项目交付目录创建反馈包，其余情况沿用下列默认路径。目录名使用当前时间戳 `YYMMDDHHmmss`（精确到秒），如 `260608143022`。
 
 ```text
 {FRAMEWORK_ROOT}/feedback/framework/YYMMDDHHmmss/
 ```
 
-### 4. 复制修正文件
+### 4. 在反馈包内准备修正
 
-将修正后的框架文件按 owner 仓库路径结构放入反馈目录。只放修改过的文件。业务项目部署态下，源文件的 `.agents/` 前缀不写入反馈包内部；例如 `.agents/skills/x/SKILL.md` 在反馈包内保存为 `skills/x/SKILL.md`，便于与 `imedical.agents` 源仓直接 diff。
+若部署副本应保持只读，在项目约定的可写交付目录创建同结构反馈包，从所记录框架版本复制受影响的原文件，直接编辑包内副本。可将包内文件覆盖到同版本的隔离镜像，运行受影响流程，在 _template.md 记录基线、复现步骤、验证结果及未验证项。已有授权修正的文件可直接收入包中。只放修改过的文件。业务项目部署态下，源文件的 `.agents/` 前缀不写入反馈包内部；例如 `.agents/skills/x/SKILL.md` 在反馈包内保存为 `skills/x/SKILL.md`，便于与 `imedical.agents` 源仓直接 diff。
 
 示例：
 - 修正了 `plugins/i18n-iris-plugin/rules/i18n_coding_backend.md`
