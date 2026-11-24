@@ -79,3 +79,19 @@ test('missing local shutdown evidence remains blocked instead of opening a concu
   await assert.rejects(client.request('call',{}),error=>error.beforeSend===true && error.code==='session-exit-unverified');
   assert.equal(calls,1);
 });
+
+test('Windows session directory ignores shadowed identity and ACL tools', {skip: process.platform !== 'win32'}, t => {
+  const path = require('node:path');
+  const {spawnSync} = require('node:child_process');
+  const root = createTempDirectory('iris-session-shadow-');
+  t.after(() => { if (ownsTempDirectory(root)) fs.rmSync(root, {recursive: true}); });
+  for (const name of ['whoami.exe', 'icacls.exe']) {
+    fs.writeFileSync(path.join(root, name), 'invalid executable');
+  }
+  const ipc = require.resolve('../lib/iris-session-ipc');
+  const result = spawnSync(process.execPath, ['-e',
+    'require(process.argv[1]).privateDirectory(process.argv[2])', ipc, path.join(root, 'session')], {
+    cwd: root, env: {...process.env, Path: root, PATH: root}, encoding: 'utf8'
+  });
+  assert.equal(result.status, 0, result.stderr);
+});

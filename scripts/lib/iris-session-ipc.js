@@ -27,10 +27,11 @@ function privateDirectory(root) {
   }
   fs.mkdirSync(root, {recursive: true, mode: 0o700});
   if (process.platform === 'win32') {
-    const who = spawnSync('whoami', ['/user', '/fo', 'csv', '/nh'], {encoding: 'utf8', windowsHide: true});
+    const system32 = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
+    const who = spawnSync(path.join(system32, 'whoami.exe'), ['/user', '/fo', 'csv', '/nh'], {encoding: 'utf8', windowsHide: true});
     const sid = who.stdout?.match(/S-1-5-[0-9-]+/)?.[0];
     if (!sid) throw failure('session-user-identity-unavailable');
-    const acl = spawnSync('icacls', [root, '/inheritance:r', '/grant:r', '*' + sid + ':(OI)(CI)F', '*S-1-5-18:(OI)(CI)F'], {encoding: 'utf8', windowsHide: true});
+    const acl = spawnSync(path.join(system32, 'icacls.exe'), [root, '/inheritance:r', '/grant:r', '*' + sid + ':(OI)(CI)F', '*S-1-5-18:(OI)(CI)F'], {encoding: 'utf8', windowsHide: true});
     if (acl.status !== 0) throw failure('session-directory-acl-failed');
   } else {
     fs.chmodSync(root, 0o700);
