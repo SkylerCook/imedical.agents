@@ -20,7 +20,7 @@ FIRST_BODY = f"{BODY_TERM}只在第一份手册的正文出现。"
 SECOND_BODY = f"{BODY_TERM}只在第二份手册的正文出现。" + "用于验证长段落换行和跳转。" * 65
 CODE_TERM = "WorkbenchManual[FixtureMode]"
 CODE_LINE = f"Write-Output '{CODE_TERM}'"
-CODE = "Write-Output '本地手册夹具'\n# " + "long-line-" * 30 + "\n" + CODE_LINE
+CODE = "Write-Output '本地手册夹具'\n## 代码内的标题\n# " + "long-line-" * 30 + "\n" + CODE_LINE
 SOURCE = f"""# 本地验收手册
 
 <script id="fixture-script"></script>
@@ -54,7 +54,7 @@ SOURCE = f"""# 本地验收手册
 ## 中文小节
 
 {FIRST_BODY}
-"""
+""" + "\n\n".join(f"滚动占位段落 {number}。" for number in range(36))
 SECOND_SOURCE = "# 第二份验收手册\n\n## 下一节\n\n第二份本地资料。\n\n" + "\n\n".join(
     f"定位测试前置段落 {number}。" for number in range(30)
 ) + f"\n\n{SECOND_BODY}\n"
@@ -187,6 +187,33 @@ def exercise(hello, linked):
             page.set_viewport_size({"width": width, "height": 800})
             assert page.evaluate("document.documentElement.scrollWidth === window.innerWidth"), width
             expect(article.get_by_role("button", name="复制代码")).to_be_visible()
+
+        catalog = page.get_by_role("complementary", name="手册目录")
+        outline = page.get_by_role("navigation", name="本文大纲")
+        sections = outline.get_by_role("link", name="中文小节", exact=True)
+        expect(sections).to_have_count(2)
+        assert outline.get_by_text("代码内的标题", exact=True).count() == 0
+        assert outline.bounding_box()["x"] > article.bounding_box()["x"]
+        sections.nth(1).press("Enter")
+        expect(article.locator('[id="中文小节-1"]')).to_be_focused()
+        expect(sections.nth(1)).to_have_attribute("aria-current", "location")
+        page.wait_for_function("window.scrollY > 200")
+        assert 0 <= catalog.bounding_box()["y"] <= 20
+        assert 0 <= outline.bounding_box()["y"] <= 20
+        expect(catalog.get_by_label("搜索手册")).to_be_in_viewport()
+
+        page.set_viewport_size({"width": 390, "height": 800})
+        toggle = outline.get_by_role("button", name="本文大纲", exact=True)
+        expect(toggle).to_have_attribute("aria-expanded", "false")
+        expect(sections.first).to_be_hidden()
+        toggle.press("Enter")
+        expect(sections.first).to_be_visible()
+        sections.first.press("Enter")
+        expect(article.locator('[id="中文小节"]')).to_be_focused()
+        expect(toggle).to_have_attribute("aria-expanded", "false")
+        assert page.evaluate("document.documentElement.scrollWidth === window.innerWidth")
+        page.set_viewport_size({"width": 1920, "height": 800})
+
         article.get_by_role("button", name="复制代码").press("Enter")
         expect(article.get_by_text("已复制代码。", exact=True)).to_be_visible()
         assert page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n") == CODE
@@ -273,4 +300,4 @@ if __name__ == "__main__":
                 except subprocess.TimeoutExpired:
                     server.kill()
                     server.wait()
-    print(f"PASS staged handbook search and anchors, 1280/1920 layout, keyboard, clipboard and no automatic external requests; linked file rejected: {linked}")
+    print(f"PASS staged handbook search and anchors, responsive layout at 390/1280/1920, sticky catalog and outline, keyboard, clipboard and no automatic external requests; linked file rejected: {linked}")

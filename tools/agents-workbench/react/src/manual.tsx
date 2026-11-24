@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BookOpen, ChevronRight, ClipboardCopy, ExternalLink, FileText } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { BookOpen, ChevronDown, ChevronRight, ClipboardCopy, ExternalLink, FileText, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { guideSearchMaxLength, readGuide, readGuideSearch, useResource, type Guide, type GuideSearchResult } from "./api";
 import { href, type Navigation, type Page } from "./routes";
@@ -16,9 +16,10 @@ const guideDestinations: Record<string, { page: Page; label: string }> = {
   "capability-catalog.md": { page: "scope", label: "打开能力目录" },
 };
 
-type GuideContext = { guide: Guide; guides: Guide[]; nav: Navigation };
+type GuideContext = { guide: Guide; guides: Guide[]; demo: Navigation["route"]["demo"] };
+type GuideHeading = { id: string; label: string; level: number };
 
-function guideLink(target: string, { guide, guides, nav }: GuideContext) {
+function guideLink(target: string, { guide, guides, demo }: GuideContext) {
   const base = new URL("/" + guide.source, location.origin);
   let resolved: URL;
   try {
@@ -28,7 +29,19 @@ function guideLink(target: string, { guide, guides, nav }: GuideContext) {
   }
   if (resolved.origin !== base.origin || resolved.search) return null;
   const linked = guides.find(item => "/" + item.source === decode(resolved.pathname));
-  return linked ? href("manual", nav.route.demo, { doc: linked.file, section: decode(resolved.hash.slice(1)) }) : null;
+  if (!linked) return null;
+  const section = decode(resolved.hash.slice(1));
+  return { url: href("manual", demo, { doc: linked.file, section }), section };
+}
+
+function handleGuideLink(event: MouseEvent<HTMLAnchorElement>, repeat: (link: HTMLAnchorElement) => void, onNavigate?: () => void) {
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+  const link = event.currentTarget;
+  onNavigate?.();
+  if (link.hash === location.hash) {
+    event.preventDefault();
+    requestAnimationFrame(() => repeat(link));
+  }
 }
 
 function inline(text: string, context: GuideContext): ReactNode[] {
@@ -49,7 +62,9 @@ function inline(text: string, context: GuideContext): ReactNode[] {
       const label = match[4], target = match[5].trim();
       const link = guideLink(target, context);
       if (link) {
-        parts.push(<a key={index} href={link} className="text-foreground underline decoration-muted-foreground underline-offset-4 hover:decoration-foreground">{label}</a>);
+        parts.push(<a key={index} href={link.url} onClick={link.section ? event => handleGuideLink(event, anchor => {
+          focusGuideTarget(anchor.closest("article")?.querySelector<HTMLElement>(`#${CSS.escape(link.section)}`) ?? null);
+        }) : undefined} className="text-foreground underline decoration-muted-foreground underline-offset-4 hover:decoration-foreground">{label}</a>);
       } else if (/^https:\/\/[^\s]+$/i.test(target)) {
         parts.push(<a key={index} href={target} rel="noopener noreferrer" target="_blank" className="text-foreground underline decoration-muted-foreground underline-offset-4">
           {label}<ExternalLink aria-label="在新标签页打开外部文档" className="ml-1 inline size-3" />
@@ -90,18 +105,24 @@ function GuideCodeBlock({ text, line }: { text: string; line: number }) {
   </div>;
 }
 
-function guideMarkup(text: string, guide: Guide, guides: Guide[], nav: Navigation) {
+function guideMarkup(text: string, guide: Guide, guides: Guide[], demo: GuideContext["demo"]) {
   const lines = text.split(/\r\n|\n|\r/u);
-  const ctx = { guide, guides, nav };
+  const ctx = { guide, guides, demo };
   const render = (line: string) => inline(line, ctx);
   const output: ReactNode[] = [];
   const headings = new Map<string, number>();
+  const outline: GuideHeading[] = [];
   for (let i = 0; i < lines.length; i++) {
     const start = i, line = lines[i];
     if (!line.trim()) continue;
-    if (/^\s*```/.test(line)) {
+    const fence = /^\s*(`{3,}|~{3,})/.exec(line)?.[1];
+    if (fence) {
       const block: string[] = [];
-      for (i++; i < lines.length && !/^\s*```/.test(lines[i]); i++) block.push(lines[i]);
+      for (i++; i < lines.length; i++) {
+        const close = /^\s*(`{3,}|~{3,})\s*$/.exec(lines[i])?.[1];
+        if (close?.startsWith(fence)) break;
+        block.push(lines[i]);
+      }
       output.push(<GuideCodeBlock key={start} text={block.join("\n")} line={start + 1} />);
       continue;
     }
@@ -112,6 +133,8 @@ function guideMarkup(text: string, guide: Guide, guides: Guide[], nav: Navigatio
       headings.set(base, index + 1);
       const id = index ? `${base}-${index}` : base;
       if (heading[1] === "#" && start < 3) continue;
+      const label = heading[2].replace(/!?\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/`([^`]+)`|\*\*([^*]+)\*\*/g, (_, code, bold) => code ?? bold);
+      if (id) outline.push({ id, label, level: heading[1].length });
       const Heading = heading[1].length <= 2 ? "h4" : "h5";
       output.push(<Heading key={start} id={id} data-guide-line={start + 1} tabIndex={-1}
         className="scroll-mt-4 pt-2 font-semibold text-foreground">{render(heading[2])}</Heading>);
@@ -141,7 +164,7 @@ function guideMarkup(text: string, guide: Guide, guides: Guide[], nav: Navigatio
     }
     output.push(<p key={start} data-guide-line={start + 1} tabIndex={-1} className="scroll-mt-4">{render(line)}</p>);
   }
-  return output;
+  return { content: output, outline };
 }
 
 export const searchGuides = (guides: Guide[], query: string) => guides.filter(guide =>
@@ -201,16 +224,57 @@ function GuideSearchResults({ query, nav }: { query: string; nav: Navigation }) 
 
 type GuideHandoff = (title: string, file: string) => void;
 
+function GuideOutline({ headings, active, guide, nav, onJump }: {
+  headings: GuideHeading[]; active: string; guide: Guide; nav: Navigation; onJump: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const listId = useId();
+  const base = Math.min(...headings.map(heading => heading.level));
+  return <nav aria-label="本文大纲"
+    className="min-w-0 rounded-lg border bg-background @min-[54rem]/reader:sticky @min-[54rem]/reader:top-4 @min-[54rem]/reader:col-start-2 @min-[54rem]/reader:row-start-1 @min-[54rem]/reader:rounded-none @min-[54rem]/reader:border-0 @min-[54rem]/reader:border-l @min-[54rem]/reader:pl-3">
+    <button type="button" aria-expanded={open} aria-controls={listId} onClick={() => setOpen(value => !value)}
+      className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring @min-[54rem]/reader:hidden">
+      <List aria-hidden="true" className="size-4" />本文大纲
+      <ChevronDown aria-hidden="true" className={open ? "ml-auto size-4 rotate-180" : "ml-auto size-4"} />
+    </button>
+    <p className="hidden items-center gap-2 px-2 pt-2 pb-3 text-sm font-medium @min-[54rem]/reader:flex">
+      <List aria-hidden="true" className="size-4" />本文大纲
+    </p>
+    <ul id={listId} className={`${open ? "block" : "hidden"} max-h-[38dvh] space-y-0.5 overflow-y-auto overscroll-contain px-2 pb-2 @min-[54rem]/reader:block @min-[54rem]/reader:max-h-[calc(100dvh-5rem)]`}>
+      {headings.map(heading => <li key={heading.id}>
+        <a href={href("manual", nav.route.demo, {
+          doc: guide.file, section: heading.id, q: nav.route.params.get("q")?.slice(0, guideSearchMaxLength),
+        })} aria-current={active === heading.id ? "location" : undefined}
+          onClick={event => handleGuideLink(event, () => onJump(heading.id), () => setOpen(false))}
+          style={{ paddingInlineStart: `${0.5 + Math.min(2, heading.level - base) * 0.625}rem` }}
+          className="block min-w-0 rounded-sm px-2 py-1.5 text-xs leading-5 wrap-anywhere text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring aria-[current=location]:bg-sidebar-accent aria-[current=location]:font-medium aria-[current=location]:text-foreground">
+          {heading.label}
+        </a>
+      </li>)}
+    </ul>
+  </nav>;
+}
+
+function focusGuideTarget(target: HTMLElement | null) {
+  target?.focus({ preventScroll: true });
+  target?.scrollIntoView({ block: "start" });
+}
+
 function GuideArticle({ guide, guides, nav, onHandoff, handoffPending }: {
   guide: Guide; guides: Guide[]; nav: Navigation; onHandoff: GuideHandoff; handoffPending: boolean;
 }) {
   const article = useRef<HTMLElement>(null);
   const fetchGuide = useCallback((signal: AbortSignal) => readGuide(guide.file, signal), [guide.file]);
   const body = useResource(fetchGuide);
+  const demo = nav.route.demo;
+  const markup = useMemo(() => body.data === undefined ? undefined : guideMarkup(body.data, guide, guides, demo),
+    [body.data, guide, guides, demo]);
   const section = nav.route.params.get("section");
   const line = Number(nav.route.params.get("line"));
   const titleIndex = body.data?.split(/\r\n|\n|\r/u, 3).findIndex(text => /^#\s+/.test(text)) ?? -1;
   const destination = guideDestinations[guide.file];
+  const [active, setActive] = useState("");
+  const headingElement = useCallback((id: string) => article.current?.querySelector<HTMLElement>(`#${CSS.escape(id)}`) ?? null, []);
   useEffect(() => {
     if (!body.data || !article.current) return;
     let target: HTMLElement | null = null;
@@ -224,29 +288,57 @@ function GuideArticle({ guide, guides, nav, onHandoff, handoffPending }: {
         }
       }
     }
-    if (!target && section) target = article.current.querySelector<HTMLElement>(`#${CSS.escape(section)}`);
-    target?.focus({ preventScroll: true });
-    target?.scrollIntoView({ block: "start" });
-  }, [body.data, line, section]);
-  return <article ref={article} className="min-w-0 rounded-lg border bg-background">
-    <header className="border-b px-4 py-4 sm:px-6">
-      <h3 data-guide-line={titleIndex >= 0 ? titleIndex + 1 : undefined} tabIndex={-1}
-        className="scroll-mt-4 text-lg font-semibold">{guide.title}</h3>
-      <p className="mt-1 text-xs text-muted-foreground wrap-anywhere">{guide.source} · 本地只读</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {destination && <Button asChild variant="outline" size="sm"><a href={href(destination.page, nav.route.demo)}>{destination.label}</a></Button>}
-        <Button variant="ghost" size="sm" disabled={handoffPending}
-          onClick={() => onHandoff(`按《${guide.title}》核对当前工程`, guide.file)}>生成相关请求</Button>
-      </div>
-    </header>
-    <div className="min-w-0 px-4 py-5 sm:px-6">
-      {body.data !== undefined
-        ? <div className="guide-content space-y-3 text-sm leading-7 text-foreground">
-          {guideMarkup(body.data, guide, guides, nav)}
+    if (!target && section) target = headingElement(section);
+    if (target) focusGuideTarget(target);
+    else if (!section && !line) window.scrollTo(0, 0);
+  }, [body.data, line, section, headingElement]);
+  useEffect(() => {
+    const headings = markup?.outline.map(heading => headingElement(heading.id)).filter(element => element !== null);
+    if (!headings?.length) return;
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        let current = "";
+        for (const heading of headings) {
+          if (heading.getBoundingClientRect().top > 80) break;
+          current = heading.id;
+        }
+        setActive(current);
+      });
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [markup, headingElement]);
+  return <div className="@container/reader min-w-0">
+    <div className={`grid min-w-0 items-start gap-4 ${markup?.outline.length ? "@min-[54rem]/reader:grid-cols-[minmax(0,1fr)_13rem]" : ""}`}>
+      {!!markup?.outline.length && <GuideOutline headings={markup.outline} active={active} guide={guide} nav={nav}
+        onJump={id => focusGuideTarget(headingElement(id))} />}
+      <article ref={article} className="min-w-0 rounded-lg border bg-background @min-[54rem]/reader:col-start-1 @min-[54rem]/reader:row-start-1">
+        <header className="border-b px-4 py-4 sm:px-6">
+          <h3 data-guide-line={titleIndex >= 0 ? titleIndex + 1 : undefined} tabIndex={-1}
+            className="scroll-mt-4 text-lg font-semibold">{guide.title}</h3>
+          <p className="mt-1 text-xs text-muted-foreground wrap-anywhere">{guide.source} · 本地只读</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {destination && <Button asChild variant="outline" size="sm"><a href={href(destination.page, nav.route.demo)}>{destination.label}</a></Button>}
+            <Button variant="ghost" size="sm" disabled={handoffPending}
+              onClick={() => onHandoff(`按《${guide.title}》核对当前工程`, guide.file)}>生成相关请求</Button>
+          </div>
+        </header>
+        <div className="min-w-0 px-4 py-5 sm:px-6">
+          {markup
+            ? <div className="guide-content space-y-3 text-sm leading-7 text-foreground">{markup.content}</div>
+            : <ReadState error={body.error} retry={body.retry} label={body.error ? "手册正文加载失败" : "正在读取本地手册…"} />}
         </div>
-        : <ReadState error={body.error} retry={body.retry} label={body.error ? "手册正文加载失败" : "正在读取本地手册…"} />}
+      </article>
     </div>
-  </article>;
+  </div>;
 }
 
 export function GuideReader({ guides, nav, onHandoff, handoffPending = false }: {
@@ -259,11 +351,11 @@ export function GuideReader({ guides, nav, onHandoff, handoffPending = false }: 
   return <>
     <PageHeading title="使用手册" description="查看框架原文、连接配置和插件部署说明。" />
     <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(13rem,16rem)_minmax(0,1fr)]">
-      <aside className="min-w-0 rounded-lg border bg-muted p-3">
+      <aside aria-label="手册目录" className="flex min-w-0 flex-col rounded-lg border bg-muted p-3 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]">
         <div className="mb-3 flex items-center gap-2 text-sm font-medium"><BookOpen aria-hidden="true" className="size-4" />手册目录</div>
         <SearchField label="搜索手册" placeholder="搜索标题或正文"
           value={query} onChange={q => nav.replace({ q: q.slice(0, guideSearchMaxLength) })} />
-        <div className="mt-2 max-h-[42vh] overflow-y-auto lg:max-h-[65vh]">
+        <div className="mt-2 min-h-0 max-h-[42dvh] overflow-y-auto overscroll-contain lg:max-h-none">
           {search ? <GuideSearchResults key={search} query={search} nav={nav} /> : <GuideList guides={guides} nav={nav} active={chosen?.file} />}
         </div>
       </aside>
