@@ -22,6 +22,8 @@ function activeText(text) {
   }).join('\n');
 }
 
+const feedback = '- 项目 `.agents/` 中由上游框架维护的文件，非必要请勿修改。使用问题可请 agent-framework-feedback 整理后反馈给上游，也可直接发邮件至 xingkaile@imedway.com。';
+
 function sync(projectRoot, mode = 'DryRun') {
   if (!['DryRun', 'Check', 'Write'].includes(mode)) throw Error('Invalid mode');
   const context = resolveWorkspaceContext(projectRoot);
@@ -42,15 +44,20 @@ function sync(projectRoot, mode = 'DryRun') {
   const before = fs.readFileSync(file);
   const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(before);
   const active = activeText(text);
-  if (active.includes(overlayRoute) && context.mode === 'workspace-overlay') return result('docs-entry-ok');
-  if (/(?:^|[\s`(<])(?:\.\/)?\.agents[\\/]docs[\\/]README\.md(?=$|[\s`)#>])/.test(active)) {
-    if (!mapped) throw Error('Existing documentation route is unreachable; preserve and repair manually');
-    return result('docs-entry-ok');
-  }
-  const addition = useOverlayRoute ? overlayRoute : route;
-  if (!activeText(text + '\n\n' + addition).includes(addition)) throw Error('Unclosed Markdown comment or code fence; preserve and repair manually');
-  if (mode !== 'Write') return result('docs-entry-missing');
+  const hasOverlay = active.includes(overlayRoute) && context.mode === 'workspace-overlay';
+  const hasDirect = /(?:^|[\s`(<])(?:\.\/)?\.agents[\\/]docs[\\/]README\.md(?=$|[\s`)#>])/.test(active);
+  if (hasDirect && !hasOverlay && !mapped) throw Error('Existing documentation route is unreachable; preserve and repair manually');
+  const missing = [];
+  if (!hasOverlay && !hasDirect) missing.push(useOverlayRoute ? overlayRoute : route);
+  const hasFeedback = /非必要.{0,12}(?:勿|不|避免).{0,8}(?:修改|改动)/.test(active)
+    && active.includes('.agents/') && active.includes('上游') && active.includes('xingkaile@imedway.com')
+    && active.includes('agent-framework-feedback');
+  if (!hasFeedback) missing.push(feedback);
+  if (!missing.length) return result('docs-entry-ok');
   const newline = text.includes('\r\n') ? '\r\n' : '\n';
+  const addition = missing.join(newline);
+  if (!missing.every(line => activeText(text + '\n\n' + addition).includes(line))) throw Error('Unclosed Markdown comment or code fence; preserve and repair manually');
+  if (mode !== 'Write') return { ...result('docs-entry-missing'), missing };
   const output = Buffer.from(text + (text.endsWith('\n') ? newline : newline + newline) + addition + newline);
   const temp = path.join(path.dirname(file), '.agents-doc-entry-' + randomUUID() + '.tmp');
   try {
@@ -74,4 +81,4 @@ if (require.main === module) {
     if (args[3] === 'Check' && result.status === 'docs-entry-missing') process.exitCode = 1;
   } catch (error) { process.stderr.write(error.message + '\n'); process.exitCode = 1; }
 }
-module.exports = { sync, route, overlayRoute, activeText };
+module.exports = { sync, route, overlayRoute, activeText, feedback };

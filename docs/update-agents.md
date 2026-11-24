@@ -246,7 +246,7 @@ coding-iris-plugin 的 `web.frontendTransport:atelier` 为明确项目能力选�
 
 更新器在 Write 模式为已有项目 `AGENTS.md` 补齐缺失的按需文档导航，指向 `.agents/docs/README.md`；已有有效导航保留，重复执行不重复添加。Overlay 未映射 docs 时，入口改为按 `.agents/capability.json` 解析 CapabilityRoot 并读取其 docs/README.md，不修改共享目录或 manifest。
 
-DryRun 报告 `docs-entry-missing` 且不写项目入口；Check 对缺失导航返回失败，Write 追加后回读验证。缺少 AGENTS.md 时仍由 project-context-maintenance 初始化，不生成空白项目规则。缺少文档、失效路径、非 UTF-8、文件链接/硬链接、未闭合 Markdown 或并发变化时停止并保留原文；按提示修复后重跑。只补导航，不覆盖项目正文、配置、规则或记忆；这是普通更新保护边界的限定例外。临时写入文件在项目入口旁创建并在结束时清理，兼容入口不另写副本。
+DryRun 报告 `docs-entry-missing` 且不写项目入口；Check 对缺失导航返回失败，Write 追加后回读验证。缺少 AGENTS.md 时仍由 project-context-maintenance 初始化，不生成空白项目规则。缺少文档、失效路径、非 UTF-8、文件链接/硬链接、未闭合 Markdown 或并发变化时停止并保留原文；按提示修复后重跑。同时核对框架文件非必要勿改及上游反馈渠道，缺失时按相同模式定点补写。只补缺失说明，不覆盖项目正文、配置、规则或记忆；这是普通更新保护边界的限定例外。临时写入文件在项目入口旁创建并在结束时清理，兼容入口不另写副本。
 
 已有项目使用正常更新流程获取新版脚本与 docs，先 DryRun，再 Write，最后 Check；严格离线预演使用 `-NoPull`。此修改不自动扫描或更新其它工程，无旧文件清理。新项目初始化使用相同入口；链接检查证明可达，实际宿主是否按任务读取仍需在目标工程观察。
 

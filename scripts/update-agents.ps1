@@ -1361,12 +1361,14 @@ else {
   $results.Add((Write-UpdateResult -Status "agents-entry-missing" -Target "AGENTS.md" -Reason "project entrypoint missing; maintain it through project-context-maintenance" -Phase "entrypoint"))
 }
 
-# Add only the missing documentation route; preserve all project-owned prose.
+# Add missing documentation and framework feedback guidance; preserve project-owned prose.
 $docsEntryScript = Join-Path $capabilityRoot "scripts/sync-documentation-entry.js"
 $docsEntryText = & node $docsEntryScript --project-root $projectRootFull --mode $Mode 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0) { throw ("Documentation entry update blocked: " + $docsEntryText) }
 $docsEntryResult = $docsEntryText | ConvertFrom-Json
-$results.Add((Write-UpdateResult -Status ([string]$docsEntryResult.status) -Target "AGENTS.md" -Reason "documentation index route; existing project content preserved" -Phase "entrypoint"))
+$entryReason = "documentation and framework feedback guidance; existing project content preserved"
+if ($docsEntryResult.PSObject.Properties["missing"]) { $entryReason = $docsEntryResult.missing -join " " }
+$results.Add((Write-UpdateResult -Status ([string]$docsEntryResult.status) -Target "AGENTS.md" -Reason $entryReason -Phase "entrypoint"))
 
 # Demand ownership migration must run before any generator can remove stale entries.
 $demandMigrationScript = Join-Path $capabilityRoot "scripts/migrate-demand-ownership.js"

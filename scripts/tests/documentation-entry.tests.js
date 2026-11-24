@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { sync, route, overlayRoute } = require('../sync-documentation-entry');
+const { sync, route, overlayRoute, feedback } = require('../sync-documentation-entry');
 const cli = path.resolve(__dirname, '../sync-documentation-entry.js');
 function fixture(t, content = '# Project\n') {
   const parent = process.env.AGENTS_TEST_TEMP || os.tmpdir();
@@ -24,7 +24,7 @@ test('deployed project: DryRun and Check do not write; Write preserves bytes and
   assert.equal(fs.readFileSync(file, 'utf8'), original);
   assert.equal(sync(root, 'Write').status, 'docs-entry-added');
   const updated = fs.readFileSync(file, 'utf8'), stamp = fs.statSync(file).mtimeMs;
-  assert.equal(updated, original + '\r\n' + route + '\r\n');
+  assert.equal(updated, original + '\r\n' + route + '\r\n' + feedback + '\r\n');
   assert.equal(sync(root, 'Write').status, 'docs-entry-ok');
   assert.equal(fs.statSync(file).mtimeMs, stamp);
   assert.equal(spawnSync(process.execPath, [cli, '--project-root', root, '--mode', 'Check']).status, 0);
@@ -35,6 +35,8 @@ test('existing live route remains untouched; comments and fenced examples do not
   assert.equal(sync(root, 'Write').status, 'docs-entry-added');
   const file = path.join(root, 'AGENTS.md');
   fs.writeFileSync(file, '自定义导航：[指南](./.agents/docs/README.md#入口)\n');
+  assert.deepEqual(sync(root).missing, [feedback]);
+  assert.equal(sync(root, 'Write').status, 'docs-entry-added');
   const before = fs.readFileSync(file);
   assert.equal(sync(root, 'Write').status, 'docs-entry-ok');
   assert.deepEqual(fs.readFileSync(file), before);
