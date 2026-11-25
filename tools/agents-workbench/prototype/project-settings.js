@@ -9,6 +9,8 @@ const policy = require('../../../scripts/lib/project-deployment-policy');
 const deployment = require('../../../scripts/lib/plugin-deployment');
 const {workspaceContextBlockers} = require('../../../scripts/lib/workspace-context');
 const {inspectProjectContext} = require('../src/project-context');
+const {usesStandardConnection} = require('../src/overlay-members');
+const {connectionRoster,planRootConnectionSwitch,applyRootConnectionSwitch,withConnectionLock} = require('../src/connection-switch');
 const developmentOwner = require('../../../scripts/lib/iris-development-settings');
 const {checkProjectConfig,readDevelopment} = require('./inspect-project');
 const developmentFields = ['developmentMode','environmentAlias','environmentType'];
@@ -98,7 +100,10 @@ function createProjectSettings(root){
    try { env=environment.read(ctx,{optional:true}); }
    catch { connectionIssue='工程连接来源有冲突或无法读取，请核对有效档案与旧配置。'; }
  }
- const central=env.config;const c=data.active ? {...central.iris,...Object.fromEntries(keys.map(key=>[key,data[key]]))} : central.iris||{};
+ const linkedModule=usesStandardConnection(ctx);
+ const openInherited=linkedModule && env.inherited && !workspaceContextBlockers(ctx).length;
+ const central=env.config;
+ let c=data.active ? {...central.iris,...Object.fromEntries(keys.map(key=>[key,data[key]]))} : central.iris||{};
  let currentPolicy,policyIssue=configIssue;
  if (!policyIssue) {
    try { currentPolicy=readPolicy(); }
@@ -111,21 +116,24 @@ function createProjectSettings(root){
    : currentPolicy ? [{id:policyField,label:'允许自动补装插件',type:'boolean',value:currentPolicy.value.autoInstall,readOnly:currentPolicy.readOnly,source:currentPolicy.source}] : [];
 
  let connectionFields=(dev.issue || connectionIssue) ? [issue('irisConnections.issue','连接写入待核对',connectionIssue || '核对开发声明后可修改或切换连接。','ContextRoot/config/project.jsonc · irisConnections')] : [];
- if(!dev.issue && !connectionIssue && !env.inherited && fs.existsSync(path.join(ctx.capabilityRoot,'.git'))) {
+ let inheritedProfileVisible=false;
+ if(!configIssue && !dev.issue && !connectionIssue && (!env.inherited || openInherited) && fs.existsSync(path.join(ctx.capabilityRoot,'.git'))) {
    let state;
    try { state=owner.inspectProfiles({projectRoot:root}); }
    catch { connectionFields=[{id:'irisConnections.status',label:'目标核验',type:'string',readOnly:true,value:'现有连接使用了无法识别的绑定，请核对目标来源。'}]; }
    if(state?.target.host && state.target.namespace) {
      const source='ContextRoot/config/project.jsonc · irisConnections';
+     if (openInherited && state.consistent) c={...c,...state.target};
      let evidence;
      if (state.active && state.consistent) {
        try { evidence=require('../../../scripts/lib/iris-profile-verification').latest(ctx); } catch { /* An unreadable receipt cannot verify a target. */ }
      }
      const status=evidence ? (evidence.verified?'已核验所选库':'目标核验未通过')+' · '+evidence.checkedAt :
        state.consistent?'配置已读取，服务器身份待核验':'各入口配置不一致'+(state.conflicts?.length?' · '+state.conflicts.join('、'):'');
+     inheritedProfileVisible=openInherited;
      connectionFields=[
-       {id:'irisConnections.active',label:'切换到已有档案',type:'string',value:state.active||'current',options:state.profiles.length?state.profiles:['current'],source},
-       {id:'irisConnections.new',label:'新增并切换（填写标识及下方 IRIS 连接）',type:'string',value:'',source},
+       ...(!openInherited ? [{id:'irisConnections.active',label:'切换到已有档案',type:'string',value:state.active||'current',options:state.profiles.length?state.profiles:['current'],source}] : []),
+       {id:'irisConnections.new',label:openInherited?'新增本模块独立档案':'新增并切换（填写标识及下方 IRIS 连接）',type:'string',value:'',source},
        {id:'irisConnections.useCurrentCredentials',label:'新档案沿用当前库的私有凭据',type:'boolean',value:false,source},
        {id:'irisConnections.status',label:'目标核验',type:'string',readOnly:true,value:status,source}
      ];
@@ -151,11 +159,24 @@ function createProjectSettings(root){
      }
    } catch {pluginFields.push(issue(prefix+'issue',id,'请核对 '+spec.file+' 和 project.jsonc 中的插件配置。','ContextRoot/config'));}
  }
- const usableConnection=connectionValues.map(field=>({...field,
-   source:env.canonical?'ContextRoot/config/project.jsonc':field.source,
-   readOnly:!!dev.issue || !!connectionIssue || env.inherited}));
+ const localServices=env.inheritServices ? environment.read(ctx,{optional:true,inherit:false}).config : null;
+ const usableConnection=connectionValues.map(field=>{
+   const [section,key]=field.id.split('.');
+   const fromSharedService=!!localServices && !!key && !Object.hasOwn(localServices[section] || {},key);
+   return {...field,source:fromSharedService?'共享能力根连接配置':env.canonical?'ContextRoot/config/project.jsonc':field.source,
+     readOnly:!!dev.issue || !!connectionIssue || (env.inherited && (!inheritedProfileVisible || !!key)) || fromSharedService};
+ });
+ let overlayConnections;
+ if (linkedModule) overlayConnections={memberCount:0,inherited:env.inherited===true};
+ if (ctx.mode==='standard' && connectionFields.some(field=>field.id==='irisConnections.active')) {
+   try {
+     const roster=connectionRoster(root);
+     if (roster && (roster.linked.length || roster.unavailable.length))
+       overlayConnections={memberCount:roster.linked.length,unavailableCount:roster.unavailable.length};
+   } catch { overlayConnections={memberCount:0,unavailableCount:1}; }
+ }
  return {id:'project',revision:digest(root),scope:ctx.mode==='workspace-overlay'?'当前工作区':'当前工程',
-   fields:usableConnection.concat(policyFields,devFields,connectionFields,pluginFields)}}
+   ...(overlayConnections?{overlayConnections}:{}),fields:usableConnection.concat(policyFields,devFields,connectionFields,pluginFields)}}
  function plan(request){const model=inspect();if(request.revision!==model.revision)fail('工程配置已变化，请重新读取');const requested=Object.entries(request.changes||{});
  if (requested.some(([key])=>key.startsWith('pluginSettings.'))) {
    const plugin=requested[0][0].split('.')[1],changes={};
@@ -173,7 +194,8 @@ function createProjectSettings(root){
    const changes=request.changes;
    const create=Object.hasOwn(changes,'irisConnections.new');
    const selector=create?'irisConnections.new':'irisConnections.active';
-   if(!model.fields.some(f=>f.id===selector) || requested.some(([key])=>key!==selector && (!create || ![...keys,'username','password','irisConnections.useCurrentCredentials'].includes(key)))) fail('请单独预览开发库档案切换');
+   if(typeof changes[selector]?.value!=='string' || !model.fields.some(f=>f.id===selector) ||
+     requested.some(([key])=>key!==selector && (!create || ![...keys,'username','password','irisConnections.useCurrentCredentials'].includes(key)))) fail('请单独预览开发库档案切换');
    const profile={id:changes[selector].value};
    if(create) {
      profile.useCurrentCredentials=changes['irisConnections.useCurrentCredentials']?.value===true;
@@ -181,15 +203,33 @@ function createProjectSettings(root){
      profile.credentials={username:changes.username?.value,password:changes.password?.value};
    }
    const req={projectRoot:root,profile};
-   let planned;
-   try { planned=owner.plan(req,runtime); }
-   catch(error) { fail(/^[\u3400-\u9fff]/.test(error.message)?error.message:'开发库档案或绑定配置无法解析，请检查来源'); }
+   const mode=settingsContext(root).mode;
+   const overlayMode=model.overlayConnections?.inherited ? 'individual' : undefined;
+   let planned, rootSwitch;
+   try {
+     if (mode==='standard') {
+       rootSwitch=planRootConnectionSwitch(req,runtime);
+       planned=rootSwitch.root;
+     } else planned=owner.plan(req,{...runtime,overlayMode});
+   } catch(error) {
+     if (error.name==='SettingsError') throw error;
+     fail(/^[\u3400-\u9fff]/.test(error.message)?error.message:'开发库档案或绑定配置无法解析，请检查来源');
+   }
    for(const [id,value] of plans) if(value.expires<Date.now()) plans.delete(id);
    if(plans.size>=20) fail('预览数量过多');
    const planId=crypto.randomUUID();
-   plans.set(planId,{request:{...req,fingerprint:planned.fingerprint},revision:model.revision,expires:Date.now()+300000});
+   plans.set(planId,{request:{...req,fingerprint:planned.fingerprint},rootSwitch:rootSwitch?.fingerprint,overlayMode,
+     linkedModule:mode==='workspace-overlay' && Boolean(model.overlayConnections),revision:model.revision,expires:Date.now()+300000});
    const target=c=>c.scheme+'://'+c.host+':'+c.port+' / '+c.namespace;
-   return {planId,scope:'当前工程',warning:target(planned.profile.from)+' → '+target(planned.profile.to)+'。保存后重连客户端并检查实际目标。',changes:planned.changes.map(c=>({field:path.relative(root,c.file),action:'同步'}))};
+   const members=rootSwitch?.members || [];
+   const changedFiles=(plan,projectRoot,prefix='')=>plan.changes.map(change=>({field:prefix+path.relative(projectRoot,change.file),action:'同步'}));
+   const warning=target(planned.profile.from)+' → '+target(planned.profile.to)+'。';
+   if (members.length) return {planId,scope:`主工程及 ${members.length} 个模块`,
+     warning:warning+'统一覆盖所列模块的当前连接。保存后重连相应客户端并检查实际目标。',
+     overlayConnections:{names:members.map(item=>item.member.label)},
+     warnings:[...(planned.warnings || []),...members.flatMap(item=>(item.plan.warnings || []).map(value=>`${item.member.label} · ${value}`))],
+     changes:changedFiles(planned,root,'主工程 / ').concat(members.flatMap(item=>changedFiles(item.plan,item.request.projectRoot,item.member.label+' / ')))};
+   return {planId,scope:model.scope,warning:warning+'保存后重连客户端并检查实际目标。',changes:changedFiles(planned,root),warnings:planned.warnings};
  }
  if (requested.some(([key])=>key.startsWith('irisDevelopment.'))) {
    const fields={};
@@ -215,6 +255,7 @@ function createProjectSettings(root){
    plans.set(planId,{policyValue:change.value,revision:model.revision,expires:Date.now()+300000});
    return {planId,scope:'当前工程',warning:'保存后由下次插件补装操作读取。',changes:[{field:policyField,action:change.value?'允许自动补装':'关闭自动补装'}]};
  }
+ if (model.overlayConnections?.inherited) fail('请填写新增本模块独立档案的标识，再预览模块 IRIS 连接。');
  const connection=Object.fromEntries(model.fields.filter(f=>!f.secret&&!f.id.includes('.')).map(f=>[f.id,f.value]));let replace=false;const sourceChanges={};
  for(const [k,v]of Object.entries(request.changes||{})){const f=model.fields.find(f=>f.id===k);if(!f)fail('未知工程字段');if(f.readOnly)fail('此字段待核对，暂不可写入。');if(k.includes('.')){if(f.secret&&(v.action!=='replace'||!v.value))fail('Web/SFTP 凭据只支持保留或替换');if(typeof v.value!==f.type)fail('字段类型不匹配');sourceChanges[k]=v.value;continue}if(f.secret){if(v.action!=='replace'||typeof v.value!=='string'||!v.value)fail('工程凭据只支持保留或成对替换');replace=true;connection[k]=v.value}else{if(typeof v.value!==f.type)fail('工程字段类型不匹配');connection[k]=v.value}}
  if(replace&&(!connection.username||!connection.password))fail('请同时替换账号和密码');connection.writeCredentials=replace;
@@ -262,9 +303,21 @@ function createProjectSettings(root){
      return {status:'saved',message:'工程部署策略已保存并读回，下次插件补装时生效。'};
    });
  }
- try { await owner.apply(p.request,{...dependencies,...runtime,requireRecoveryConfirmation:true}); }
+ try {
+   const applyRuntime={...dependencies,...runtime,overlayMode:p.overlayMode,requireRecoveryConfirmation:true};
+   const applyOwner=()=>owner.apply(p.request,applyRuntime);
+   if (p.rootSwitch) {
+     const result=await withConnectionLock(settingsContext(root).capabilityRoot,()=>{
+       if (digest(root)!==p.revision) fail('工程配置已变化，保存已停止');
+       return applyRootConnectionSwitch(p.request,p.rootSwitch,applyRuntime);
+     });
+     if (result.memberCount) return {status:'saved',message:`主工程及 ${result.memberCount} 个模块的开发库配置已保存并读回。请重连相应客户端并检查实际目标。`};
+   } else if (p.linkedModule || (p.request.profile && usesStandardConnection(settingsContext(root)))) {
+     await withConnectionLock(settingsContext(root).capabilityRoot,applyOwner);
+   } else await applyOwner();
+ }
  catch (error) {
-   if (error.code === 'project-recovery-required') throw error;
+   if (error.name === 'SettingsError' || error.code === 'project-recovery-required') throw error;
    fail(/^[\u3400-\u9fff]/.test(error.message) ? error.message : '保存失败，已尝试原入口恢复；请检查本工程配置回执');
  }
  return {status:'saved',message:p.request.profile?'开发库配置已保存并读回，客户端待重连，服务器身份待核验。':'工程配置已同步保存并逐文件读回；未测试远端连接。'};}

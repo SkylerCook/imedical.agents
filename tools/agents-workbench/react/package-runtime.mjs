@@ -147,6 +147,7 @@ for (const file of [
   "tools/agents-workbench/src/framework-worker.js",
   "tools/agents-workbench/src/owner-powershell.js",
   "tools/agents-workbench/src/overlay-members.js",
+  "tools/agents-workbench/src/connection-switch.js",
   "tools/agents-workbench/src/overlay-open.js",
   "tools/agents-workbench/src/overlay-update.js",
   "tools/agents-workbench/src/offline-framework-actions.js",

@@ -1,8 +1,171 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {createHash,randomUUID}=require('node:crypto');
-const {spawnSync}=require('node:child_process');
+const {fork,spawnSync}=require('node:child_process');
+const {once}=require('node:events');
 const {createTempDirectory,ownsTempDirectory}=require('../../../scripts/tests/fixtures/temp-directory');
 const {createProjectSettings}=require('./project-settings');
+const configurationIO=require('../../../scripts/lib/configuration-file-io');
+const environment=require('../../../scripts/lib/project-environment');
+const {resolveWorkspaceContext}=require('../../../scripts/lib/workspace-context');
+
+test('the root covers registered module connections, while an individual module can edit again',async t=>{
+ const directory=createTempDirectory('workbench-batch-connections-');
+ t.after(()=>{assert.ok(ownsTempDirectory(directory));fs.rmSync(directory,{recursive:true,force:true,maxRetries:3});});
+ const root=path.join(directory,'Standard root');
+ const cap=path.join(root,'.agents');
+ const binding={central:true,vscode:true,mcp:true,toml:true};
+ const serverName='iris-agentic-dev';
+ const target=(host,alias)=>({host,alias,port:52773,scheme:'http',namespace:'FIXTURE',tlsVerify:false});
+ const pair=host=>({username:'fixture',password:'fixture-'+host});
+ const rootTarget=target('standard-first.invalid','initial');
+ const firstTarget=target('module-drift.invalid','module-old');
+ const secondTarget=target('personal.invalid','personal');
+ const next=target('standard-next.invalid','next');
+ const write=(at,file,data)=>{
+   const targetFile=path.join(at,file);
+   fs.mkdirSync(path.dirname(targetFile),{recursive:true});
+   fs.writeFileSync(targetFile,typeof data==='string'?data:JSON.stringify(data,null,2));
+ };
+ const parse=(at,file)=>configurationIO.parse(fs.readFileSync(path.join(at,file),'utf8'));
+ const git=(at,args,input)=>{
+   const completed=spawnSync('git',['-C',at,...args],{input,encoding:'utf8',windowsHide:true});
+   assert.equal(completed.status,0,completed.stderr||completed.error?.message);
+   return completed.stdout.trim();
+ };
+ const writeBindings=(at,to)=>{
+   const {username,password}=pair(to.host);
+   write(at,'.mcp.json',{mcpServers:{[serverName]:{command:'iris-agentic-dev.exe',args:['mcp'],env:{
+     IRIS_HOST:to.host,IRIS_WEB_PORT:String(to.port),IRIS_SCHEME:to.scheme,IRIS_NAMESPACE:to.namespace,
+     IRIS_TLS_VERIFY:String(to.tlsVerify),IRIS_USERNAME:username,IRIS_PASSWORD:password}},unrelated:{command:'keep'}}});
+   write(at,'.vscode/settings.json',{'objectscript.conn':{active:true,server:to.alias,ns:to.namespace},
+     'intersystems.servers':{[to.alias]:{webServer:{host:to.host,port:to.port,scheme:to.scheme}}}});
+   write(at,'.iris-agentic-dev.toml',`host = "${to.host}"\nweb_port = ${to.port}\nscheme = "${to.scheme}"\nnamespace = "${to.namespace}"\nusername = "${username}"\npassword = "${password}"\ntls_verify = false\n`);
+ };
+ const writeCentral=(at,to,services)=>{
+   write(at,'.agents/config/project.jsonc',{irisConnections:{source:'project.jsonc',active:'current',serverName,bindings:binding,
+     profiles:{current:{...to,credentialRef:'private:current'}}},...(services?{serviceConnections:services}:{})});
+   write(at,'.agents/config/iris-profile-credentials.json',{current:pair(to.host)});
+ };
+ write(root,'.agents/scripts/update-agents.ps1','# Fixture capability\n');
+ write(root,'.agents/scripts/lib/project-environment.js',fs.readFileSync(require.resolve('../../../scripts/lib/project-environment'),'utf8'));
+ git(root,['init','-q']);
+ git(cap,['init','-q']);
+ git(cap,['config','--local','remote.origin.url','https://gitee.com/skyler-cook/imedical.agents.git']);
+ const tree=git(cap,['mktree'],'');
+ const revision=git(cap,['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit-tree',tree],'Fixture capability\n');
+ git(cap,['update-ref','HEAD',revision]);
+ write(root,'.agents/.git/info/exclude','/config/\n');
+ writeBindings(root,rootTarget);
+ writeCentral(root,rootTarget,{web:{basePath:'/shared'},sftp:{enabled:false}});
+ function member(name,to,rootFallback,local){
+   const workspace=path.join(directory,name);
+   const contextRoot=path.join(workspace,'.agents');
+   fs.mkdirSync(path.join(contextRoot,'config'),{recursive:true});
+   fs.symlinkSync(root,path.join(workspace,'backend'),process.platform==='win32'?'junction':'dir');
+   write(workspace,'.agents/capability.json',{schemaVersion:1,mode:'workspace-overlay',workspace:name,contextRoot:'.agents',capabilityRoot:cap,
+     sharedDirectories:[],localDirectories:['config'],sourceRoots:[{name:'backend',path:'backend',target:root,gitRoot:root}],
+     ...(rootFallback?{projectEnvFallback:path.join(cap,'config/project-env.json')}:{})});
+   git(workspace,['init','-q']);
+   writeBindings(workspace,to);
+   if(local) writeCentral(workspace,to,{web:{basePath:'/personal'}});
+   return {workspace,contextRoot,lastRequired:[]};
+ }
+ const inherited=member('Inherited module',firstTarget,true,false);
+ const personal=member('Personal module',secondTarget,true,true);
+ const hospital=member('Outside connection scope',secondTarget,false,true);
+ const userLevelVscode={'objectscript.conn':{server:'user-level',ns:'OLD',active:true},'editor.tabSize':2};
+ write(inherited.workspace,'.vscode/settings.json',userLevelVscode);
+ git(inherited.workspace,['add','--','.vscode/settings.json']);
+ const vscodeFile=path.join(inherited.workspace,'.vscode/settings.json');
+ const originalVscode=fs.readFileSync(vscodeFile);
+ write(root,'.agents/.git/plugin-deployment.json',{schema:'plugin-installation/v1',mode:'full',installed:[],
+   members:[inherited,personal,hospital].map(({contextRoot,lastRequired})=>({contextRoot,lastRequired}))});
+ const api=createProjectSettings(root);
+ const moduleApi=createProjectSettings(inherited.workspace);
+ const create=(selected,id)=>({
+   'irisConnections.new':{value:id},host:{value:selected.host},alias:{value:selected.alias},
+   username:{action:'replace',value:pair(selected.host).username},password:{action:'replace',value:pair(selected.host).password},
+ });
+ const plan=(settings,changes)=>settings.plan({revision:settings.inspect().revision,changes});
+ const choose=id=>({'irisConnections.active':{value:id}});
+ const mcp=at=>parse(at,'.mcp.json').mcpServers;
+ const host=at=>mcp(at)[serverName].env.IRIS_HOST;
+ const central=at=>environment.read(resolveWorkspaceContext(at));
+ assert.equal(api.inspect().overlayConnections.memberCount,2);
+ assert.equal(moduleApi.inspect().overlayConnections.inherited,true);
+ assert.equal(central(inherited.workspace).config.iris.host,rootTarget.host);
+ assert.equal(host(inherited.workspace),firstTarget.host);
+ const first=plan(api,create(next,'next'));
+ assert.doesNotMatch(JSON.stringify(first),/fixture-standard-next/);
+ assert.equal(host(root),rootTarget.host);
+ await api.apply(first.planId);
+ for(const at of [root,inherited.workspace,personal.workspace]){
+   assert.equal(host(at),next.host);
+   assert.equal(central(at).config.iris.host,next.host);
+   assert.equal(mcp(at).unrelated.command,'keep');
+ }
+ assert.equal(central(inherited.workspace).inherited,true);
+ assert.deepEqual(fs.readFileSync(vscodeFile),originalVscode);
+ assert.equal(host(hospital.workspace),secondTarget.host);
+ assert.equal(central(personal.workspace).config.web.basePath,'/personal');
+ const individual=target('module-new.invalid','module-new');
+ await moduleApi.apply(plan(moduleApi,create(individual,'module-new')).planId);
+ assert.equal(central(inherited.workspace).config.iris.host,individual.host);
+ assert.equal(central(inherited.workspace).config.web.basePath,'/shared');
+ assert.equal(central(inherited.workspace).config.sftp.enabled,false);
+ assert.equal(host(inherited.workspace),individual.host);
+ assert.deepEqual(fs.readFileSync(vscodeFile),originalVscode);
+ assert.equal(host(root),next.host);
+ // Reapply the already active root profile so one diverged module can be converged.
+ await api.apply(plan(api,choose('next')).planId);
+ assert.equal(host(inherited.workspace),next.host);
+ const stale=plan(api,choose('current'));
+ fs.appendFileSync(path.join(personal.workspace,'.iris-agentic-dev.toml'),'\n# external edit\n');
+ await assert.rejects(()=>api.apply(stale.planId));
+ for(const at of [root,inherited.workspace,personal.workspace]) assert.equal(host(at),next.host);
+ const broken=plan(api,choose('current'));
+ await assert.rejects(()=>api.apply(broken.planId,{beforeWrite:file=>{
+   if(file.startsWith(personal.workspace+path.sep)) throw Error('fixture failure');
+ }}));
+ for(const at of [root,inherited.workspace,personal.workspace]){
+   assert.equal(host(at),next.host);
+   assert.equal(central(at).config.iris.host,next.host);
+ }
+
+ // Exercise the same authenticated HTTP endpoints and staged entry the React editor uses.
+ const app=process.env.WORKBENCH_CONNECTION_TEST_APP;
+ const entry=app?path.join(app,'tools/agents-workbench/prototype/serve.js'):path.join(__dirname,'serve.js');
+ const service=fork(entry,['--project',root],{silent:true,env:{...process.env,PORT:'0',GIT_ALLOW_PROTOCOL:''}});
+ const exited=once(service,'exit');
+ try {
+   const [hello]=await once(service,'message',{signal:AbortSignal.timeout(15000)});
+   const address=new URL(hello.address).origin;
+   const headers={'X-Workbench-Request':'1','Content-Type':'application/json',Origin:address};
+   const send=(endpoint,body)=>fetch(address+endpoint,{
+     method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000),
+   });
+   const session=await send('/framework/session',{token:hello.bootstrap});
+   assert.equal(session.status,200);
+   headers.Cookie=session.headers.get('set-cookie').split(';')[0];
+   headers['X-Workbench-CSRF']=(await session.json()).csrf;
+   const model=await fetch(address+'/settings/project',{headers,signal:AbortSignal.timeout(10000)}).then(res=>res.json());
+   assert.equal(model.overlayConnections.memberCount,2);
+   const planned=await send('/framework/settings/plan/project',{revision:model.revision,changes:choose('current')});
+   const preview=await planned.json();
+   assert.equal(planned.status,200,preview.error);
+   assert.deepEqual(preview.overlayConnections.names,['Inherited module','Personal module']);
+   assert.ok(preview.warnings.some(warning=>warning.includes('VS Code')));
+   assert.doesNotMatch(JSON.stringify(preview),/fixture-standard-first/);
+   const applied=await send('/framework/settings/apply',{planId:preview.planId});
+   assert.equal(applied.status,200,(await applied.json()).error);
+   for(const at of [root,inherited.workspace,personal.workspace]) assert.equal(host(at),rootTarget.host);
+   assert.equal(host(hospital.workspace),secondTarget.host);
+ } finally {
+   service.kill();
+   await exited;
+ }
+});
+
 test('canonical source and consumers save together, reject drift and recover failure',async()=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'agents-workbench-project-'));
  const write=(name,data)=>{const p=path.join(root,name);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,data)};

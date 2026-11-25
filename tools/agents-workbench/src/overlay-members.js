@@ -22,7 +22,8 @@ function directoryIdentity(directory) {
 }
 
 function readManifest(file) {
-  if (!fs.lstatSync(file,{throwIfNoEntry:false})?.isFile()) throw Error('overlay-manifest-missing');
+  const stat = fs.lstatSync(file,{throwIfNoEntry:false});
+  if (!stat?.isFile() || stat.nlink !== 1) throw Error('overlay-manifest-missing');
   const text = new TextDecoder('utf-8',{fatal:true}).decode(fs.readFileSync(file));
   return {text,data:JSON.parse(text)};
 }
@@ -47,7 +48,13 @@ function inspectRoot(workspaceRoot) {
   return {workspaceRoot,capabilityRoot,gitRoot,binding,revision:standard.revision};
 }
 
-function inspectMember(record, root) {
+function usesStandardConnection(context) {
+  const fallback = context.mode === 'workspace-overlay' && context.manifest?.projectEnvFallback;
+  return typeof fallback === 'string' && !!fallback.trim() && sameContextRoot(
+    path.resolve(context.workspaceRoot, fallback), path.join(context.capabilityRoot, 'config', 'project-env.json'));
+}
+
+function inspectMember(record, root, connectionScope = false) {
   const {contextRoot,lastRequired} = record;
   const id = memberId(contextRoot);
   const label = localPath(record.workspaceRoot) ? path.basename(record.workspaceRoot)
@@ -66,6 +73,14 @@ function inspectMember(record, root) {
     if (!sameContextRoot(physicalDeclaration,path.join(physicalWorkspace[0],'.agents'))) return {...result,status:'needs-verification'};
     const manifest = readManifest(path.join(declarationDirectory,'capability.json'));
     if (localManifest && localManifest.text !== manifest.text) return {...result,status:'needs-verification'};
+    if (connectionScope && manifest.data.mode === 'workspace-overlay') {
+      const declared = manifest.data.projectEnvFallback;
+      if (declared === undefined || declared === false) result.connectionScope = 'other';
+      else if (typeof declared === 'string' && declared.trim()) {
+        result.connectionScope = sameContextRoot(path.resolve(workspaceRoot, declared),
+          path.join(root.capabilityRoot,'config','project-env.json')) ? 'linked' : 'other';
+      }
+    }
     const context = resolveWorkspaceContext(workspaceRoot);
     const blockers = workspaceContextBlockers(context);
     const expectedContext = path.join(physicalWorkspace[0],path.relative(workspaceRoot,context.contextRoot));
@@ -93,9 +108,8 @@ function memberRecords(root) {
   return loadState(root.capabilityRoot,registry).members.filter(record => !sameContextRoot(record.contextRoot,root.capabilityRoot));
 }
 
-function planOverlayUpdate(workspaceRoot) {
-  const root = inspectRoot(workspaceRoot);
-  const members = memberRecords(root).map(record => inspectMember(record,root));
+function inspectMembers(root, records, connectionScope = false) {
+  const members = records.map(record => inspectMember(record,root,connectionScope));
   const identities = new Map();
   for (const member of members) {
     for (const key of [member.id,member.identity].filter(Boolean)) {
@@ -104,7 +118,24 @@ function planOverlayUpdate(workspaceRoot) {
       else identities.set(key,member);
     }
   }
-  return {root,members};
+  return members;
+}
+
+function planOverlayUpdate(workspaceRoot) {
+  const root = inspectRoot(workspaceRoot);
+  return {root,members:inspectMembers(root,memberRecords(root))};
+}
+
+function inspectConnectionRoster(workspaceRoot) {
+  const candidate = path.join(workspaceRoot,'.agents','.git','plugin-deployment.json');
+  if (!fs.lstatSync(candidate,{throwIfNoEntry:false})) return null;
+  const root = inspectRoot(workspaceRoot);
+  const records = memberRecords(root);
+  const members = inspectMembers(root,records,true);
+  const linked = members.filter(member => member.connectionScope === 'linked');
+  const unavailable = members.filter(member => !member.connectionScope ||
+    (member.connectionScope === 'linked' && member.status !== 'ready'));
+  return {root,linked,unavailable,fingerprint:digest([root.binding,root.revision,records,members])};
 }
 
 function inspectOverlayLink(workspaceRoot) {
@@ -126,4 +157,5 @@ function inspectRegisteredMember(root, id) {
   if (candidates.length === 1) return inspectMember(candidates[0],root);
 }
 
-module.exports = { directoryIdentity, planOverlayUpdate, inspectRoot, inspectRegisteredMember, inspectOverlayLink, canOpenMember };
+module.exports = { directoryIdentity, planOverlayUpdate, inspectRoot, inspectRegisteredMember, inspectOverlayLink, canOpenMember,
+  inspectConnectionRoster, usesStandardConnection };

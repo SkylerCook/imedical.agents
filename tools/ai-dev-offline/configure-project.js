@@ -218,12 +218,12 @@ function plan(request, dependencies = {}) {
   const main = read(files.main);
   const mainValue = object(main.text);
   const mainEdits = [];
-  const profile = request.profile ? profiles.prepare(root,request.profile,{snapshot:read,object,toml}) : null;
+  const profile = request.profile ? profiles.prepare(root,request.profile,sourceIO,dependencies.overlayMode) : null;
   const initializeCanonical = !profile && request.configureMcp && !mainValue.irisConnections &&
     !read(files.env).exists && !files.context.manifest?.projectEnvFallback &&
     fs.existsSync(path.join(files.context.capabilityRoot,'scripts/configure-agents.js'));
   if (profile) request = {projectRoot:root,connection:profile.connection,configureMcp:profile.bindings.mcp,
-    syncProjectEnv:profile.bindings.central,sourceChanges:request.sourceChanges,gitExe:request.gitExe};
+    syncProjectEnv:profile.bindings.central && !profile.initializeCentral,sourceChanges:request.sourceChanges,gitExe:request.gitExe};
   const c = connection(request);
   let bindings = profile?.bindings;
   if (!profile && mainValue.irisConnections) {
@@ -375,7 +375,7 @@ function plan(request, dependencies = {}) {
         if (existing) { existing.bytes=bytes; existing.keys.push('SFTP / 连接字段（隐藏）'); }
         else add(mcpFile,bytes,['SFTP / 连接字段（隐藏）']);
       }
-      if (!state.canonical) {
+      if (!state.canonical || (profile?.overlayMode && envBefore.exists)) {
         add(envFile, jsonChanges(envBefore,centralChanges), ['iris / 连接与凭据（隐藏）', ...(request.sourceChanges ? ['Web/SFTP / 选定字段（隐藏）'] : [])]);
       } else if (credentialEdits.length) {
         const secret = read(files.private);
@@ -407,7 +407,8 @@ function plan(request, dependencies = {}) {
         const file=path.join(root,'.iris-agentic-dev.toml');
         add(file,editToml(read(file),{...values,web_port:c.port,tls_verify:c.tlsVerify}),['IRIS TOML']);
       }
-      if (profile.bindings.central && !profile.centralCanonical) {
+      if (profile.bindings.central && !profile.initializeCentral &&
+          (!profile.centralCanonical || (profile.overlayMode && read(files.env).exists))) {
         const file=files.env;
         const fields={...values,port:c.port,tlsVerify:c.tlsVerify};
         if (own(object(read(file).text).iris,'alias')) fields.alias=c.alias;
@@ -431,8 +432,9 @@ function plan(request, dependencies = {}) {
     add(main.file,bytes,['工程 JSONC 配置']);
   }
   const privateFiles = !bindings || bindings.vscode ? [settingsFile] : [];
+  const writesToml = bindings ? bindings.toml && (request.configureMcp || profile) : request.configureMcp;
   if (request.configureMcp) privateFiles.push(path.join(root, '.mcp.json'));
-  if (bindings ? bindings.toml && request.configureMcp : request.configureMcp) privateFiles.push(path.join(root,'.iris-agentic-dev.toml'));
+  if (writesToml) privateFiles.push(path.join(root,'.iris-agentic-dev.toml'));
   privateFiles.push(...changes.filter(c => path.dirname(c.file)===files.config).map(c => c.file));
   ensurePrivate(root, privateFiles, request.gitExe);
   // Local backup content may contain the original user's credentials.
@@ -441,7 +443,7 @@ function plan(request, dependencies = {}) {
   if (!bindings || bindings.vscode) patterns.push('/.vscode/settings.json','/.vscode/.ai-dev-config-*.tmp');
   const ignorePath = file => '/' + path.relative(root,file).split(path.sep).join('/');
   if (request.configureMcp) patterns.push('/.mcp.json',ignorePath(files.backend));
-  if (bindings ? bindings.toml && request.configureMcp : request.configureMcp) patterns.push('/.iris-agentic-dev.toml');
+  if (writesToml) patterns.push('/.iris-agentic-dev.toml');
   if (request.syncProjectEnv) patterns.push(ignorePath(files.env));
   if (initializeCanonical) patterns.push(ignorePath(files.main),ignorePath(files.private));
   if (profile) {
@@ -458,6 +460,7 @@ function plan(request, dependencies = {}) {
   const fingerprint = sha(Buffer.from(JSON.stringify(changes.map(c => [c.file, c.before.hash, sha(c.bytes)]))));
   const mcpProgramPresent = mcpProgram ? fs.existsSync(mcpProgram) && fs.statSync(mcpProgram).isFile() : null;
   const warnings = mcpProgramPresent === false ? ['MCP 程序待安装，当前可先保存配置。部署到所选路径后，重新启动 MCP 客户端并验证连接。'] : [];
+  if (profile?.externalVscode) warnings.push('当前工作区的 VS Code 连接引用外部服务器，请在 VS Code 中核对实际所选连接。');
   return {root, changes, fingerprint, privateFiles, mcpProgramPresent, warnings,profile};
 }
 function summary(planned, state = 'planned') {
@@ -755,7 +758,9 @@ function apply(request, dependencies = {}) {
       }
       if (planned.profile) {
         const readback=profiles.describe(root,{snapshot,object,toml});
-        if (!readback.consistent || readback.active!==planned.profile.id) failure('开发库配置读回不一致。');
+        const profile=planned.profile;
+        const targetVerified=['host','port','scheme','namespace','tlsVerify'].every(key=>readback.target[key]===profile.to[key]);
+        if (!readback.consistent || !targetVerified || (!profile.projection && readback.active!==profile.id)) failure('开发库配置读回不一致。');
       }
       receipt.state = 'applied'; saveReceipt(receiptFile, receipt);
     } catch (error) {

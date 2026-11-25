@@ -7,6 +7,8 @@
 
 Workspace overlay 用于让多个模块工作区共享一份 canonical capability Git，同时各自保留独立的 `config`、`rules`、`memory` 和 `work`。它遵循 **capability-once/context-many**：先更新标版根 capability，再逐个刷新模块 Context；模块刷新不会 fetch 或 pull capability Git。
 
+工作台可以从标准根批量同步登记模块的 IRIS 连接，也可以从模块窗口单独编辑。当标准根再次执行批量切换时，会覆盖模块当前连接。具体入口、作用范围以及重连核验见[连接配置指南](guides/connection-configuration.md)。
+
 ## 五类根
 
 | 根 | 含义 | 写入边界 |
