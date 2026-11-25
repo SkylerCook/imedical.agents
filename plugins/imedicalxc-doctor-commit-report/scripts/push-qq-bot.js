@@ -421,6 +421,8 @@ function formatThreeStar(item, memberMap, admins) {
 // ---------- 问题登记表（步骤 4.5：未标识处理结果提醒） ----------
 // 读取《信创版产品迭代每周问题登记》：复用本机 tencent-docs MCP 代理（settings.json 指向的
 // proxy.js 同目录 mcp-http-client.js，HTTP↔MCP 桥），配置与凭据运行时读取，不落盘。
+// 提醒范围 = 登记表内未标识行 + 本期周报低星但未登记行（初评阶段步骤 ⑥ 延后登记，
+// 只读表会让本段恒为 0），两类在消息里分开表述。
 
 const ISSUE_SOURCE_PREFIX = '医生站信创产品迭代周报';
 const STATUS_TODO = '未完成';
@@ -525,39 +527,132 @@ function isIssueIdentified(row) {
   return Boolean((row[7] || '').trim() || (row[8] || '').trim());
 }
 
-function collectPendingIssues(rows) {
+function shortHashOf(value) {
+  const m = String(value || '').trim().match(/^[0-9a-f]{7,40}/i);
+  return m ? m[0].slice(0, 8).toLowerCase() : '';
+}
+
+// 登记表：已登记短哈希集合（含已标识行，用于判断本期问题是否登记过）+ 未标识行计数
+function collectRegistryIssues(rows) {
+  const registered = new Set();
   const counts = new Map();
   let total = 0;
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i] || [];
     if (!(row[0] || '').trim().startsWith(ISSUE_SOURCE_PREFIX)) continue;
+    const hash = shortHashOf(row[3]);
+    if (hash) registered.add(hash);
     if (isIssueIdentified(row)) continue;
     total += 1;
     const owner = (row[5] || '').trim();
     if (owner) counts.set(owner, (counts.get(owner) || 0) + 1);
   }
+  return { total, counts, registered };
+}
+
+function loadPeriodEvaluations(reportPath) {
+  const evalPath = path.join(
+    path.dirname(reportPath),
+    path.basename(reportPath).replace(/^commit-report-/, 'evaluations-').replace(/\.md$/, '.json')
+  );
+  if (!fs.existsSync(evalPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(evalPath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+// 本期 1-2★ 且登记表里没有对应提交的问题；有 issueItems 时逐问题计一条（与步骤 ⑥ 拆行同口径）
+function collectUnregisteredIssues(evaluations, registered) {
+  const counts = new Map();
+  const items = [];
+  const list = (evaluations && (evaluations.evaluations || evaluations.commits)) || [];
+  for (const e of list) {
+    const rating = Number(e.rating);
+    if (!(rating > 0 && rating <= 2)) continue;
+    const shortHash = shortHashOf(e.hash);
+    if (!shortHash || registered.has(shortHash)) continue;
+    const owner = String(e.author || '').trim();
+    const issues = Array.isArray(e.issueItems) && e.issueItems.length > 0
+      ? e.issueItems
+      : [e.specificIssue || e.evaluation || ''];
+    for (const issue of issues) {
+      items.push({ shortHash, owner, rating });
+      if (owner) counts.set(owner, (counts.get(owner) || 0) + 1);
+    }
+  }
+  return { total: items.length, counts };
+}
+
+// 评估产物缺失时回退报告第四章（每行一条，提交级粒度）
+function collectUnregisteredFromReport(lowStars, hashAuthorMap, registered) {
+  const counts = new Map();
+  let total = 0;
+  for (const row of lowStars || []) {
+    const shortHash = shortHashOf(row.commit);
+    if (!shortHash || registered.has(shortHash)) continue;
+    const owner = String(row.author || hashAuthorMap.get(shortHash) || '').trim();
+    total += 1;
+    if (owner) counts.set(owner, (counts.get(owner) || 0) + 1);
+  }
   return { total, counts };
+}
+
+function buildPendingReminder(registry, unregistered, registryReadFailed) {
+  const owners = new Map();
+  const bump = (name, key, n) => {
+    if (!name || !n) return;
+    const cur = owners.get(name) || { updated: 0, unregistered: 0 };
+    cur[key] += n;
+    owners.set(name, cur);
+  };
+  for (const [name, n] of registry.counts) bump(name, 'updated', n);
+  for (const [name, n] of unregistered.counts) bump(name, 'unregistered', n);
+  return {
+    total: registry.total + unregistered.total,
+    updated: registry.total,
+    unregisteredTotal: unregistered.total,
+    owners,
+    registryReadFailed
+  };
 }
 
 function formatPendingReminder(pending, nameToMember, admins, sheetUrl) {
   const lines = [
     '📌 问题处理提醒',
-    `《信创版产品迭代每周问题登记》有 ${pending.total} 条问题未标识处理结果，请相关同事点击链接查看并更新：`,
-    sheetUrl,
+    `《信创版产品迭代每周问题登记》有 ${pending.total} 条问题未标识处理结果，请相关同事查看并更新：`,
+    sheetUrl
   ];
+  const breakdown = [];
+  if (pending.updated > 0) breakdown.push(`登记表内待更新处理结果 ${pending.updated} 条`);
+  if (pending.unregisteredTotal > 0) breakdown.push(`本期低星问题 ${pending.unregisteredTotal} 条尚未登记`);
+  if (breakdown.length > 1) lines.push(`（${breakdown.join('，')}）`);
+  if (pending.unregisteredTotal > 0) {
+    lines.push('未登记条目的影响范围星级为初评，回评定档后由周报自动登记；请先按周报「四、低星问题清单」核实。');
+  }
+  if (pending.registryReadFailed) {
+    lines.push('（登记表本次读取失败，仅列出周报低星清单，已登记项未核对）');
+  }
   const byMember = new Map();
   const unmatched = [];
-  const entries = [...pending.counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh'));
-  for (const [name, count] of entries) {
+  const entries = [...pending.owners.entries()]
+    .map(([name, c]) => [name, c, c.updated + c.unregistered])
+    .sort((a, b) => b[2] - a[2] || a[0].localeCompare(b[0], 'zh'));
+  for (const [name, c, total] of entries) {
     const member = nameToMember.get(name);
     if (member) {
-      byMember.set(member.user_id, (byMember.get(member.user_id) || 0) + count);
+      const cur = byMember.get(member.user_id) || { total: 0, unregistered: 0 };
+      cur.total += total;
+      cur.unregistered += c.unregistered;
+      byMember.set(member.user_id, cur);
     } else {
       unmatched.push(name);
     }
   }
   const tail = [];
-  const ats = [...byMember.entries()].map(([qq, count]) => `[CQ:at,qq=${qq}]（${count} 条）`);
+  const ats = [...byMember.entries()].map(([qq, c]) =>
+    `[CQ:at,qq=${qq}]（${c.total} 条${c.unregistered > 0 ? `，含 ${c.unregistered} 条未登记` : ''}）`);
   if (ats.length > 0) tail.push(ats.join(' '));
   if (unmatched.length > 0) {
     let text = `未找到「${unmatched.join('」「')}」群成员`;
@@ -597,16 +692,25 @@ async function main() {
 
   const issueReg = reporterCfg.issueRegistration;
   let pending = null;
+  let registryReadFailed = false;
   if (!want('pending')) {
     console.log('未包含 pending 段落，跳过问题处理提醒');
   } else if (issueReg && issueReg.enabled) {
     console.log('读取问题登记表待处理问题...');
+    let registry = { total: 0, counts: new Map(), registered: new Set() };
     try {
-      pending = collectPendingIssues(await fetchSheetRows(issueReg));
-      console.log(`未标识处理结果: ${pending.total} 条（涉及 ${pending.counts.size} 人）`);
+      registry = collectRegistryIssues(await fetchSheetRows(issueReg));
     } catch (err) {
-      console.error('[WARN] 问题登记表读取失败，跳过问题处理提醒:', err.message);
+      registryReadFailed = true;
+      console.error('[WARN] 问题登记表读取失败，本期仅按周报低星清单提醒:', err.message);
     }
+    const evaluations = loadPeriodEvaluations(reportPath);
+    const unregistered = evaluations
+      ? collectUnregisteredIssues(evaluations, registry.registered)
+      : collectUnregisteredFromReport(lowStars, hashAuthorMap, registry.registered);
+    pending = buildPendingReminder(registry, unregistered, registryReadFailed);
+    console.log(`未标识处理结果: ${pending.total} 条（登记表待更新 ${pending.updated} / 本期未登记 ${pending.unregisteredTotal}，涉及 ${pending.owners.size} 人）`);
+    if (!evaluations) console.log('[WARN] 未读到本期 evaluations JSON，未登记条数按报告第四章提交级统计');
   } else {
     console.log('问题登记未启用，跳过问题处理提醒');
   }
@@ -628,7 +732,7 @@ async function main() {
   console.log('获取群成员列表...');
   const members = await getGroupMembers(cfg);
   console.log(`群成员 ${members.length} 人`);
-  const matchNames = [...new Set([...reporterNames, ...(pending ? [...pending.counts.keys()] : [])])];
+  const matchNames = [...new Set([...reporterNames, ...(pending ? [...pending.owners.keys()] : [])])];
   const { nameToMember, admins } = buildMemberMap(members, matchNames);
 
   let allOk = true;
@@ -694,7 +798,7 @@ async function main() {
     console.log('\n本期无需关注的问题，跳过步骤3-4');
   }
 
-  // 步骤 4.5：问题处理提醒（登记表地址 + @未标识处理结果人员）
+  // 步骤 4.5：问题处理提醒（登记表待更新 + 本期未登记低星问题，@负责人）
   if (!want('pending')) {
     console.log('\n--- 步骤4.5: 跳过（未在 --only 内）---');
   } else if (pending && pending.total > 0) {
@@ -704,7 +808,7 @@ async function main() {
   } else if (pending) {
     console.log('无未标识处理结果的问题，跳过');
   } else {
-    console.log('[WARN] 未取到问题登记表数据，跳过');
+    console.log('问题登记未启用，跳过【问题处理提醒】');
   }
 
   // 步骤 5：收尾 @全体
@@ -735,4 +839,14 @@ if (require.main === module) {
   });
 }
 
-module.exports = { cellText, isIssueIdentified, collectPendingIssues, formatPendingReminder, fetchSheetRows };
+module.exports = {
+  cellText,
+  isIssueIdentified,
+  shortHashOf,
+  collectRegistryIssues,
+  collectUnregisteredIssues,
+  collectUnregisteredFromReport,
+  buildPendingReminder,
+  formatPendingReminder,
+  fetchSheetRows
+};
