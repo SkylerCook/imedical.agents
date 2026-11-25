@@ -21,6 +21,9 @@ function procedureScopes(lines, parsed, attributes, declarations = new Map()) {
     const isField = ['property', 'relationship'].includes(header.kind);
     const identity = isField ? 'field:' + className + ':' + name : key;
     declarations.set(identity, {name, line:header.line, column:header.column, isClass,
+      multidimensional:isField && header.keywords.some((part, i, all) => part.type === 'Keyword' &&
+        /^multidimensional$/i.test(part.text) && !/^not$/i.test(all[i-1]?.text) &&
+        !(all[i+1]?.text === '=' && all[i+2]?.text === '0')),
       returnsValue:!isClass && !isField && header.returnType && !/^%?(?:Library\.)?void$/i.test(header.returnType),
       table:isClass && header.persistent});
     if (!isField && (isClass || language === 'objectscript')) {

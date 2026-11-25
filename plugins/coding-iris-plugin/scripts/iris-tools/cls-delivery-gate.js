@@ -118,6 +118,7 @@ function inspect(source, selected = () => true, baseline = '', sessionLines = se
     if (missing.length) issues.push({line:declaration.line, column:declaration.column,
       message:'OS006: ' + declaration.name + ' missing documentation: ' + missing.join(', ')});
   }
+  issues.push(...require('./cls-get-reference')(lines, parsed, attrs, declarations, sessionLines));
   issues.push(...sessionAccessIssues(lines, parsed, sessionLines));
   for (const [key, method] of current) {
     if (previous.has(key) || method.bodyStart === undefined) continue;

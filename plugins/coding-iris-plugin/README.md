@@ -393,4 +393,6 @@ MCP helper 的 `tools` / `call` 已包含配置检查，已知参数可直接调
 
 首次编写后端实现前，Agent 从[CLS 落笔前检查](rules/iris_coding_backend.md#cls-落笔前检查)读取完整规范和适用 OS 条款；正式 Review 复用相同入口。已有工程随能力包更新取得。
 
+0.34.12 的受管 Review 和 Pack 增加 [$GET 第一实参检查 OS010](references/cls-coding-format.md#取未定义变量的值os010)。已有工程更新能力包后生效。
+
 0.34.7 的受管 Review 和 Pack 增加[时间戳写入门禁 OS009](rules/iris_coding_backend.md#时间戳写入os009)。已有工程正常更新即可使用。

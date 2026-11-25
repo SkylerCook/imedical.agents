@@ -160,3 +160,16 @@ test('OS009 follows the display producer through a local alias to typed write de
   assert.ok(inspect(shared).some(i=>i.status==='manual-review' && i.message.startsWith('OS009')));
   assert.ok(!inspect(shared.replace('%ZD(day)','%ZD(day,3)').replace('%ZT(day)','%ZT(day,1)')).some(i=>i.message.startsWith('OS009')));
 });
+
+test('OS010 checks the variable reference, preserving subscript and default expressions', {skip:process.platform !== 'win32' || process.arch !== 'x64'}, () => {
+  const source = expr => ['Class Demo.A','{','Property Data As %String [ MultiDimensional ];',
+    'Property Name As %String;', 'Method GetValue()', '{', '    q 1','}', 'Method Run(obj)', '{',
+    '    s v='+expr,'}','}'].join('\n');
+  const check = expr => inspect(source(expr)).filter(issue=>issue.message.startsWith('OS010')).map(issue=>issue.status || 'fail');
+  for (const ref of ['%request.GetCgiEnv("X")','..GetValue()','..Name','##class(Demo.A).F()','$p(x,",")'])
+    assert.deepEqual(check('$GET('+ref+')'),['fail'],ref);
+  for (const expr of ['$g(..Data(1))','$g(%request.CgiEnvs("X"))','$g(%session.Data("X"))',
+    '$g(^CacheTemp(obj.Key()),obj.Fallback())','$g(x,..GetValue())','%request.GetCgiEnv("X")'])
+    assert.deepEqual(check(expr),[],expr);
+  assert.deepEqual(check('$g(obj.Unknown(1))'),['manual-review']);
+});

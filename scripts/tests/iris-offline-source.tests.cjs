@@ -340,6 +340,27 @@ test('explicit Review base catches committed OS001 at the same line as Pack', {s
  assert.equal(fs.existsSync(f.output),false);
 });
 
+test('OS010 blocks method access, requires unresolved member review and accepts a multidimensional reference', {skip:!windows || process.arch !== 'x64'}, t => {
+ const f=fixture(t);
+ passed(framework(f,'prepare'));
+ const setExpr=expr=>write(path.join(f.code,f.a),['Class Demo.A','{','ClassMethod Value(obj)','{','    s v='+expr,'    q','}','}'].join('\n'));
+ setExpr('$g(%request.GetCgiEnv("HEADER"))');
+ for (const action of ['review','pack']) {
+   const blocked=framework(f,action);
+   assert.equal(blocked.status,1);
+   assert.match(blocked.stderr,/OS010/);
+ }
+ setExpr('$g(obj.Values("x"))');
+ const pending=framework(f,'review');
+ assert.equal(pending.status,1);
+ assert.match(JSON.parse(pending.stdout).manual.join(' '),/OS010/);
+ assert.match(framework(f,'pack').stderr,/OS010-review-required/);
+ setExpr('$g(%request.CgiEnvs("HEADER"))');
+ passed(framework(f,'review'));
+ passed(framework(f,'pack'));
+ passed(framework(f,'verify'));
+});
+
 test('bare ZNSPACE requires a caller contract before Pack', {skip:!windows || process.arch !== 'x64'}, t => {
  const f=fixture(t);
  passed(framework(f,'prepare'));

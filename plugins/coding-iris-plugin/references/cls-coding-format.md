@@ -54,6 +54,16 @@
 
 语法依据：[InterSystems ObjectScript Syntax Basics](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GCOS_syntax) 的 Postconditionals / Whitespace。循环退出依据：[QUIT (ObjectScript)](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_cquit) 的 Without an Argument / With an Argument。这些说明用于区分语言规则与框架风格，不代替目标 IRIS 版本的编译验证。
 
+## 取未定义变量的值（OS010）
+
+`$g(variable,default)` 的第一实参可以是局部变量、Global、进程私有 Global（可带下标）或声明为 MultiDimensional 的对象属性。禁止传入方法调用结果、普通对象属性、系统函数结果、特殊变量或结构化系统变量。先看接收者类型和成员声明，同样的点号与括号也可能是合法的属性下标。
+
+- 方法直接调用，例如 `s ua = %request.GetCgiEnv("HTTP_USER_AGENT", "")`。多维属性可写 `s ua = $g(%request.CgiEnvs("HTTP_USER_AGENT"))`。
+- 第一实参的下标可包含表达式；第二实参可用表达式且先于第一实参求值。变量已定义为空串时返回空串。先调用方法再对结果变量取 `$g` 无法拦截方法异常。
+- Review 核查实际类型、继承成员和目标版本。受管 CLS 静态检查识别变更行直接写出的常见形式；对象成员归属未明时记录声明依据，宏、跨行或间接组合沿实际源码复核。
+
+[InterSystems $GET 参数与求值顺序](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fget)
+
 ## 注释与空行
 
 - 类及成员声明前使用 `/// `，方法体内使用 `// `，标记后留一个空格。解释用途、约定和非显然原因，不强制作者、日期或版本流水。
