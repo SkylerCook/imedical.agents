@@ -142,7 +142,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-d
 | outputMode | `merged` | `merged` |
 | cwd | 仓库根目录 | 仓库根目录 |
 
-采集轮 prompt 保持极窄形态：只跑 `run-triage.ps1 -Env <env>` 一条命令 + 按退出码（0/1/2/3）回报 + 禁止清单（禁单阶段脚本、禁改配置与脚本、禁 git、禁根因分析、禁动任何调度、禁配令牌或外发）。**必须 Full Access**：Auto Approval 会把 `powershell -ExecutionPolicy Bypass` 拦下，表现为状态 `succeeded` 但流水线一步没跑。
+采集轮 prompt 保持极窄形态：只跑 `run-triage.ps1 -Env <env>` 一条命令 + 按退出码（0/1/2/3）回报 + 禁止清单（禁单阶段脚本、禁改配置与脚本、禁 git、禁根因分析、禁动任何调度、禁配令牌或外发）。若该环境的连接注册在工作区 `.mcp.json`（如 `cangwu-test` 的 `graylog-cangwu-test`），命令须写成 `run-triage.ps1 -Env <env> -McpConfig .mcp.json`，否则采集回退到用户目录默认路径报 `missing-config`。**必须 Full Access**：Auto Approval 会把 `powershell -ExecutionPolicy Bypass` 拦下，表现为状态 `succeeded` 但流水线一步没跑。
 
 分析轮 prompt 指向主 skill，取材范围是 `config/pending-queue.json` **全量候选**（`pending` + `lastSeen` 前进的 `blocked`，每轮上限 4 条簇，**P0 先于 P1**），不是只看最新一轮报告。队列条目带采集轮打好的 **`origin` 来源标志**（`self` / `self-calls-external` / `external` / `infra` / `unknown`），分析轮据此定责任侧而不是重新猜：`self` 出本组根因与修正方案；`self-calls-external`（本组调用他组失败的跨组报错）只写被调方 + 原始错误 + 本组容错，不写成需要本组改码的缺陷。职责：读报告→报错按来源定根因 / 慢请求按接口全限定名定归属并按 traceId 追全链路做耗时归因→回填 `pending-queue.json`（可用 `analysis.severity` 改判，但必须写 `severityReason`）→按受影响轮次重渲染→整理 `analysis-outbox-<HHmm>.md`。允许只读 Graylog traceId 查询（区别于被禁的 `collect-errors.js` 取数）。禁采集、禁 `push-notify.js`、禁任何外发、禁创建或改动任何调度任务（含自身）。无产物或无新增时提前退出，不补采集。
 

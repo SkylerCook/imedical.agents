@@ -66,7 +66,8 @@ node -e "const c=require('./.agents/plugins/imedicalxc-doctor-graylog-error-tria
 node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\collect-errors.js --env <env> --check
 
 # 2) 手动跑一轮（跳过推送）
-powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\run-triage.ps1 -Env <env> -SkipNotify
+#    连接配在工作区 .mcp.json（而非默认用户目录）时加 -McpConfig .mcp.json，否则采集会 missing-config
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\run-triage.ps1 -Env <env> [-McpConfig .mcp.json] -SkipNotify
 
 # 3) 定时化：在 Qoder「自动化」面板建/改采集轮与分析轮（会话内用 qoder_cron）
 #    采集轮 cron 0,15,30,45 * * * * + Full Access；分析轮 cron 7,37 * * * * + Auto Approval
@@ -117,7 +118,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents\plugins\imedicalxc-d
 | `classify-owner.js` | `--env` / `--file` / `--calibrate` / `--min-count` |
 | `penetrate-frontend.js` | `--env` / `--classified` |
 | `render-report.js` | `--env` / `--classified` / `--max-stack` / `--check` / `--stdout` |
-| `run-triage.ps1` | `-Env` / `-SkipNotify` / `-SkipCollect` / `-Limit` / `-NoLock` |
+| `run-triage.ps1` | `-Env` / `-McpConfig` / `-SkipNotify` / `-SkipCollect` / `-Limit` / `-NoLock` |
 | `install-schedule.ps1` | `-Env` / `-DryRun` / `-Uninstall` / `-Force` / `-UseS4U` |
 
 完整对照（含易错参数与真实踩坑案例）见 `references/接入手册.md` 6.4。

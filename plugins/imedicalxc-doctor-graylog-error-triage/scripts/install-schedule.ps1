@@ -5,9 +5,12 @@
 #   .\install-schedule.ps1 -Env 87 -Force      覆盖同名任务
 #   .\install-schedule.ps1 -Env 87 -Uninstall  卸载
 #   .\install-schedule.ps1 -Env 87 -UseS4U     未登录也运行（代价：无用户域凭据）
+#   .\install-schedule.ps1 -Env 87 -McpConfig .mcp.json   连接在工作区 .mcp.json 时透传给采集
 # 退出码: 0 成功 / 2 配置缺失 / 3 任务已存在（未加 -Force）
 param(
   [Parameter(Mandatory = $true)][string]$Env,
+  # 透传给 run-triage.ps1 的 --mcp-config；连接配在工作区 .mcp.json 时指定，否则采集回退到用户目录默认路径
+  [string]$McpConfig = '',
   [switch]$DryRun,
   [switch]$Uninstall,
   [switch]$Force,
@@ -64,6 +67,7 @@ if ($exist -and -not $Force) {
 
 $psExe   = (Get-Command powershell.exe -ErrorAction Stop).Source
 $argLine = '-NoProfile -ExecutionPolicy Bypass -File "{0}" -Env {1}' -f $runner, $Env
+if ($McpConfig) { $argLine += ' -McpConfig "{0}"' -f $McpConfig }
 
 $action = New-ScheduledTaskAction -Execute $psExe -Argument $argLine -WorkingDirectory $repoRoot
 
