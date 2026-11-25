@@ -43,6 +43,23 @@
       "maxMessagesPerRun": 12000,
       "sliceBudget": 8000,
       "maxSlicesPerRun": 4
+    },
+    "cangwu-test": {
+      "enabled": true,
+      "label": "苍梧测试环境",
+      "mcpServer": "graylog-cangwu-test",
+      "urlEnv": "GRAYLOG_URL",
+      "tokenEnv": "GRAYLOG_TOKEN",
+      "cookieEnv": "GRAYLOG_COOKIE",
+      "transport": "http",
+      "streamIds": [],
+      "retentionDays": 7,
+      "overlapSeconds": 120,
+      "intervalMinutes": 15,
+      "pageSize": 1000,
+      "maxMessagesPerRun": 12000,
+      "sliceBudget": 8000,
+      "maxSlicesPerRun": 4
     }
   },
   "query": {

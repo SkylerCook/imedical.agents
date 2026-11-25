@@ -1,9 +1,12 @@
 ﻿# Graylog 报错巡检一轮执行：采集 -> 分类 -> 前端穿透 -> 渲染 -> 推送
 # 计划任务入口，也可手动执行；各阶段输出追加到 config\logs\triage-yyyyMMdd.log
 # 退出码 0=正常（含主动跳过） 1=阶段失败 2=环境不可用 3=另一轮正在执行
-# 用法: .\run-triage.ps1 -Env 87 [-SkipNotify] [-SkipCollect] [-Limit 200] [-NoLock]
+# 用法: .\run-triage.ps1 -Env 87 [-McpConfig .mcp.json] [-SkipNotify] [-SkipCollect] [-Limit 200] [-NoLock]
 param(
   [string]$Env = '',
+  # 连接配置文件路径；传给 collect-errors.js --mcp-config。连接配在工作区 .mcp.json 时必须显式指定，
+  # 否则采集回退到用户目录默认路径（~/.qoder-cn/shared_client/mcp.json）导致 missing-config。
+  [string]$McpConfig = '',
   [int]$Limit = 0,
   [switch]$SkipCollect,
   [switch]$SkipNotify,
@@ -118,7 +121,7 @@ function Find-NewestFile {
 
 $startedAll = Get-Date
 Write-Log '════════ 巡检开始 ════════'
-Write-Log ('node={0}  环境={1}' -f $nodePath, $(if ($Env) { $Env } else { '<默认>' }))
+Write-Log ('node={0}  环境={1}  mcp-config={2}' -f $nodePath, $(if ($Env) { $Env } else { '<默认>' }), $(if ($McpConfig) { $McpConfig } else { '<默认>' }))
 
 $commonArgs = @()
 if ($Env) { $commonArgs += @('--env', $Env) }
@@ -138,6 +141,8 @@ if ($SkipCollect) {
   }
 } else {
   $collectArgs = @($commonArgs)
+  # --mcp-config 只对采集阶段有意义（其余阶段不读连接配置）
+  if ($McpConfig) { $collectArgs += @('--mcp-config', $McpConfig) }
   if ($Limit -gt 0) { $collectArgs += @('--limit', "$Limit") }
   $code = Invoke-Stage -Name '采集' -ScriptName 'collect-errors.js' -ScriptArgs $collectArgs
   switch ($code) {

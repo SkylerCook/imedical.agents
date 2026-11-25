@@ -92,7 +92,8 @@ function readMcpServer(ctx, cfg, envId, explicit) {
   if (!file || !fs.existsSync(file)) return out;
   out.exists = true;
   try {
-    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    // PowerShell -Encoding UTF8 会写入 BOM，JSON.parse 遇 \uFEFF 直接失败
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
     const server = (raw.mcpServers || {})[key];
     if (server) {
       out.serverFound = true;

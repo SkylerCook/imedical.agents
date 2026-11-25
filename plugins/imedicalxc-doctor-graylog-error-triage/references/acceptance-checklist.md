@@ -7,7 +7,7 @@
 | L0 静态 | P1–P7 文件落盘 | `verify-install.js --strict` 全 PASS | 是 |
 | L1 渲染 | L0 通过 | fixture 四簇渲染出 summary/self/notify 三类文档，校验闸门反向测试生效 | 是 |
 | L2 通知 | L1 通过 + 推送配置 + 令牌 | `push-notify.js --dry-run` 文本合规、去重与拒发闸门生效 | 是 |
-| L3 调度 | L2 通过 | Qoder 采集轮（Full Access）与分析轮（Auto Approval）已创建且 cron 错开；`qoder_cron run` 触发后日志 mtime + `[SUMMARY]`、产物、state cursor 三项齐备（`lastRunStatus` 不作判据）。回退 OS 时才校验 `install-schedule.ps1 -DryRun`。注意 `run-triage.ps1` **没有 `-DryRun`**，只有 `-Env` / `-Limit` / `-SkipCollect` / `-SkipNotify` / `-NoLock` | 是 |
+| L3 调度 | L2 通过 | Qoder 采集轮（Full Access）与分析轮（Auto Approval）已创建且 cron 错开；`qoder_cron run` 触发后日志 mtime + `[SUMMARY]`、产物、state cursor 三项齐备（`lastRunStatus` 不作判据）。回退 OS 时才校验 `install-schedule.ps1 -DryRun`。注意 `run-triage.ps1` **没有 `-DryRun`**，只有 `-Env` / `-McpConfig` / `-Limit` / `-SkipCollect` / `-SkipNotify` / `-NoLock`；连接配在工作区 `.mcp.json` 的环境（如 `cangwu-test`）采集轮须带 `-McpConfig .mcp.json` | 是 |
 | L4 取数 | graylog-87 注册 | `collect-errors.js --env 87` 退出 0，raw JSON 有真实 ERROR；日志两路计数齐备（`报错命中 N 条` + `慢请求（>=15s）命中 N 条…达标 N 条`）。慢请求达标 0 条可以是正常结果，但必须能看到这一路的计数，不能整路缺失 | 否 |
 | L5 归属 | L4 通过 | `classify-owner.js --calibrate` 观测证据齐备，待定桶可解释；慢请求簇按规则 `slow-interface-fqcn` 定组（**只有归本组的簇才另标证据等级 `interface-fqcn`**，他组簇不标该字段），前缀未登记的落 app-only/待定；不得因打印进程是 `his-mediway-server` 就判成本组 | 否 |
 | L6 穿透 | 前端索引可选构建 | `classified-*.json` 的 `frontend.degradeReason` 与实际相符（`no-target-cluster` / `no-frontend-entry` / `index-missing` / `codegraph-index-present-but-codegraph-mode-not-enabled`），每簇 `ui.degradeReason` 有明确解释。`effectiveMode` 当前硬编码 heuristic，**不会出现 codegraph 命中**；慢请求簇无 URL，计入 `no-http-request` 并跳过属正常 | 否 |

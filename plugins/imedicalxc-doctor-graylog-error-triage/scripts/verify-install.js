@@ -1,4 +1,4 @@
-
+﻿
 'use strict';
 // Graylog 报错巡检 · 安装与注册静态自检
 // 用法: node verify-install.js [--strict] [--capability-root=<path>]
@@ -259,9 +259,26 @@ function checkRegistration(capabilityRoot, contextRoot) {
   if (fs.existsSync(initThin)) warn('init skill thin-index', 'init skill 不应生成根薄索引，检查 thinIndex.excludeSkills');
   else pass('init skill thin-index', '已按约定排除');
 
-  const profile = path.join(contextRoot, 'config/plugin_profile.md');
-  if (!fs.existsSync(profile)) { fail('plugin_profile', '文件不存在'); return; }
-  const line = fs.readFileSync(profile, 'utf8').split(/\r?\n/)
+  const jsoncProfile = path.join(contextRoot, 'config/project.jsonc');
+  const legacyProfile = path.join(contextRoot, 'config/plugin_profile.md');
+  if (fs.existsSync(jsoncProfile)) {
+    const raw = fs.readFileSync(jsoncProfile, 'utf8').replace(/^\uFEFF/, '');
+    let entry;
+    try {
+      const parsed = JSON.parse(raw.replace(/^[ \t]*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ''));
+      entry = (parsed.plugins || {})[PLUGIN_NAME];
+    } catch (err) {
+      fail('plugin_profile', 'project.jsonc 解析失败: ' + err.message); return;
+    }
+    if (!entry) fail('plugin_profile 登记', 'project.jsonc 未找到本插件，需执行 update-plugin-profile.ps1');
+    else {
+      pass('plugin_profile 登记', `status=${entry.status} initSkill=${entry.initSkill || '-'} dependsOn=${entry.dependsOn || '-'}`);
+      if (entry.status !== 'enabled') warn('插件启用状态', `当前 ${entry.status}，巡检 skill 不会被默认路由；确认后置 enabled`);
+    }
+    return;
+  }
+  if (!fs.existsSync(legacyProfile)) { fail('plugin_profile', '文件不存在'); return; }
+  const line = fs.readFileSync(legacyProfile, 'utf8').split(/\r?\n/)
       .find((l) => new RegExp(`^\\|\\s*` + PLUGIN_NAME + `\\s*\\|`).test(l));
   if (!line) fail('plugin_profile 登记', '未找到本插件行，需执行 update-plugin-profile.ps1');
   else {

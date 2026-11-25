@@ -59,7 +59,7 @@ Qoder 自动任务同样是独立进程，**读不到会话级环境变量**（�
 
 ### 采集轮边界
 
-允许：运行 `run-triage.ps1 -Env <env>` 这一条命令，以及只读查看日志与目录。
+允许：运行 `run-triage.ps1 -Env <env>` 这一条命令，以及只读查看日志与目录。连接配在工作区 `.mcp.json`（而非默认用户目录 `~/.qoder-cn/shared_client/mcp.json`）时，该命令须追加 `-McpConfig .mcp.json` 并透传到采集阶段，否则 `collect-errors.js` 回退到默认路径报 `missing-config`。`run-triage.ps1` 的 `-McpConfig` 只作用于采集阶段（其余阶段不读连接配置）。
 
 禁止：单独跑 `collect-errors.js` / `classify-owner.js` / `penetrate-frontend.js` / `render-report.js` / `push-notify.js` / `install-schedule.ps1`（流水线已包含它们）；改 config 或脚本；任何 git 操作；根因分析与读业务源码；注册、启停、卸载任何 Windows 计划任务；配置令牌或发送通知。
 
