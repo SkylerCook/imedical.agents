@@ -4,11 +4,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = fs.readFileSync(path.join(__dirname, '../scripts/commit-demand.js'), 'utf8');
+const { createRequire } = require('node:module');
+const script = path.join(__dirname, '../scripts/commit-demand.js');
+const source = fs.readFileSync(script, 'utf8');
+const requireFromScript = createRequire(script);
 for (const mode of ['success', 'pull-failed', 'head-changed', 'snapshot-changed', 'local-only']) {
   test('global upstream hook coordination: ' + mode, () => {
     const calls = [];
-    const ctx = { require: id => id.includes('workspace-context') ? {} : id === 'fs' ? {...fs, writeFileSync() {}} : require(id),
+    const ctx = { require: id => id.includes('workspace-context') ? {} : id === 'fs' ? {...fs, writeFileSync() {}} : requireFromScript(id),
       module: {exports:{}}, process: {...process, env:{...process.env}}, console:{log(){},error(){}}, mode, calls };
     vm.createContext(ctx); vm.runInContext(source,ctx);
     vm.runInContext(`
@@ -52,7 +55,7 @@ for (const mode of ['success', 'pull-failed', 'head-changed', 'snapshot-changed'
 for (const field of ['head', 'branch', 'upstream', 'fingerprint']) {
   test('live state changed during a later repository pull blocks all staging: ' + field, () => {
     const calls = [];
-    const ctx = { require: id => id.includes('workspace-context') ? {} : require(id),
+    const ctx = { require: id => id.includes('workspace-context') ? {} : requireFromScript(id),
       module:{exports:{}}, process:{...process,env:{...process.env}}, console:{log(){}}, calls, field };
     vm.createContext(ctx); vm.runInContext(source, ctx);
     vm.runInContext(`
@@ -77,7 +80,7 @@ for (const field of ['head', 'branch', 'upstream', 'fingerprint']) {
 for (const phase of ['before-first-stage', 'after-first-commit']) {
   test('each staging rechecks live state and preserves partial receipts: ' + phase, () => {
     const calls = [];
-    const ctx = { require: id => id.includes('workspace-context') ? {} : id === 'fs' ? {...fs,writeFileSync(){}} : require(id),
+    const ctx = { require: id => id.includes('workspace-context') ? {} : id === 'fs' ? {...fs,writeFileSync(){}} : requireFromScript(id),
       module:{exports:{}}, process:{...process,env:{...process.env}}, console:{log(){}}, calls, phase };
     vm.createContext(ctx); vm.runInContext(source,ctx);
     vm.runInContext(`

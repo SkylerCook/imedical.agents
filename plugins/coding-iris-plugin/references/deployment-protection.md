@@ -46,6 +46,13 @@ Atelier 按 UTF-8 原产物发送 BOM 与换行；服务器若规范化字节使
 
 只有需要用户提供配置/权限、扩大范围、覆盖并发修改、决定 Storage/生产内容或处置未消除的未知结果时才提问；达到重试上限则直接停止汇报，不追加“再试一次”式确认。`needs-user-input` 先读取 reason 和私有证据：本地语法等已获修改授权的问题先处理；只有涉及决定 token 或上述人工边界时才呈现问题，保留原 token 校验。
 
+## Storage 预检停止后的处理
+
+`storage-review-required` 保留原有拦截条件。按回执的 `details.cause` 和 `details.hint` 处理：
+
+- `remote-storage-drift` 表示 guarded 读到的远端 Storage 已偏离部署基线。先只读核对远端类、会话基线和最近一次部署回执，查明是否有编译回填或其他变更。再次编译无法消除基线差异。
+- `candidate-storage-change` 表示待上传源码的 Storage 变更未通过预检。默认 `%Storage.Persistent` 类新增持久属性时只新增 `Property`，保留既有 Storage，由部署工具编译并核对回填。确认使用 `^` 分段的显式 SQL Storage 时按下节处理。其他类型或无法识别的映射先核对实际存储策略和差异。
+
 ## 显式 SQL Storage 新增字段
 
 已有类使用 `%Storage.SQL`（或其 Caché SQL Storage 类型）映射 `^` 分段的全局节点时，在同一个 CLS 中声明新持久化 `Property`，并在既有数据 `SQLMap` 中添加它的 `Data`。映射名取有效 SQL 字段名，属性声明了 `SqlFieldName` 时用其值。根据现有数据与写入逻辑核实可用段号，填写 `<Delimiter>"^"</Delimiter>` 和大于该节点已映射最大段号的 `<Piece>`。历史段号和访问路径随原定义保留。

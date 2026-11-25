@@ -4,11 +4,13 @@
 
 ## 当前重点
 
-- demand-delivery-plugin 0.10.1 的 `demand-acceptance` 以 Markdown 回报交付结论和分仓证据，批次保留 BOS 编号汇总。示例与状态口径见[交付回执](../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#交付回执)。
+- demand-delivery-plugin 0.11.0 在推送前检查新标版提交的完整消息，Git 2.54+ 可按仓启用本地钩子。已有批次按原回执接续。 [标版提交格式](../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md#提交格式)
+
+- BOS 0.20.0 可按原 SHA 恢复格式有误的历史日志，预览提前拦截无可登记文件的提交。 [代码日志补录](../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)
 
 - 工程配置统一迁移已接入更新器和工作台 0.5.0 源码。作用域、旧来源退场及恢复见[工程配置迁移](../docs/update-agents.md#工程配置迁移)。正式发放以包外记录为准。
 
-- coding 0.34.4 支持[显式 SQL Storage 新增字段](../plugins/coding-iris-plugin/references/deployment-protection.md#显式-sql-storage-新增字段)，校验既有映射并回读新增段号。已部署工程正常更新即可取得。
+- coding 0.34.13 的 Storage 拦截提示区分远端基线变化与候选改动，同时保留已验证的显式 SQL Storage 段位校验和编译回读。 [部署契约](../plugins/coding-iris-plugin/references/deployment-protection.md#显式-sql-storage-新增字段)
 
 - coding 0.34.1 用 `iris-code-baseline --` 查看 [Skill 命令](../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md#命令)。按路径与类包导出继续通过受管查询生成精确 TXT，复用采集和续采。
 

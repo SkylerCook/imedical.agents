@@ -73,7 +73,7 @@ BOS：从本需求 verified 结果构造 `select`，字段为实仓 repo/ref/has
 
 调用写入前登记 bos/running，成功后登记 succeeded。running/unknown 不允许重新发起写入；超时后核对 BOS 现有记录。已有授权且可只读核实时先自行核对。权威查询已确认相同 repo/hash 写入成功时，可用 actor=agent、status=succeeded、verification={source:"bos-readback",evidenceRef:"<实际回读证据>"} 及 submitted=true 的精确成功回执执行 reconcile-bos，无需再次请求人类确认。没有权威回读能力或证据仍不确定时保留 unknown，说明查询缺口；只有用户明确核实未写入才重置 not-submitted。辅助脚本验证回执形状，实际证据真实性由执行者核对；不能把普通日志、空查询或网络超时当成权威未写入结论。成功阶段不能重复登记或重复执行。v1/v2 旧回执保留原字段，恢复和完成判定均重新核对实仓；旧记录缺少 ref 时只从原 scoped 目标补核，不凭成功标记跳过。来源或目标不符时保留原回执，另行核对修订范围。
 
-push：每个已成功目标可单独登记，第二个仓失败保留第一个仓回执：
+push：执行新的 push 前登记 `push/running`。标版验收从本需求保存的业务完整 SHA 读取 Git 消息全文，检查三行结构和需求号，只核对待推送的仓库。若失败，保留已登记提交和已成功推送的仓库，沿正式提交与交付流程处理待推送项。确已推送的历史提交沿用真实远端包含性证据补录 `push/succeeded`。每个已成功目标可单独登记，第二个仓失败保留第一个仓回执：
 
 ```json
 {"repositories":[{"key":"frontend","commit":"<已核验的实仓业务hash>","remote":"origin","ref":"refs/heads/dev","verified":true,"remoteHash":"<真实远端tip>"}]}

@@ -15,3 +15,5 @@
 脚本使用共享 workspace-context，保留 Overlay 归属、计划完整性、现场校验、pull 和 hook 门禁。HEAD 前进时按[同步复核协议](references/commit-upstream-check.md)由 Agent 核查并自动接续；提交实现只维护在 scripts/commit-demand.js，兼容协议见 [迁移说明](../../docs/demand-delivery-migration.md)。
 
 标版提交、已有提交验收及纯前端交付都须执行[标版 i18n 复核](skills/demand-commit/SKILL.md#标版-i18n-复核)。
+
+标版新推送按实际 Git SHA 核验完整提交信息。需要约束仓库日常 Git 提交时，按[仓库级标版提交检查](skills/demand-commit/SKILL.md#仓库级标版提交检查)显式启用命名 hook。已推送历史沿原回执恢复。

@@ -1,6 +1,6 @@
 ---
 name: bos-code-update-log
-description: 将标版需求已核验的实仓 commit 补录为 BOS 代码更新日志，支持主子共享提交、只读预览与授权提交；worktree 提交先合实仓，明确无代码项跳过。
+description: 将标版需求已核验的实仓 commit 补录为 BOS 代码更新日志，支持主子共享、旧格式历史补录、只读预览与授权提交。
 ---
 
 # BOS 代码更新日志补录
@@ -19,13 +19,13 @@ description: 将标版需求已核验的实仓 commit 补录为 BOS 代码更新
 
 读取 [接口与配置](../../references/code-update-log.md)。`BOS_MCP_CONFIG` 指向仓外共享私有文件，本技能只读取 `bos-code-update-log` 段；`token` 和 `linkProject` 必须填写，缺失或 TODO 时只阻塞本技能。初始化使用 [bos-init](../bos-init/SKILL.md)，JSONC 与旧版回退见[共享私有配置](../../references/usage.md#共享私有配置)。
 
-提交信息须符合 `<type>(<代码所属需求号>):<菜单名称>` 与 `修改说明:` 格式。历史提交格式不符时报告缺口，由用户决定后续处理；本技能不改写 Git 历史。
+常规提交信息须包含 `<type>(<代码所属需求号>):<菜单名称>` 与 `修改说明:`。独立补录旧格式提交时，按[历史提交补录](../../references/code-update-log.md#历史提交补录)核对原提交归属、准备已核实的说明和 BOS 回读。
 
 ## 流程
 
 1. 复用已确认的实仓、目标分支与完整 hash。由 [bos-demand workflow](../../../../workflows/bos-demand.workflow.md#提交后的-bos-代码更新日志) 转入时使用全部实仓校验成功的最终结果；来源仍为 worktree 时保留待交付，不生成 BOS 计划。独立历史补录且仓库不明确时才运行 `repos`，按项目事实确认实仓，不从修复分支推定目标。
 2. 只有提交选择不明确时，用 `commits --repo <实仓路径> --ref refs/heads/<目标分支>` 展示候选，再请求补充。按目标需求号、关联项目、实仓和完整 hash 跳过已确认成功的选择；结果未知先核对 BOS，不重新选择最新提交或自动重试。
-3. 复用主提交时按[映射输入](../../references/code-update-log.md#主子需求复用提交)传 bindings；parent 没有独立 commit 仍须引用主实仓提交并分别登记。运行 `plan '{"select":[{"repo":"<实仓路径>","ref":"refs/heads/<目标分支>","hash":"<完整提交>"}]}'`；门禁通过后才读取配置并展示日志内容及实仓文件/行数统计。跨仓全部通过才生成计划；解析失败停止，不补造字段。
+3. 复用主提交时按[映射输入](../../references/code-update-log.md#主子需求复用提交)传 bindings；parent 没有独立 commit 仍须引用主实仓提交并分别登记。常规需求向 `plan` 传入对应的 repo/ref/hash 选择。所有提交通过实仓、消息和文件校验后，展示日志计划和统计。遇到零文件错误，按提示核对具体 SHA，改用含实际文件变更的提交。
 4. `submit` 是 BOS 写入。已有当前任务的精确 BOS 补录授权时展示计划后直接带 `--confirm` 执行；只有本地提交授权、只要求查看计划或范围不明确时不执行写入。
 5. 报告 HTTP/`ResultCode` 判定。超时、连接中断或结果未知时说明状态，先核对 BOS 记录，再由用户决定是否重试；不自动重复提交。
 

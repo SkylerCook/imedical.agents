@@ -31,7 +31,7 @@ function fixture(t) {
     { key: 'p', name: '{WEB} 操作图标统一', description, type: 'fix', subject: '操作图标', codeBinding: { kind: 'own' }, changes: [{ evidence: 'facts.json', modification: '使用公共图标配置替代主题分支，使各主题操作一致并保留原有事件' }] },
     ...[1, 2, 3].map(n => ({ key: 'c' + n, parentKey: 'p', codeBinding: { kind: 'parent' }, name: '{WEB} 入口' + n + '图标统一', description }))
   ] };
-  const commit = () => { git('add', 'actions.js'); git('commit', '-m', 'fix(100):操作图标\n修改说明:使用公共配置处理各主题图标，保留原有操作'); return git('rev-parse', 'HEAD'); };
+  const commit = () => { git('add', 'actions.js'); git('commit', '-m', 'fix(100):操作图标\n修改说明:使用公共配置处理各主题图标，保留原有操作\n需求描述:100 主需求'); return git('rev-parse', 'HEAD'); };
   return { root, repo, git, spec, commit };
 }
 test('one owner and three children render, bind and share evidence without independent child plans', t => {

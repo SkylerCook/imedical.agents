@@ -14,7 +14,9 @@ BOS 代码更新日志只消费已确认实仓目标分支中的真实 commit。
 
 merge/fast-forward 保留原 hash 时从实仓重新核验；cherry-pick/squash 改变 hash 时使用最终实仓 hash。已有有效实仓提交直接复用，不额外制造空提交。none 在调用前记录不适用及原因；parent 仍属有代码交付，引用主实仓提交分别登记。
 
-plan、submit 和导出的写入函数均执行门禁；所有仓库通过后才读取日志凭据，最终写入函数再次读取实仓提交并生成 payload。门禁失败不联网、不自动合并或选择最新提交。导出 `submit(input, config, fetchImpl, userCode)` 的 input 与 CLI 同为 select/bindings，不再接受裸 payload。只要求本地实仓 commit，不以预先 push 为条件，也不由日志工具执行 Git 写入。
+plan、submit 和导出的写入函数均执行门禁。每条提交都须从 Git 提取至少一个可登记的文件路径，零增删行数的文件仍可登记。未提取到文件时报告仓库和完整 SHA，整次计划或提交在读取日志配置、联网之前停止。核对完整 SHA 后选择包含实际文件改动的提交。
+
+最终写入函数再次读取实仓提交并生成 payload。`submit(input, config, fetchImpl, userCode)` 与 CLI 接受互斥的 `select`、`bindings` 或 `recovery`。Git 选择必须具备实仓 commit 证据，推送沿项目流程独立执行。
 
 旧调用需显式补齐已核实的 ref、实仓路径及最终 hash；保留原回执，已确认成功的不重发，未知结果先核对。目标变化沿交付协议修订范围，不能手改旧授权绕过门禁。
 
@@ -47,11 +49,45 @@ node <脚本绝对路径> submit '{"select":[{"repo":"<实仓路径>","ref":"ref
 
 ## 提交信息与聚合
 
-格式由 [demand-commit](../../demand-delivery-plugin/skills/demand-commit/SKILL.md) 维护：首行 `<type>(<需求号>):<菜单名称>`，正文包含 `修改说明:`；standard 的 `需求描述:` 只用于切分，不进入 payload。没有需求号、菜单或修改说明时整体停止。
+常规格式由 [demand-commit](../../demand-delivery-plugin/skills/demand-commit/SKILL.md) 维护。首行是 `<type>(<需求号>):<菜单名称>`，正文包含 `修改说明:`。standard 的 `需求描述:` 只用于切分。任一提交缺少需求号、菜单或修改说明时，常规计划停止。独立历史补录按下一节处理。
 
 一次选择明确的实仓 repo/ref/完整 hash；同需求号组成一条 payload，同需求的仓库/提交进入 `Repository`。菜单名称和修改说明按选择顺序分别去重、换行合并，不丢弃后续仓库的说明。重复选择同一仓库提交只处理一次。`UserCode` 来自 `--user` 或首个仓库的当前 Git user.name。
 
 需求处理在全部实仓提交 verified 后自动准备日志，选择映射、独立授权、失败恢复与已确认结果去重以 [bos-demand workflow](../../../workflows/bos-demand.workflow.md#提交后的-bos-代码更新日志) 为准。CLI 的选择内去重只作用于单次调用，不提供服务端幂等或跨次提交去重；不得据此自动重试。plan 与 submit 复用同一选择及明确的提交用户，期间配置或选择变化须重新核对计划。
+
+## 历史提交补录
+
+对已核实的单一标版需求，真实代码提交的原始首行仍能确认归属，但旧格式不完整时，用下列输入运行原有 `plan`。
+
+```json
+{
+  "recovery": {
+    "requirementCode": "12345",
+    "select": [
+      {
+        "repo": "<实仓根目录>",
+        "ref": "refs/heads/<目标分支>",
+        "hash": "<真实代码提交的完整 SHA>",
+        "menuNames": "<已核实的菜单>",
+        "modifyDesc": "<已核实的修改说明>"
+      }
+    ]
+  }
+}
+```
+
+1. 逐仓核实同一需求的真实代码提交。脚本从原消息的标准前缀或旧式「数字编号 空格 标题」首行核对归属。首行编号无法确定、与目标需求不一致，或正文中的 `需求描述:` 编号与首行冲突时停止。仅日志字段不完整的提交填写已核实的菜单和修改说明，字段齐全的提交沿用原消息。已有空提交里的可信说明可以作为资料，其 SHA 可记录在说明中。版本、变更文件和行数从真实代码提交读取。
+2. 展示 `plan` 的最终需求号、关联研发项目、完整 SHA、变更统计和说明。仓库摘要通过 `metadataSource` 标出来自原提交的 `git-commit`，或来自已核实材料的 `confirmed-recovery`。`recovery.scopeHash` 绑定 BOS 地址、关联项目、需求号和完整实仓/ref/SHA 集合。
+3. 对同一范围检查当前任务或验收回执，并通过权威的 BOS 页面或既有查询渠道核对已登记的版本。已有验收会话继续使用其 `running`、`unknown`、`succeeded` 状态。未决或结果未知时按 [验收回执规则](../../demand-delivery-plugin/references/acceptance-session.md) 核对，保持原状态直到证据足够。
+4. 仅在已有本次 BOS 写入授权，并完成最新一次范围完整的查重且无未决请求时，复用同一 `recovery` 运行 `submit --confirm`。传入顶层 `readback`，其中 `scopeHash` 取自本次 `plan`，`evidenceRef` 指向可复核的本次证据。CLI 按下表处理 `status`。
+
+| `readback.status` | 条件与结果 |
+|---|---|
+| `not-found` | 本次权威回查覆盖同一项目、需求及全部提交，确认没有重复记录或未决请求。允许发起一次 POST。 |
+| `succeeded` | 权威回读或已有成功回执确认同一范围已经登记。返回 `alreadySubmitted: true`、`submitted: false` 和 `evidenceRef`。 |
+| `unknown` | 有未决请求、部分提交已见或证据无法核实完整范围。停止并核对。 |
+
+工具核对回读的范围标识与字段，查询和证据真实性由调用方核实。每次独立提交前重新查重。请求超时或连接中断后保留原证据并核对 BOS，旧的 `not-found` 只对应当次请求之前的状态。
 
 ## 请求与结果
 
@@ -62,7 +98,7 @@ node <脚本绝对路径> submit '{"select":[{"repo":"<实仓路径>","ref":"ref
 | `TradeCode` | 固定 `1000` |
 | `UserCode` | `--user` 或 Git 用户 |
 | `RequirementCode` | 提交首行的数字需求号 |
-| `MenuNames` / `ModifyDesc` | 上述解析与聚合结果 |
+| `MenuNames` / `ModifyDesc` | 原提交的解析与聚合结果，历史补录可提供已核实的缺失说明 |
 | `LinkProject` | 本技能的 `linkProject` |
 | `Repository[].Project` | origin 路径末段去掉 `.git`，无 origin 时使用仓库目录名 |
 | `Repository[].CodeRepositoryVersion` | 完整提交 hash |

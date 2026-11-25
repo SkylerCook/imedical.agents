@@ -28,6 +28,8 @@
 
 `demand-commit --plan` 只生成消息与计划；`demand-commit --commit` 表达本地提交授权并执行 plan/apply/verify，均不包含 push。交付类型来自当前用户或项目约定，缺失时补问。
 
+标版验收在新 push 前核对 Git 中实际保存的完整消息，复用已选定的仓库和 SHA。采用 Git 2.54 或更新版的标版仓库还可按[仓库级标版提交检查](skills/demand-commit/SKILL.md#仓库级标版提交检查)显式启用本地命名 hook，保留既有钩子及已推送历史恢复路径。正常能力包更新即可取得框架核验。
+
 上游前进且与本需求无交集、需求内容和消息未变时，Agent 复核后沿用已有授权自动重新 plan 并接续；边界与次数见[同步复核协议](references/commit-upstream-check.md)。同步由技能独立完成，有无 hook 均可使用；已部署项目正常更新能力包并刷新已启用索引即可，无配置迁移或旧文件清理，不需重装 hook。
 
 需要 Node.js >=22.5.0（Agent 工具链依赖）。新项目按项目上下文维护流程将本插件标为 enabled 后刷新 thin-index；没有初始化凭据或领域配置。旧入口迁移、数据协议和部署步骤见 [迁移说明](../../docs/demand-delivery-migration.md)。

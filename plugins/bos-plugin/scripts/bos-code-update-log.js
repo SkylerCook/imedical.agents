@@ -7,6 +7,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
 
 const personal = require('./personal-config');
 const { parseConnectionUrl } = require('./bos-connection');
@@ -15,10 +16,11 @@ const DEFAULT_TIMEOUT = 30000;
 const MAX_BUFFER = 64 * 1024 * 1024;
 const REQUIREMENT_PREFIX = /^\w+\((\d+)\):/;
 const REQUIREMENT_STRIP = /^\w+\(\d+\):/;
+const LEGACY_REQUIREMENT_PREFIX = /^(\d+)[ \t]+(?!\d+(?:[ \t]|$))\S/;
 const MODIFY_MARKER = '修改说明:';
 const CONTENT_MARKER = '需求描述:';
 const HASH_PATTERN = /^[0-9a-fA-F]{7,40}$/;
-const NUMSTAT_PATTERN = /^(\d+|-)\s+(\d+|-)\s+(.+)$/;
+const NUMSTAT_PATTERN = /^(\d+|-)\t(\d+|-)\t(.+)$/;
 const RECORD_SEPARATOR = '\x1e';
 const FIELD_SEPARATOR = '\x1f';
 
@@ -27,6 +29,7 @@ function git(repoPath, args) {
     cwd: repoPath,
     encoding: 'utf8',
     windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, GIT_NO_REPLACE_OBJECTS: '1' },
     maxBuffer: MAX_BUFFER
   });
   if (result.error) throw new Error(`无法执行 git：${result.error.message}${result.error.code === 'EBUSY' ? `；工作目录 ${repoPath}：请检查宿主同步子进程环境（EBUSY 不唯一指向 stdin）` : ''}`);
@@ -73,10 +76,10 @@ function resolveProjectName(remoteUrl) {
 function parseNumstat(stdout) {
   const files = [];
   for (const line of String(stdout || '').split('\n')) {
-    const matched = line.match(NUMSTAT_PATTERN);
+    const matched = line.replace(/\r$/, '').match(NUMSTAT_PATTERN);
     if (!matched) continue;
     files.push({
-      path: matched[3].trim(),
+      path: matched[3],
       addLines: matched[1] === '-' ? 0 : Number(matched[1]),
       delLines: matched[2] === '-' ? 0 : Number(matched[2])
     });
@@ -194,15 +197,13 @@ function listCommits(repoPath, limit = 30, ref) {
 function parseCommitBlock(block) {
   const first = block.indexOf(FIELD_SEPARATOR);
   const second = block.indexOf(FIELD_SEPARATOR, first + 1);
-  if (first < 0 || second < 0) throw new Error('无法解析 git show 输出');
-  const lines = block.slice(second + 1).split('\n');
-  const cut = lines.findIndex(line => NUMSTAT_PATTERN.test(line));
-  const boundary = cut < 0 ? lines.length : cut;
+  const boundary = block.indexOf('\0', second + 1);
+  if (first < 0 || second < 0 || boundary < 0) throw new Error('无法解析 git show 输出');
   return {
     hash: block.slice(0, first).trim(),
     shortHash: block.slice(first + 1, second).trim(),
-    message: lines.slice(0, boundary).join('\n').trim(),
-    files: parseNumstat(lines.slice(boundary).join('\n'))
+    message: block.slice(second + 1, boundary).trim(),
+    files: parseNumstat(block.slice(boundary + 1))
   };
 }
 
@@ -212,9 +213,12 @@ function commitRecords(repoPath, hashes) {
   const targets = hashes.map(assertHash);
   const stdout = git(repoPath, [
     'show',
-    `--pretty=format:${RECORD_SEPARATOR}%H${FIELD_SEPARATOR}%h${FIELD_SEPARATOR}%B`,
+    `--pretty=format:${RECORD_SEPARATOR}%H${FIELD_SEPARATOR}%h${FIELD_SEPARATOR}%B%x00`,
+    '--no-notes',
+    '--no-show-signature',
     '--numstat',
-    ...targets
+    ...targets,
+    '--'
   ]);
   const blocks = stdout.split(RECORD_SEPARATOR).slice(1);
   if (blocks.length !== targets.length) throw new Error(`git show 返回 ${blocks.length} 条记录，与请求的 ${targets.length} 条不一致`);
@@ -252,11 +256,75 @@ function selectRecords(select) {
   }).filter(Boolean);
 }
 
+function assertLogFiles(record) {
+  if (!record.files.some(file => file.path.trim())) {
+    throw new Error(`仓库 ${record.project} 的提交 ${record.hash} 未提取到可登记的文件变更。请选择实际包含本需求文件改动的提交。`);
+  }
+}
+
+function selectLogCommits(select) {
+  const records = selectRecords(select);
+  records.forEach(assertLogFiles);
+  return records;
+}
+
+function hasOnlyFields(value, fields) {
+  return value && typeof value === 'object' && !Array.isArray(value) &&
+    Object.keys(value).every(field => fields.includes(field));
+}
+
+function selectRecovery(recovery) {
+  if (!hasOnlyFields(recovery, ['requirementCode', 'select']) ||
+      typeof recovery.requirementCode !== 'string' || !/^\d+$/.test(recovery.requirementCode) ||
+      !Array.isArray(recovery.select) || !recovery.select.length) {
+    throw new Error('历史补录须提供已确认的单一标版需求号和实仓提交选择');
+  }
+  const { requirementCode, select } = recovery;
+  for (const item of select) {
+    if (!hasOnlyFields(item, ['repo', 'ref', 'hash', 'menuNames', 'modifyDesc']) ||
+        typeof item.hash !== 'string' || !/^[0-9a-f]{40}$/i.test(item.hash)) {
+      throw new Error('历史补录只接受实仓路径、目标 ref、完整提交 hash 和待补的菜单及修改说明');
+    }
+  }
+  const records = selectLogCommits(select);
+  if (records.length !== select.length) throw new Error('历史补录须对同一实仓提交提供唯一选择');
+  return records.map((record, index) => {
+    const parsed = parseCommitMessage(record.message);
+    const subject = record.message.split('\n', 1)[0].trimEnd();
+    const originalRequirement = parsed.requirementCode || subject.match(LEGACY_REQUIREMENT_PREFIX)?.[1];
+    if (originalRequirement !== requirementCode) {
+      throw new Error(`提交 ${record.hash} 的首行无法确认属于需求 ${requirementCode}。请核对原提交和需求归属。`);
+    }
+    const descriptions = [...record.message.matchAll(/^需求描述:[ \t]*(\d+)(?=[ \t\r]|$)/gm)];
+    if (descriptions.some(match => match[1] !== requirementCode)) {
+      throw new Error(`提交 ${record.hash} 的需求描述与首行需求号冲突。请核对原提交和需求归属。`);
+    }
+    const item = select[index];
+    if (!parsed.error) {
+      if (Object.hasOwn(item, 'menuNames') || Object.hasOwn(item, 'modifyDesc')) {
+        throw new Error(`提交 ${record.hash} 已有完整的标准消息。请使用原提交中的菜单和修改说明。`);
+      }
+      return { ...record, metadataSource: 'git-commit' };
+    }
+    const menuNames = typeof item.menuNames === 'string' ? item.menuNames.trim() : '';
+    const modifyDesc = typeof item.modifyDesc === 'string' ? item.modifyDesc.trim() : '';
+    if (!menuNames || !modifyDesc) {
+      throw new Error(`提交 ${record.hash} 须补齐已核实的菜单和修改说明。`);
+    }
+    return { ...record, metadataSource: 'confirmed-recovery', recoveryMessage: { requirementCode, menuNames, modifyDesc } };
+  });
+}
+
 // Explicit target/owner bindings reuse immutable commits without rewriting their messages.
 function selectInput(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('日志输入必须为对象');
+  if (Object.hasOwn(input, 'recovery')) {
+    if (!hasOnlyFields(input, ['recovery', 'readback'])) throw new Error('recovery 与 select、bindings 互斥，写入证据通过 readback 提供');
+    return selectRecovery(input.recovery);
+  }
+  if (Object.hasOwn(input, 'readback')) throw new Error('readback 仅用于历史补录 recovery');
   if (Object.hasOwn(input, 'select') && Object.hasOwn(input, 'bindings')) throw new Error('select 与 bindings 互斥');
-  if (!Object.hasOwn(input, 'bindings')) return selectRecords(input.select);
+  if (!Object.hasOwn(input, 'bindings')) return selectLogCommits(input.select);
   if (!Array.isArray(input.bindings) || !input.bindings.length) throw new Error('bindings 不能为空；明确无代码的条目在流程中记录不适用');
   const owners = new Map(), selections = [];
   for (const binding of input.bindings) {
@@ -269,7 +337,7 @@ function selectInput(input) {
     if (!Array.isArray(binding.select) || !binding.select.length || binding.select.some(item => !/^[0-9a-f]{40}$/i.test(item?.hash || ''))) throw new Error('日志映射须提供明确仓库和完整提交hash');
     selections.push({ binding: { requirementCode, codeOwnerRequirementCode: owner }, select: binding.select });
   }
-  const records = selectRecords(selections.flatMap(item => item.select)), result = [], seen = new Set();
+  const records = selectLogCommits(selections.flatMap(item => item.select)), result = [], seen = new Set();
   for (const { binding, select } of selections) for (const selected of select) {
     const repo = fs.realpathSync(path.resolve(selected.repo));
     const record = records.find(item => item.repo === repo && item.hash.toLowerCase() === selected.hash.toLowerCase());
@@ -285,8 +353,13 @@ function selectInput(input) {
 function buildPayload(records, { linkProject, userCode }) {
   const groups = new Map();
   for (const record of records) {
-    const parsed = parseCommitMessage(record.message);
-    if (parsed.error) throw new Error(`${record.shortHash}: ${parsed.error}`);
+    const parsed = record.recoveryMessage || parseCommitMessage(record.message);
+    if (parsed.error) {
+      const subject = record.message.split('\n', 1)[0].trimEnd();
+      const next = LEGACY_REQUIREMENT_PREFIX.test(subject) ? '提交使用了旧版首行格式。独立历史补录可使用 recovery。' : parsed.error;
+      throw new Error(`${record.shortHash}: ${next}`);
+    }
+    assertLogFiles(record);
     const repository = {
       Project: record.project,
       CodeRepositoryVersion: record.hash,
@@ -335,17 +408,44 @@ function serverMessage(data) {
     .join('；');
 }
 
+function recoveryScope(records, payload, url) {
+  const [{ RequirementCode, LinkProject }] = payload;
+  const selection = records.map(record => JSON.stringify([
+    process.platform === 'win32' ? record.repo.toLowerCase() : record.repo,
+    record.ref, record.project, record.hash
+  ])).sort();
+  return { scopeHash: createHash('sha256').update(JSON.stringify([url, LinkProject, RequirementCode, selection])).digest('hex') };
+}
+
+function requireRecoveryReadback(readback, scopeHash) {
+  if (!hasOnlyFields(readback, ['scopeHash', 'status', 'evidenceRef']) || readback.scopeHash !== scopeHash ||
+      !['not-found', 'succeeded', 'unknown'].includes(readback.status) ||
+      typeof readback.evidenceRef !== 'string' || !readback.evidenceRef.trim()) {
+    throw new Error('历史补录须提供与 plan scopeHash 一致的 BOS 回读状态及证据引用。请先核对本次需求、关联项目和完整提交。');
+  }
+  if (readback.status === 'unknown') throw new Error('历史补录的 BOS 结果未知。请先核对已有记录和未决请求。');
+  return readback;
+}
+
 async function submit(input, config, fetchImpl = fetch, userCode = '') {
   // The public write boundary accepts selections, never an unbound payload.
   // Re-read real commits immediately before generating the request.
   const records = selectInput(input);
   const payload = buildPayload(records, { linkProject: config.linkProject, userCode: resolveUserCode(records, userCode) });
+  const recovery = input.recovery ? recoveryScope(records, payload, config.url) : undefined;
+  const readback = recovery ? requireRecoveryReadback(input.readback, recovery.scopeHash) : undefined;
   if (!config.token || /^(TODO|xxxxx)$/i.test(config.token.trim())) throw new Error('代码更新日志 token 尚未配置');
   const redact = value => {
     let text = String(value);
     for (const secret of [config.token, JSON.stringify(config.token).slice(1, -1), encodeURIComponent(config.token)]) text = text.split(secret).join('[REDACTED]');
     return text;
   };
+  if (readback?.status === 'succeeded') {
+    return {
+      ok: true, submitted: false, alreadySubmitted: true, evidenceRef: redact(readback.evidenceRef.trim()),
+      recovery, summary: describe(records, payload)
+    };
+  }
   const headers = { 'Content-Type': 'application/json' };
   if (config.token) headers.Authorization = `Bearer ${config.token}`;
   let response;
@@ -382,12 +482,21 @@ async function submit(input, config, fetchImpl = fetch, userCode = '') {
   if (codes.some(code => code !== '000')) {
     throw new Error(`提交失败：${messages || `ResultCode ${codes.join('、')}`}`);
   }
-  return { ok: true, resultCodes: codes, resultMessages: messages ? [messages] : [], summary: describe(records, payload) };
+  return {
+    ok: true, resultCodes: codes, resultMessages: messages ? [messages] : [],
+    summary: describe(records, payload), ...(recovery ? { recovery } : {})
+  };
 }
 
 function describe(records, payload) {
   const summary = summarize(payload);
   if (records.some(record => record.logBinding)) for (const item of summary) item.codeOwnerRequirementCode = records.find(record => record.logBinding?.requirementCode === item.requirementCode).logBinding.codeOwnerRequirementCode;
+  if (records[0]?.metadataSource) {
+    summary[0].repositories.forEach((repository, index) => {
+      const { repo, ref, metadataSource } = records[index];
+      Object.assign(repository, { repo, ref, metadataSource });
+    });
+  }
   return summary;
 }
 
@@ -432,12 +541,15 @@ function option(argv, name) {
 }
 
 const USAGE = [
-  'bos-code-update-log plan|submit 接受 select 或 bindings（含requirementCode、codeOwnerRequirementCode、select），二者互斥',
+  'bos-code-update-log plan|submit 接受互斥的 select、bindings 或 recovery',
+  'bindings 的每项包含 requirementCode、codeOwnerRequirementCode、select',
   'bos-code-update-log defaults',
   'bos-code-update-log repos [--workspace <目录>] [--depth <层数>]',
   'bos-code-update-log commits --repo <实仓路径> --ref refs/heads/<目标分支> [--limit <条数>]',
   'bos-code-update-log plan \'{"select":[{"repo":"<实仓路径>","ref":"refs/heads/<目标分支>","hash":"<完整实仓提交>"}]}\' [--user <Git用户>]',
-  'bos-code-update-log submit \'{"select":[{"repo":"<实仓路径>","ref":"refs/heads/<目标分支>","hash":"<完整实仓提交>"}]}\' --confirm [--user <Git用户>]'
+  'bos-code-update-log submit \'{"select":[{"repo":"<实仓路径>","ref":"refs/heads/<目标分支>","hash":"<完整实仓提交>"}]}\' --confirm [--user <Git用户>]',
+  '历史补录使用 {"recovery":{"requirementCode":"<已核实的标版需求号>","select":[{"repo":"<实仓路径>","ref":"refs/heads/<目标分支>","hash":"<完整实仓提交>","menuNames":"<已核实的菜单>","modifyDesc":"<已核实的修改说明>"}]}}',
+  '历史补录 submit 使用同一 recovery，另传 readback（scopeHash、status、evidenceRef）并显式传 --confirm'
 ].join('\n');
 
 async function main(argv, { env = process.env, fetchImpl = fetch } = {}) {
@@ -463,12 +575,23 @@ async function main(argv, { env = process.env, fetchImpl = fetch } = {}) {
     const settings = loadConfig(env);
     const payload = buildPayload(records, { linkProject: settings.linkProject, userCode: resolveUserCode(records, option(argv, '--user')) });
     const summary = describe(records, payload);
-    if (command === 'plan') return { ok: true, submitted: false, url: settings.url, configSource: settings.configSource, tokenConfigured: Boolean(settings.token), payload, summary };
+    if (command === 'plan') {
+      const recovery = input.recovery ? recoveryScope(records, payload, settings.url) : undefined;
+      return {
+        ok: true, submitted: false, url: settings.url, configSource: settings.configSource,
+        tokenConfigured: Boolean(settings.token), payload, summary, ...(recovery ? { recovery } : {})
+      };
+    }
     if (!argv.includes('--confirm')) {
       return { ok: false, submitted: false, error: '提交为写操作，需要显式传 --confirm', url: settings.url, configSource: settings.configSource, summary };
     }
     const result = await submit(input, settings, fetchImpl, option(argv, '--user'));
-    return { ok: true, submitted: true, url: settings.url, configSource: settings.configSource, resultCodes: result.resultCodes, resultMessages: result.resultMessages, summary: result.summary };
+    if (result.alreadySubmitted) return { ...result, url: settings.url, configSource: settings.configSource };
+    return {
+      ok: true, submitted: true, url: settings.url, configSource: settings.configSource,
+      resultCodes: result.resultCodes, resultMessages: result.resultMessages, summary: result.summary,
+      ...(result.recovery ? { recovery: result.recovery } : {})
+    };
   }
   throw new Error(`未知命令。用法：\n${USAGE}`);
 }

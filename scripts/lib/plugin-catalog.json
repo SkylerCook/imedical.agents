@@ -239,7 +239,7 @@
       "directory": "bos-plugin",
       "manifest": {
         "name": "bos-plugin",
-        "version": "0.19.0",
+        "version": "0.20.0",
         "displayName": "BOS Demand Plugin",
         "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
         "entry": "AGENTS.md",
@@ -324,7 +324,7 @@
           }
         ]
       },
-      "manifestHash": "9c1a84a00ce8abf3d8edb634cfd66a4c95e6cd575bebf8f5a4a7600e0810fcf2"
+      "manifestHash": "eac662b6176ac9993eb6229bb710a5c21b398d096b6a9f414763558dc403e946"
     },
     {
       "directory": "codegraph-query",
@@ -364,7 +364,7 @@
       "directory": "coding-iris-plugin",
       "manifest": {
         "name": "coding-iris-plugin",
-        "version": "0.34.12",
+        "version": "0.34.13",
         "displayName": "IRIS Coding Plugin",
         "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
         "entry": "AGENTS.md",
@@ -550,13 +550,13 @@
           "vendor/xml-parser"
         ]
       },
-      "manifestHash": "3d25bcecad0a4bc12a5a5991b6b0ffcc27a097bd811c9abd1c0720968acec319"
+      "manifestHash": "68f203c670be5fc3961ef2e4964ae19da71038bb426693e0756e371b8cd01783"
     },
     {
       "directory": "demand-delivery-plugin",
       "manifest": {
         "name": "demand-delivery-plugin",
-        "version": "0.10.1",
+        "version": "0.11.0",
         "displayName": "Demand Delivery Plugin",
         "description": "跨技术栈的需求提交，支持 project 显式无编号提交，以及连续人工验收、逐号交付恢复。",
         "entry": "AGENTS.md",
@@ -591,7 +591,7 @@
           }
         ]
       },
-      "manifestHash": "076011ec64ee24c0c1459f208e98db588e05f6961f679a7637dfa0091ed36698"
+      "manifestHash": "4f0cfc3035fa8660e08ac8e0f667d3b59c15fd5b4df28a6b6c0366712bc53307"
     },
     {
       "directory": "extract-doc",
@@ -639,7 +639,7 @@
       "directory": "graylog-toolkit",
       "manifest": {
         "name": "graylog-toolkit",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "displayName": "Graylog Toolkit",
         "description": "可复用的 Graylog 查询、日志解析、归属与处置判定库及薄 CLI（零依赖）。供其他智能体插件以库或 JSON 文件方式复用两路并集查询、簇键、归属规则与日志语句定位。",
         "entry": "AGENTS.md",
@@ -652,7 +652,7 @@
           "日志语句定位"
         ]
       },
-      "manifestHash": "f475d71d391c62c8f610801c9d3359ef5257fabc2da6e5027065e217f2420a7c"
+      "manifestHash": "d7322e9688449acbe65244362ddaff50f1264408e5fc50792ef470d53fdae221"
     },
     {
       "directory": "i18n-iris-plugin",
@@ -1027,7 +1027,7 @@
       "directory": "imedicalxc-doctor-graylog-error-triage",
       "manifest": {
         "name": "imedicalxc-doctor-graylog-error-triage",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "displayName": "iMedicalXC Doctor Graylog Error Triage",
         "description": "HIS 医生站 Graylog 报错巡检：30 分钟水位线增量采集 ERROR 日志，按堆栈自校准归属（本组/基础设施/他组/待定），前端界面操作穿透，生成本组修正清单与他组通知文档，并按 errorHash 去重推送 QQ 群。",
         "entry": "AGENTS.md",
@@ -1092,7 +1092,7 @@
           }
         ]
       },
-      "manifestHash": "b9a45a0d88d351d4380fbcfce1ef7c1830fc8f4fcff06f80dc96a1a6962bd508"
+      "manifestHash": "a6a3a4d7314c6d35dd2e2b7a58645b69873e55b0a711684385618cf05fbef376"
     },
     {
       "directory": "imedicalxc-doctor-perf-analysis-engineer",

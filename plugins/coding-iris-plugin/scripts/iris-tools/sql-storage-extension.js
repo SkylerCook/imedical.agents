@@ -185,10 +185,20 @@ function existingLayout(parsed) {
   return maps && [...maps.values()].some(isCaretMap) ? layout(block, xml) : null;
 }
 
+function reviewStorageKind(parsed) {
+  const block = activeBlock(parsed);
+  const xml = block && storageXml(block);
+  if (!xml) return;
+  const type = childText(xml, 'Type');
+  if (type === '%Storage.Persistent') return 'persistent';
+  const maps = sqlStorageTypes.has(type) && namedChildren(xml, 'SQLMap');
+  if (maps && [...maps.values()].some(isCaretMap)) return 'sql-caret';
+}
+
 function matchesReadback(expected, blocks) {
   const block = blocks.find(item => item.name === expected.name);
   const xml = block && storageXml(block);
   return !!xml && JSON.stringify(shape(xml, null, true)) === expected.layout;
 }
 
-module.exports = {compare, existingLayout, matchesReadback};
+module.exports = {compare, existingLayout, matchesReadback, reviewStorageKind};

@@ -91,6 +91,113 @@ test('plan and unconfirmed submit perform zero network requests; confirmed submi
   const preview = await log.main(['submit', input], options); assert.equal(preview.ok, false); assert.equal(requests, 0);
   const result = await log.main(['submit', input, '--confirm'], options); assert.equal(result.submitted, true); assert.equal(requests, 1);
 });
+test('a commit with no reportable files stops the entire selection before credentials or network', async t => {
+  const f = fixture(t), a = repo(f.root, 'repo-a'), b = repo(f.root, 'repo-b');
+  git(a, ['config', 'diff.renames', 'true']);
+  const hash = commit(a, 'empty.txt', '', message());
+  const binary = commit(a, 'binary.bin', Buffer.from([0, 255, 4]), message());
+  const renamed = 'renamed.txt';
+  git(a, ['mv', 'empty.txt', renamed]);
+  git(a, ['commit', '-m', message()]);
+  const renameHash = git(a, ['rev-parse', 'HEAD']);
+  git(b, ['commit', '--allow-empty', '-m', message() + '\n\n12\t34\tnot-a-file.txt']);
+  const emptyHash = git(b, ['rev-parse', 'HEAD']);
+  const ref = 'refs/heads/dev';
+  const select = [{ repo: a, ref, hash }, { repo: b, ref, hash: emptyHash }];
+  const valid = { select: [hash, binary, renameHash].map(hash => ({ repo: a, ref, hash })) };
+  const mixed = JSON.stringify({ select });
+  const binding = JSON.stringify({ bindings: [{ requirementCode: '1001', codeOwnerRequirementCode: '1001', select }] });
+  let requests = 0;
+  const fetchImpl = async () => { requests++; throw Error('unexpected request'); };
+  const noFiles = error => error.message.includes('repo-b') && error.message.includes(emptyHash) && error.message.includes('未提取到可登记的文件变更');
+  for (const input of [mixed, binding]) {
+    await assert.rejects(log.main(['plan', input], { env: {}, fetchImpl }), noFiles);
+    await assert.rejects(log.main(['submit', input, '--confirm'], { env: {}, fetchImpl }), noFiles);
+    await assert.rejects(log.submit(JSON.parse(input), config, fetchImpl), noFiles);
+  }
+  const plan = await log.main(['plan', JSON.stringify(valid)], { env: f.env, fetchImpl });
+  assert.equal(plan.payload[0].Repository.length, 3);
+  assert.deepEqual(plan.summary[0].repositories.map(item => [item.fileCount, item.addLines, item.delLines]), [[1, 0, 0], [1, 0, 0], [1, 0, 0]]);
+  assert.equal(requests, 0);
+});
+test('historical recovery previews original Git evidence and requires a matching BOS readback to send', async t => {
+  const f = fixture(t), a = repo(f.root, 'repo-a'), b = repo(f.root, 'repo-b');
+  const old = commit(a, 'old.txt', 'one\n', '1001 旧版标题');
+  const standard = commit(b, 'new.txt', 'two\n', message());
+  git(a, ['commit', '--allow-empty', '-m', message()]);
+  const noteHash = git(a, ['rev-parse', 'HEAD']);
+  const ref = 'refs/heads/dev';
+  const select = [
+    { repo: a, ref, hash: old, menuNames: '核实的菜单', modifyDesc: `核实的说明 ${noteHash}` },
+    { repo: b, ref, hash: standard }
+  ];
+  const input = { recovery: { requirementCode: '1001', select } };
+  let requests = 0, requestPayload;
+  const fetchImpl = async (_url, options) => {
+    requests++;
+    requestPayload = JSON.parse(options.body);
+    return { ok: true, status: 200, json: async () => ({ ResultCode: '000' }) };
+  };
+  const options = { env: f.env, fetchImpl };
+  await assert.rejects(log.main(['plan', JSON.stringify({ select: [select[0]] })], options), /旧版首行格式/);
+  const plan = await log.main(['plan', JSON.stringify(input)], options);
+  const { scopeHash } = plan.recovery;
+  assert.match(scopeHash, /^[0-9a-f]{64}$/);
+  assert.equal(plan.payload[0].RequirementCode, '1001');
+  assert.match(plan.payload[0].ModifyDesc, new RegExp(noteHash));
+  assert.deepEqual(plan.payload[0].Repository.map(item => [item.CodeRepositoryVersion, item.ModifyFiles]), [[old, 'old.txt'], [standard, 'new.txt']]);
+  assert.deepEqual(plan.summary[0].repositories.map(item => [item.ref, item.metadataSource]), [
+    [ref, 'confirmed-recovery'], [ref, 'git-commit']
+  ]);
+  const readback = { scopeHash, status: 'not-found', evidenceRef: 'synthetic Bos readback record' };
+  const execute = (value, confirm = true) => log.main(['submit', JSON.stringify(value), ...(confirm ? ['--confirm'] : [])], options);
+  await assert.rejects(execute(input), /须提供.*BOS 回读/);
+  await assert.rejects(execute({ ...input, readback: { ...readback, status: 'unknown' } }), /结果未知/);
+  await assert.rejects(execute({ ...input, readback: { ...readback, scopeHash: 'wrong' } }), /scopeHash/);
+  await assert.rejects(execute({ recovery: { ...input.recovery, select: [select[0]] }, readback }), /scopeHash/);
+  await assert.rejects(log.submit({ ...input, readback }, { ...config, linkProject: 'changed' }, fetchImpl), /scopeHash/);
+  assert.equal((await execute({ ...input, readback }, false)).submitted, false);
+  const already = await execute({ ...input, readback: { ...readback, status: 'succeeded' } });
+  assert.equal(already.submitted, false);
+  assert.equal(already.alreadySubmitted, true);
+  assert.equal(already.evidenceRef, readback.evidenceRef);
+  assert.equal(requests, 0);
+  const result = await execute({ ...input, readback });
+  assert.equal(result.submitted, true);
+  assert.deepEqual(requestPayload, plan.payload);
+  assert.equal(requests, 1);
+});
+test('historical recovery rejects unrelated, ambiguous, empty, overridden and unbound inputs', async t => {
+  const f = fixture(t), dir = repo(f.root);
+  const old = commit(dir, 'old.txt', 'one\n', '1001 旧版说明');
+  const unknown = commit(dir, 'old.txt', 'two\n', '版本标记包含 1001');
+  const ambiguous = commit(dir, 'old.txt', 'three\n', '1001 1002 两条需求');
+  const standard = commit(dir, 'old.txt', 'four\n', message());
+  const conflicting = commit(dir, 'old.txt', 'five\n', message().replace('需求描述:1001', '需求描述:1002'));
+  git(dir, ['commit', '--allow-empty', '-m', '1001 补写说明']);
+  const empty = git(dir, ['rev-parse', 'HEAD']);
+  const ref = 'refs/heads/dev';
+  const item = { repo: dir, ref, hash: old, menuNames: '菜单', modifyDesc: '核实说明' };
+  const recovery = { requirementCode: '1001', select: [item] };
+  const plan = value => log.main(['plan', JSON.stringify(value)], { env: f.env });
+  const rejectSelection = (values, expected) => assert.rejects(plan({ recovery: { ...recovery, select: values } }), expected);
+  await assert.rejects(plan({ recovery, select: [item] }), /互斥/);
+  await assert.rejects(plan({ recovery, bindings: [] }), /互斥/);
+  await assert.rejects(plan({ select: [item], readback: {} }), /仅用于历史补录/);
+  await assert.rejects(plan({ recovery: { ...recovery, requirementCode: '2001' } }), /无法确认属于需求/);
+  await rejectSelection([{ ...item, hash: unknown }], /无法确认属于需求/);
+  await rejectSelection([{ ...item, hash: ambiguous }], /无法确认属于需求/);
+  await rejectSelection([{ ...item, hash: conflicting }], /需求描述与首行需求号冲突/);
+  await rejectSelection([{ ...item, hash: empty }], /未提取到可登记/);
+  await rejectSelection([{ ...item, hash: standard }], /已有完整的标准消息/);
+  await rejectSelection([{ ...item, hash: old.slice(0, 8) }], /完整提交 hash/);
+  await rejectSelection([{ ...item, ref: 'refs/heads/other' }], /confirmed target ref/);
+  await rejectSelection([{ ...item, modifyDesc: ' ' }], /须补齐/);
+  await rejectSelection([{ ...item, files: ['fake'] }], /只接受实仓路径/);
+  await rejectSelection([item, { ...item, modifyDesc: '冲突说明' }], /提供唯一选择/);
+  const unexpectedFetch = async () => { throw new Error('unexpected request'); };
+  await assert.rejects(log.submit({ Repository: [{ ModifyFiles: 'fake' }] }, config, unexpectedFetch), /提供一条提交记录/);
+});
 test('success requires HTTP 2xx and every ResultCode; errors are redacted and requests never retry', async t => {
   const f = fixture(t), dir = repo(f.root), hash = commit(dir, 'a.txt', 'one\n', message());
   const input = { select: [{ repo: dir, ref: 'refs/heads/dev', hash }] };
