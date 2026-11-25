@@ -2,6 +2,8 @@
 
 当前 BOS 日志仅适用于标版需求，其它类型按日志不适用完成交付。已部署工程正常更新能力包并刷新已启用索引，旧批次按[验收索引协议](references/acceptance-session.md)核对动作范围并复用已有 Git 回执。
 
+`demand-acceptance` 收尾先给当前结论和待处理事项，再按目标仓库展示 Git 回执，并附适用的 BOS 日志与已有部署证据。批次沿用可粘贴到 BOS 的需求号汇总。 [交付回执示例](skills/demand-acceptance/SKILL.md#交付回执)
+
 0.9.1：同步子进程明确关闭未使用的 stdin，继续捕获 stdout/stderr，保留非零退出与实仓 commit 门禁；Git EBUSY 提示检查宿主环境，不将错误码直接归因为 stdin。正常更新完整能力包（含根 scripts/lib）取得，无配置迁移或旧文件清理。使用临时 shim 的项目应先在原宿主不预加载 shim 验证计划与失败分支，再按其本机配置退役；不自动更新业务副本或移除 shim。
 
 0.9.0：`demand-commit --plan|--commit --no-id` 显式支持 project 暂无需求号提交；标题省略需求号括号，修改说明及原提交校验保留。普通调用和 standard 仍要求数字需求号，不自动进入 BOS 或验收批次。正常更新完整能力包并刷新已启用索引，旧数字编号 v1 计划继续恢复；无配置迁移或旧文件清理，业务副本未自动更新。

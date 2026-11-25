@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- demand-delivery-plugin 0.10.1 的 `demand-acceptance` 以 Markdown 回报交付结论和分仓证据，批次保留 BOS 编号汇总。示例与状态口径见[交付回执](../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#交付回执)。
+
 - 工程配置统一迁移已接入更新器和工作台 0.5.0 源码。作用域、旧来源退场及恢复见[工程配置迁移](../docs/update-agents.md#工程配置迁移)。正式发放以包外记录为准。
 
 - coding 0.34.4 支持[显式 SQL Storage 新增字段](../plugins/coding-iris-plugin/references/deployment-protection.md#显式-sql-storage-新增字段)，校验既有映射并回读新增段号。已部署工程正常更新即可取得。
