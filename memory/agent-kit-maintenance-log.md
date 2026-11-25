@@ -1,5 +1,9 @@
 # imedical.agents 维护日志
 
+## 2026-11-25 电子健康卡 Javadoc 日期取系统当前日期
+
+imedicalxc-doctor-extend-engineer 1.0.8 明确编码规约 U 的 `@since` 取生成当天本机系统日期（`yyyy-MM-dd`），不得沿用镜像模板厂家的旧日期，生成后对新厂家包执行 `grep "@since"` 核对为当天；规则 AA 的类级 `@since` 同口径。此前该字段仅写作 `<日期>` 占位符且无来源定义，而接入 skill 要求复制模板厂家的类结构与注释，日期易被连带成固定某天。发布记录见 `releases/plugin/imedicalxc-doctor-extend-engineer/1.0.8.md`。本次仅源仓提交，未部署业务副本。
+
 ## 2026-11-25 电子健康卡生成代码作者取本机提交人
 
 imedicalxc-doctor-extend-engineer 1.0.7 将编码规约 U 中写死的 `@author 张天文` 改为取执行机器实际 Git 提交人（`git config user.name`），取不到则留空，不再写死姓名。电子健康卡新厂家接入 skill 及其 references 本身无作者字段，仅该 skill 强制必读的规约含此项；其余规约、入口、依赖和部署流程不变。commit-report 成员名册中的同名条目属提交报告映射，未改动。发布记录见 `releases/plugin/imedicalxc-doctor-extend-engineer/1.0.7.md`。本次仅源仓提交，未部署业务副本。

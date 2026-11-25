@@ -84,7 +84,9 @@ task-affinity: [elechealthcard, coding, vendor-integration]
 - **T. 自调用加 `this.` 前缀**：抽象类内部方法互调一律加 `this.` 前缀（如 `this.invoke(...)` / `this.buildBaseRequest(...)`
   / `this.fillVerifyDefaultConfig(...)`），提高可读性并便于 IDE 导航。
 - **U. 方法 Javadoc（Easy Javadoc 格式）**：所有 public/protected/private 方法均需 Javadoc，含 `@param`/`@return`/
-  `@author`/`@since <日期>`。`@author` 取执行机器实际 Git 提交人（`git config user.name`），取不到则留空，不得写死姓名。Constants 类的每个常量字段需行尾注释说明用途。
+  `@author`/`@since <日期>`。`@author` 取执行机器实际 Git 提交人（`git config user.name`），取不到则留空，不得写死姓名。
+  `@since` 取生成当天的本机系统日期（`yyyy-MM-dd`，如 `Get-Date -Format yyyy-MM-dd`），不得沿用模板厂家代码的日期；
+  生成后对新厂家包执行 `grep -rn "@since" <新厂家包>` 核对全部为当天日期。Constants 类的每个常量字段需行尾注释说明用途。
 - **V. DTO/VO 字段排版与注释增强**：
   · 字段之间**留空行**（每个字段声明前一个空行），提高可读性；
   · `@ApiModelProperty.notes` 需包含**运行时上下文提示**，如 SM4 加密字段标注"SM4加密字段；直连模式下自动加密"、
