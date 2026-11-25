@@ -1,8 +1,8 @@
 {
   "name": "imedicalxc-doctor-print-template-design",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "displayName": "HIS Print Template Design Plugin",
-  "description": "HIS打印模板设计和生成技能。覆盖从Word/docx参考文档到可导入.xlsx模板文件的完整流程，包括主模板+扩展模板双生成、UUID全量重生成、Sheet4返回参数字段修正。",
+  "description": "HIS打印模板设计与改造技能。新建场景从docx/图片/既有xlsx生成可导入的主模板与扩展模板；改造场景支持补齐字段、按接口返回值重构返回参数、编码与主键回退到既有模板以覆盖更新、布局微调。",
   "entry": "AGENTS.md",
   "skills": "skills/",
   "scripts": "scripts/",
@@ -17,6 +17,9 @@
     "住院证打印",
     "修改打印模板",
     "打印模板适配",
+    "模板编码回退",
+    "返回参数重构",
+    "打印空白",
     "生成.xlsx模板",
     "导出模板"
   ]

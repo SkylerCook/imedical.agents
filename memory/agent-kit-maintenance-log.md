@@ -1,5 +1,11 @@
 # imedical.agents 维护日志
 
+## 2026-11-25 打印模板技能整理与改造路径（1.0.3）
+
+imedicalxc-doctor-print-template-design 1.0.3 将主 skill 整理为“新建模板 / 改造已有模板”双路径：补充改造路径的结构键映射、主/扩展双份返回参数同步、运行时按中文名绑定、布局微调规则，并新增 references/xlsx-template-anatomy.md 记录包与 Sheet 结构、返回参数列语义、元素与表格 JSON、XML 替换、打包与校验清单。同步更新技能描述与触发词、插件 AGENTS/README、仓库 README 与 manifest；无配置迁移，既有 thin-index 继续指向源文件。
+
+远端 1.0.2 已用于工作台统一配置迁移，本插件顺延为 1.0.3，发布记录 previousVersion 取 1.0.2。thin-index 生成 DryRun 为 generated；组件版本校验识别 1.0.2 -> 1.0.3，既有历史问题未扩大处理。本次仅源仓提交，未部署业务副本。
+
 ## 2026-11-25 工作台 0.7.0 工程历史与多页签
 
 - Windows 启动器恢复上次成功打开的工程。顶部工程菜单可从本机历史或文件夹选择器另开工程。取消或选中当前目录时留在原页。试用及发行校验见[工作台说明](../tools/agents-workbench/react/README.md#构建工作台发行包)。

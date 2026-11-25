@@ -1,307 +1,212 @@
 ---
 name: imedicalxc-doctor-print-template-design
-description: HIS打印模板设计和生成技能。覆盖从Word/docx参考文档到可导入.xlsx模板文件的完整流程，包括主模板+扩展模板双生成、UUID全量重生成、Sheet4返回参数字段修正。触发词：设计打印模板、生成打印模板、新建打印模板、住院证打印、修改打印模板、打印模板适配、生成.xlsx模板、导出模板。
+description: |
+  HIS 打印模板设计与改造技能。新建场景：从 docx/图片/既有 .xlsx 生成可导入的主模板 + 扩展模板（UUID 重建、Sheet4 返回参数按 VO 校正）。
+  改造场景：在既有模板上补齐字段、按接口返回值重构返回参数、把编码/主键/参数 id 回退到目标模板以便覆盖更新、微调布局，并重新打包校验。
+  Use when 用户要求设计、生成、修改打印模板；模板打印空白、字段对不上、需要增加字段、需要按后台返回值重构返回参数、需要把模板编码改回既有模板。
+  Triggers: 设计打印模板、生成打印模板、新建打印模板、修改打印模板、打印模板适配、模板编码回退、返回参数重构、打印空白、字段对不上、生成.xlsx模板、导出模板。
 triggers:
   - 设计打印模板
   - 生成打印模板
   - 新建打印模板
-  - 住院证打印
   - 修改打印模板
   - 打印模板适配
+  - 模板编码回退
+  - 返回参数重构
+  - 打印空白
+  - 字段对不上
+  - 住院证打印
   - 生成.xlsx模板
   - 导出模板
   - 打印模板
   - xlsx模板
+role: implementer
+scope: end-to-end
+output-format: xlsx-and-report
 ---
 
-# imedicalxc-doctor-print-template-design
+# HIS 打印模板设计与改造
 
 帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
-## 描述
+本技能覆盖两类任务，先判定路径再执行：
 
-HIS打印模板设计和生成技能。覆盖从Word/docx参考文档到可导入.xlsx模板文件的完整流程，包括主模板+扩展模板双生成、UUID全量重生成、Sheet4返回参数字段修正。
+| 路径 | 触发特征 | 核心目标 | 章节 |
+|------|----------|----------|------|
+| **A 新建模板** | 新编码、新布局、从 docx/图片起稿 | 生成可导入的主模板 + 扩展模板，UUID 全量新建 | Part A（11 步） |
+| **B 改造已有模板** | 在既有模板上加字段、重建返回参数、改回编码、覆盖更新 | 复用目标模板主键与参数 id，只补差异 | Part B（8 步） |
 
-## 触发条件
-
-- "设计打印模板"、"生成打印模板"、"新建打印模板"
-- "住院证打印"、"修改打印模板"、"打印模板适配"
-- "生成.xlsx模板"、"导出模板"
+> 两条路径共用“数据绑定规则”“打包与验证”“常见问题”。xlsx 包结构、Sheet4 列语义、元素 JSON、脚本片段见
+> [references/xlsx-template-anatomy.md](references/xlsx-template-anatomy.md)，执行前按需读取。
 
 ## 前置条件
 
 用户需提供：
-1. 新模板布局参考 — 可以是任意格式：`.docx`（Word文档）、`.png`/`.jpg`（截图/设计稿）、手绘草图扫描件等，只要有布局参考即可
-2. 已有参考模板 — `.xlsx`文件：
-   - **最少**：1个主模板管理导出文件（含6个Sheet）即可
-   - **理想**：主模板管理 + 扩展模板管理两个文件，可参考完整的字段映射关系
-3. 新模板编码 — 由使用者指定（如住院证场景可能是 `DHCDocIPBookPrt_XXX`，实际编码取决于业务类型和医院）
-4. 新模板名称 — 由使用者指定（如 `XX医院-住院证打印`）
 
-### 条件满足度提示
+1. 布局参考 — `.docx`、`.png`/`.jpg`、草图均可（路径 A 必需；路径 B 可只用现有模板）。
+2. 参考模板 — 至少主模板管理 `.xlsx`；理想为主模板 + 扩展模板两个导出文件。
+3. 新模板编码与名称 — 路径 B 通常复用目标模板编码。
+4. 业务接口 — 数据集配置中的 url（Controller 路径）与接口方式。
 
-| 满足情况 | 提示 |
-|----------|------|
-| 🟢 全部满足（2个参考.xlsx + 布局参考） | 可执行完整11步工作流 |
-| 🟡 仅有主模板管理.xlsx（无扩展模板） | 可生成主模板；扩展模板的Sheet4字段映射需根据API/VO自行推导，⚠️ 提示用户"仅有主模板，将根据VO推导扩展模板字段映射" |
-| 🟡 布局参考为图片（非docx） | 提取字段需人工从图片中识别，⚠️ 提示用户"图片格式布局参考，请确认以下字段提取是否准确" |
-| 🟠 仅有扩展模板.xlsx（无主模板） | ⚠️ 提示用户"缺少主模板管理，无法确定模板基本配置（apiUrl/数据源等），请补充主模板管理导出" |
-| 🔴 缺少布局参考 | ⚠️ 提示用户"请提供新模板的布局参考（docx/png/设计稿等）" |
-| 🔴 缺少参考模板 | ⚠️ 提示用户"请提供至少一个已有打印模板的.xlsx导出文件作为参考" |
+条件不全时先向用户补齐；仅有主模板时，扩展模板的 Sheet4 映射需按 API/VO 推导并明确告知。
 
-## 核心工作流（11 步法）
+## Part A：新建模板（11 步）
 
-### 第 1 步：解析布局参考提取字段
+### A1 解析布局参考提取字段
 
-根据布局参考的格式选择不同提取方式：
+docx 用 `unzip -p 模板.docx word/document.xml | sed 's/<[^>]*>//g'` 提取文本；图片/草图人工识别。
+逐项标注：固定标签、数据字段、选项展示、线条。非 docx 来源需让用户确认字段清单。
 
-**docx格式**：
-```bash
-unzip -p "模板.docx" word/document.xml | sed 's/<[^>]*>//g' | grep -v '^$'
-```
+### A2 分析参考模板结构
 
-**图片格式（png/jpg等）**：
-直接查看图片内容，人工识别所有文本元素和布局位置。
+解压参考模板确认 sheet 布局（主模板 6 张、扩展模板 5 张），读取数据集 url、请求参数、返回参数现状。
+关联关系：主模板主键 = 扩展模板“模板扩展id”/“模板id”列的引用值。
+**Sheet 必须按表头识别，不要按序号硬编码**，主/扩展的返回参数位置不同。
 
-**手绘草图/扫描件**：
-查看图片，人工标注各个区域。
+### A3 定位后台 API 与 VO
 
-分类标注每个元素：固定标签文本、数据填充字段、选项展示（如"女/男"）、线条。
+由数据集 url 找到 Controller → `BaseResponse<T>` → VO → BLH。输出：VO 字段名、类型、中文描述、数据来源（哪个源 VO 或查询）。
+**只有 BLH 实际赋值（含 `BeanUtils.copyProperties` 同名复制）的字段才可进模板；VO 有声明但从未赋值的字段不得纳入。**
 
-> ⚠️ 图片/非docx格式：提取字段后应提示用户确认字段列表是否完整准确，避免遗漏。
+### A4 字段映射
 
-### 第 2 步：分析参考模板结构
+建立“布局字段 → API 路径 → VO 字段名 → 类型 → 置信度”表。
+数据绑定路径用中文名：`模板名.root.返回数据.患者姓名`，中文名优先取 `@ApiModelProperty`。
+优先复用数据绑定正确的既有模板的命名与 UUID 对应关系。
 
-解压参考模板，对比结构差异：
+### A5 设计模板 JSON 布局
 
-```bash
-# 如果提供了主模板
-unzip -l 主模板.xlsx  # 通常6 sheet：模板管理/模板扩展/数据集/数据集-请求参数/数据集-返回参数/模板参数配置
+生成 `printElements`：标签元素为固定文本，数据元素带 `id`/`field`/`dataType:"dataSet"`，表格元素含 columns 与 testData。
+坐标以参考模板的像素体系为准（详见 references）；复用参考字段的 UUID，新增字段用新 UUID。
 
-# 如果提供了扩展模板
-unzip -l 扩展模板.xlsx  # 通常5 sheet（无"模板管理"sheet）
-```
+### A6 UUID 与编码处理
 
-**关联关系**：主模板主键 = 扩展模板中"模板扩展id"/"模板id"列的引用值。
+- 路径 A：双模板共享同一套新主键/数据集主键，元素、参数、短 uid 全量重生成；两模板必须一致。
+- 路径 B：不要执行本节，改为 Part B 的“对齐既有 ID”。
 
-**仅主模板的情况**：
-- 从主模板的"模板扩展"sheet（Sheet2）中可直接获取扩展配置
-- 从"数据集"sheet（Sheet3）获取API url和方法
-- 从"数据集-返回参数"sheet（Sheet5）获取字段映射
-- 缺失的字段需根据API/VO自行推导补充
+### A7 替换模板 JSON
 
-从模板sharedStrings提取当前字段映射：
-```bash
-# 有扩展模板时
-unzip -p 扩展模板.xlsx xl/sharedStrings.xml | grep -oP '"title":"住院证.root.data.[^"]+"' | sort -u
-# 仅有主模板时 — 从Sheet5（数据集-返回参数）提取
-unzip -p 主模板.xlsx xl/sharedStrings.xml | grep -oP '"title":"[^"]*"' | sort -u
-```
+两模板 sharedStrings 中 `{"index":0,` 开头的 JSON 整体替换为 A5 结果；同步模板编码、名称、数据集编码。
 
-### 第 3 步：定位后台API和VO
+### A8 修正 Sheet4 返回参数
 
-从主模板Sheet3数据集配置中获取：
-- **url列** — API路径（如`/opcare/ipbook/ipBookCreate/printIpBookData`）
-- **接口方式列** — POST/GET
+逐字段校验 E（VO 字段名）、F（中文名，运行时绑定名）、G（类型）；补齐缺失字段行（含 id、父 id、J 列扩展字段）。
+**主模板与扩展模板各有一份返回参数表，任何改动必须双份同步。**
 
-```bash
-# 搜索Controller
-grep -r "接口路径末段" --include="*.java" -l
+### A9 打包 .xlsx
 
-# 读取VO和BLH
-# VO: 获取所有字段的@ApiModelProperty描述
-# BLH: 追踪字段赋值来源和逻辑
-```
+见“打包与验证”。路径 A 可用 `tar --format=zip`；Windows/PowerShell 场景用 ZipFile。
 
-输出：VO字段列表（字段名→类型→中文描述→数据来源）。
+### A10 验证
 
-### 第 4 步：字段映射
+按“打包与验证”清单逐项执行，重点是 UUID 一致性、旧值清除、元素 id 与 Sheet4 对齐。
 
-建立Word字段 → API响应字段的映射表：
+### A11 导入 HIS
 
-| Word模板字段 | API路径 | VO字段名 | 类型 | 置信度 | 说明 |
-|-------------|---------|---------|------|--------|------|
+先导扩展模板（`hos_print_template_extend`），再导主模板（`hos_print_template`），或按目标环境约定顺序；`insertOrUpdate` 覆盖同编码模板。
 
-**命名约定**：
-- 数据绑定路径使用中文描述名：`住院证.root.data.患者姓名`
-- 中文名优先取VO的`@ApiModelProperty`值
-- 少数字段保留英文名（如`ipdeposit`）
+## Part B：改造已有模板（8 步）
 
-**参考规则**：优先参考数据绑定正确的模板（如JSTGZ版），从其模板JSON和Sheet4中提取已有字段的命名和UUID对应关系。
+适用于：给既有模板加字段/加列、按接口返回值重建返回参数、把改造版的编码和 ID 改回目标模板以覆盖更新、微调坐标。
 
-### 第 5 步：设计新模板JSON布局
+### B1 确认基线与目标
 
-基于Word坐标系(mm)，生成printElements数组：
+收集：目标模板的**原始导出**（主 + 扩展）、当前工作副本、接口 Controller/VO/BLH。
+先明确是“覆盖目标模板”还是“另存新编码”：前者必须完全复用目标模板的编码与主键，否则导入会新增模板而不是覆盖。
 
-```javascript
-// 标签元素（固定文本）
-{"options":{"left":57.5,"top":75,"height":30,"width":46.5,"hideTitle":true,"title":"患者姓名:"},
- "printElementType":{"title":"文本","type":"text","tid":"defaultModule.text"}}
+### B2 盘点基线 ID 事实
 
-// 数据元素（绑定字段）
-{"options":{"left":105,"top":75,"height":31,"width":102,"hideTitle":true,
-  "title":"住院证.root.data.患者姓名","testData":"住院证.root.data.患者姓名",
-  "id":"UUID","field":"UUID","dataType":"dataSet"},
- "printElementType":{"title":"文本","type":"text","tid":"defaultModule.text"}}
-```
+从原始导出提取：模板主键、数据集主键、编码、每个元素/参数的 id 与短 uid（J 列 `uid`/`parentUid`）。
+这些都是覆盖更新的对齐目标，**不得全量重生成**。
 
-- 复用参考模板的数据字段UUID（保持与Sheet4映射一致）
-- 新增字段使用新UUID（后续在Sheet4中补充映射）
-- 纸张：A4通常 297×210mm，A5横向 148×210mm
+### B3 结构键映射（不是 id 猜 id）
 
-### 第 6 步：UUID 全量重生成（双模板同步）
+以“父字段 + 字段名”为键，从 root 逐层 BFS 映射：
 
-**这是最关键的步骤，必须正确处理 UUID 关联。**
+1. root 优先映射；
+2. 子节点在当前已映射父节点下查找同名字段；
+3. 字段改过名时用显式别名（如 `diagnose` ↔ 原 `diagnose1`）；
+4. 父下无同名时，用“全局唯一字段名”兜底（如 `priceSum` 从“返回数据”移到“数据对象”）；
+5. 目标模板不存在的新增字段**保留新 id**；
+6. 目标模板已废弃、当前版本不再返回的字段保持删除，不回填。
 
-```javascript
-// 1. 从两个模板收集所有32位hex字符串
-let allUuids = new Set([...mainUuids, ...extUuids]);
+同时映射短 uid，J 列的 `parentUid`/`uid` 必须一起换。
 
-// 2. 生成共享的新UUID
-const NEW_MAIN_PK = randhex(32);    // 主模板主键
-const NEW_DATASET_PK = randhex(32); // 数据集主键
+### B4 全局同步替换
 
-// 3. 构建替换映射
-uuidMap[OLD_MAIN_PK] = NEW_MAIN_PK;       // 主模板PK → 新值
-uuidMap[OLD_DATASET_PK] = NEW_DATASET_PK; // 数据集PK → 新值
-for (let u of allUuids) {
-    if (u !== OLD_MAIN_PK && u !== OLD_DATASET_PK)
-        uuidMap[u] = randhex(32);  // 其他全换
-}
+- 替换范围：包内所有 XML part（sharedStrings、worksheets、docProps 等），不能只改 sharedStrings。
+- 替换方式：单次正则 + 最长键优先，避免 `XXX_BZWY → XXX` 后再次命中。
+- 编码替换只针对编码值；主键、id、uid 分别映射。
+- 模板 JSON 在主模板中是裸 `"`，在扩展模板中是 `&quot;`，凡字符串级替换都要兼容两种转义。
 
-// 4. 短UID（propPath中的uid）全部重生成
-for (let u of shortUids) shortMap[u] = randhex(10);
+### B5 按 VO 重建返回参数
 
-// 5. 在两个模板的所有XML文件和sharedStrings.xml中全局替换
-// 6. 同步替换模板编码、名称
-```
+- 结构固定为 `BaseResponse<T>`：root → code / msg / data；data 下是业务字段，数组字段下才是“数据对象”。
+- 按当前 VO 声明顺序重建，删除过期字段（旧 VO 的诊断1/诊断2、就诊日期、卡号等），补齐新增字段。
+- 参数名按 BLH 语义核对（例：`billPrice` 注释为单价，不要沿用旧名“小计”）。
+- 主模板与扩展模板的返回参数表必须双份一致。
 
-**关键规则**：
-- 两个模板必须共享相同的 `NEW_MAIN_PK` 和 `NEW_DATASET_PK`
-- 所有UUID必须全量替换，不能残留旧值
-- 扩展字段JSON中的短uid也需一并替换
+### B6 同步元素绑定
 
-### 第 7 步：替换模板JSON
+- 运行时按 Sheet4 的 F 列中文名解析；`title`/`testData` 也必须使用同一名称，改名时同步修改。
+- `propPath` 只是设计器树定位：兄弟序号按插入顺序生成，删除/插入一行会改变后续所有 index，重建时重新计算，不要硬编码。
 
-将两个模板sharedStrings中的模板JSON（开头为`{"index":0,`）替换为第5步设计的新布局JSON。
+### B7 布局微调
 
-```javascript
-// 从sharedStrings找到JSON并替换
-let tmplIdx = strings.findIndex(s => s.startsWith('{"index":0,'));
-strings[tmplIdx] = JSON.stringify(newTemplate);
-```
+- 标签右边界 = `left + width`；数据值 `left` 至少为右边界 + 4px。
+- 只调 `left`/`top`；`right`/`bottom`/`vCenter`/`hCenter` 是设计器缓存坐标，通常与 left/width 不同步，不要顺手联动修改。
 
-### 第 8 步：修正 Sheet4 返回参数字段
+### B8 打包与验证
 
-扩展模板Sheet4定义了API返回值到模板的字段映射关系。必须逐字段校验：
+按下方清单执行；交付目录独立，文件名使用**目标编码**，不覆盖历史交付物。
 
-| 列 | 检查规则 |
-|----|---------|
-| 参数字段(E) | 必须与VO Java字段名精确一致 |
-| 参数名称(F) | 使用VO `@ApiModelProperty`描述值 |
-| 字段类型(G) | String/Long/Date/BigDecimal，与VO一致 |
+## 数据绑定规则（A/B 共用）
 
-**常见错误及修正**：
-- 描述型字段误标Long → 改为String（adminitStateDesc、inSorceDesc等）
-- 参数名用英文 → 改为中文描述（treatedPrinciple→收治原则）
-- 字段名与VO不一致 → 修正为VO字段名
+1. **id 三元一致**：数据元素的 `options.id` = Sheet4 参数 A 列 = 表格列的 `field`/`columnId`。
+2. **双轨解析**：设计期靠 `id`/`propPath`，运行时靠 F 列中文参数名；改名必须两处同步。
+3. **表格结构**：`options.columns` 是二维数组（`[[{width,title,field,columnId,...}]]`），`options.testData` 是字符串化的 `[{参数id:"{路径}"}]`；增删列时 columns、testData、Sheet4 三处同步。
+4. **返回参数重建**：以当前 VO + BLH 实际赋值为准；未赋值字段不纳入模板。
+5. **双份同步**：主模板与扩展模板都有数据集/请求参数/返回参数，改动必须两边一致。
 
-```javascript
-const fixes = {
-    'treatedPrinciple':     { name: '收治原则',   type: 'String' },
-    'adminitStateDesc':     { name: '入院病情',   type: 'String' },
-    'patindoctor':          { name: '主治医师',   type: 'String' },
-    // ... 逐字段校验
-};
-// 在sharedStrings中查找/创建正确值，更新sheet4.xml中的cell引用
-```
+## 打包与验证
 
-**缺失字段补充**：对比模板JSON中所有`dataType:"dataSet"`元素与Sheet4行，缺失的字段需新增Sheet4行（含新UUID、父id引用、扩展字段JSON的propPath）。
+**打包**：条目使用正斜杠，`[Content_Types].xml` 放首位，不带目录条目和 MANIFEST；不要包含 `.bak` 文件。
 
-### 第 9 步：打包 .xlsx
+**验证清单**：
 
-```bash
-cd workdir
-find . -type f | sed 's|^\./||' > files.txt
-tar -cf ../输出模板.xlsx --format=zip -T files.txt
-```
-
-**打包工具对照**：
-| 工具 | 结果 | 说明 |
-|------|------|------|
-| `tar.exe --format=zip -T filelist` | ✅ | 路径干净，无目录/无MANIFEST |
-| `jar cfM` | ❌ | 有空目录条目 |
-| `jar cf` | ❌ | 有META-INF/MANIFEST.MF |
-
-**打包前检查**：删除所有 .bak 文件，否则POI报 `does not have any content type`。
-
-### 第 10 步：验证
-
-```bash
-# 1. 文件数检查
-unzip -l 主模板.xlsx | grep "files"  # 应为 13-14
-unzip -l 扩展模板.xlsx | grep "files" # 应为 13（如果生成了扩展模板）
-
-# 2. MANIFEST检查
-unzip -l *.xlsx | grep -i manifest  # 应为空
-
-# 3. UUID一致性（如果生成了扩展模板）
-unzip -p 主模板.xlsx xl/sharedStrings.xml | grep -c "主模板PK值"
-unzip -p 扩展模板.xlsx xl/sharedStrings.xml | grep -c "主模板PK值"
-# 两个值应相等
-
-# 4. 旧UUID清除
-unzip -p 扩展模板.xlsx xl/sharedStrings.xml | grep -c "旧UUID"  # 应为0
-
-# 5. 字段类型验证
-unzip -p 扩展模板.xlsx xl/sharedStrings.xml | grep -c "adminitStateDesc.*Long"  # 应为0
-```
-
-### 第 11 步：导入HIS系统
-
-```bash
-# 先导入主模板（文件名根据实际模板编码替换 {模板编码}）
-curl -F "file=@{模板编码}_主模板.xlsx" \
-  ".../sys/import?importType=insertOrUpdate&code=hos_print_template"
-
-# 再导入扩展模板（仅在有扩展模板时执行；文件名同上规则）
-curl -F "file=@{模板编码}_扩展模板.xlsx" \
-  ".../sys/import?importType=insertOrUpdate&code=hos_print_template_extend"
-```
+- 每个 `dataType:"dataSet"` 元素 id ∈ 返回参数 A 列；
+- 返回参数 D 父 id ∈ A 列，J 的 `parentUid` ∈ uid 集合；
+- 表格列 `field` = `columnId` = 参数 id；
+- 无残留旧编码、旧 id、旧 uid；
+- 模板 JSON 可 `JSON.parse`（先解 `&quot;`）；
+- 新增/删除 Sheet4 行后同步 `dimension` 与 sharedStrings 的 `count`/`uniqueCount`；
+- 压缩包可被 XmlDocument 解析全部 XML，POI/导入端可读。
 
 ## 常见问题
 
 | 问题 | 原因 | 解决 |
 |------|------|------|
-| 打印字段无数据 | 模板JSON的id/field UUID与Sheet4不一致 | UUID必须全局统一替换 |
-| 导入报MANIFEST error | 用了jar打包 | 改用tar.exe |
-| 导入报.bak error | 工作目录有备份文件 | 打包前清理 |
-| 描述字段显示数字而非文字 | 字段类型误标为Long | 改为String |
-| 主模板导入后扩展模板关联不上 | 主模板PK不一致 | 确保两模板使用同一主模板PK |
+| 打印字段无数据 | 元素 id/field 与 Sheet4 参数 id 不一致 | 全局统一 id 并双份同步 |
+| 改了参数名后打印空白 | 只改 Sheet4，未改元素 `title`/`testData` | 运行时按中文名解析，两处同步改 |
+| 新增字段打印空 | 字段在 VO 有声明但 BLH 未赋值 | 追溯 BLH 赋值链，未赋值则不纳入 |
+| 金额/数量列头错误 | 参数名与 BLH 语义不符（如 billPrice 标成小计） | 按 BLH 注释与计算逻辑重命名 |
+| 覆盖导入后变成两条模板 | 编码或主键与目标模板不一致 | 按路径 B 对齐编码、主键与数据集主键 |
+| 改回编码后字段全空 | 只换了编码，未映射元素/参数 id | 做结构键映射，元素 id、参数 id、短 uid 全部对齐 |
+| 删一行后部分字段错位 | propPath 兄弟 index 未重算 | 按插入顺序重建 propPath |
+| 导入报 MANIFEST / content type | 用 jar 打包或残留 .bak | 改用 tar/ZipFile，清理临时文件 |
+| 描述字段显示数字 | G 列类型误标 Long | 按 VO 改为 String |
+| 值紧贴标签 | 值 left 小于标签 right 边界 | 值 left ≥ 标签 left+width+4px，只改 left |
 
 ## 交付物
 
-根据用户提供的参考模板决定产出范围：
+**路径 A**：字段映射文档、修正清单、主模板 `.xlsx`、扩展模板 `.xlsx`（如提供双模板）。
+**路径 B**：改造后的主模板/扩展模板 `.xlsx`、ID 对齐说明（复用/新增/删除的字段清单）、坐标调整说明。
 
-**始终产出**：
-- 字段映射文档（布局字段→API字段对照表）
-- 修正清单（Sheet4类型/名称修正明细）
-
-**根据参考模板决定**：
-
-| 用户提供了 | 产出 |
-|-----------|------|
-| 仅主模板管理 .xlsx | `{模板编码}_主模板.xlsx`（导入code: `hos_print_template`） |
-| 主模板 + 扩展模板 .xlsx | 上述主模板 + `{模板编码}_扩展模板.xlsx`（导入code: `hos_print_template_extend`）+ 缺失字段清单 |
-
-> `{模板编码}` 替换为使用者指定的实际编码，如住院证场景可能是 `DHCDocIPBookPrt_BJHDFY`。
+> 文件名中的 `{模板编码}` 使用目标模板实际编码；交付目录独立，不覆盖历史版本。
 
 ## 开始前请确认
 
-开始工作流前，请确认以下信息已就绪（可跳过不适用项）：
-
-1. **布局参考文件**：请提供新模板的布局参考文档（.docx / .png / .jpg / 设计稿等），路径是什么？
-2. **参考模板 .xlsx**：请提供已有的主模板管理导出文件（至少1个），如有扩展模板管理导出文件也请一并提供。文件路径分别是什么？
-3. **新模板编码和名称**：请提供新模板的编码和名称（编码取决于业务类型+医院，如住院证场景可能是 `DHCDocIPBookPrt_XXX`，检验报告场景可能是 `DHCDocLisReportPrt_XXX`）。
-4. **（可选）历史工作产物**：如果之前做过类似模板，是否有可复用的生成脚本（如 `build_v7.js`）或修正脚本（如 `fix_sheet4.js`）？如有请提供路径；没有则从零开始生成。
-5. **（可选）工作流参考文档**：是否需要参考额外的流程说明文档？如有请提供路径。
+1. 走路径 A 还是路径 B？路径 B 是否需要覆盖既有模板？
+2. 布局参考与参考模板 `.xlsx` 的路径（路径 B 需提供目标模板原始导出）。
+3. 模板编码与名称（路径 B 默认沿用目标编码）。
+4. 是否有可复用的历史脚本或交付目录约定。

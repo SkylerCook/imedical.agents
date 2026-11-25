@@ -539,10 +539,11 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ### imedicalxc-doctor-print-template-design
 
-负责 HIS 打印模板设计和生成：
+负责 HIS 打印模板设计和改造：
 
-- 从 Word/docx 参考文档生成可导入 `.xlsx` 模板文件。
-- 覆盖主模板、扩展模板、UUID 重生成和 Sheet4 返回参数字段修正。
+- 路径 A：从 Word/docx 或图片生成可导入 `.xlsx` 模板，覆盖主模板、扩展模板、UUID 重生成和 Sheet4 返回参数字段修正。
+- 路径 B：在既有模板上补齐字段、按接口返回值重构返回参数、把编码与主键回退到目标模板以覆盖更新，并支持布局微调。
+- 参考 `plugins/imedicalxc-doctor-print-template-design/skills/imedicalxc-doctor-print-template-design/references/xlsx-template-anatomy.md` 获取包结构、Sheet 列语义、元素 JSON 与校验清单。
 - thin-index wrapper 暴露 `imedicalxc-doctor-print-template-design` 入口。
 
 常用 skill：
