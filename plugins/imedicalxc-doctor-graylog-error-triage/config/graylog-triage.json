@@ -78,11 +78,12 @@
   },
   "severity": {
     "businessLoggers": ["com.mediway.his.server.advise.HisBusinessInterceptor"],
-    "businessMessagePrefixes": ["业务异常("],
-    "businessExceptionClasses": ["HisBusinessException", "DocBusinessException", "BaseBusinessException", "BusinessException"]
+    "businessMessagePrefixes": ["接收到业务异常，错误级别为："],
+    "businessExceptionClasses": ["DocBusinessException", "BaseBusinessException", "BusinessException"],
+    "businessAlertErrorLevels": ["错误"]
   },
   "disposition": {
-    "businessExceptionClasses": ["HisBusinessException", "DocBusinessException", "BaseBusinessException", "BusinessException"],
+    "businessExceptionClasses": ["DocBusinessException", "BaseBusinessException", "BusinessException"],
     "runtimeExceptionClasses": [
       "NullPointerException", "IllegalArgumentException", "IllegalStateException",
       "ClassCastException", "IndexOutOfBoundsException", "ArrayIndexOutOfBoundsException",

@@ -89,7 +89,10 @@ export type SettingsField = {
   options?: string[]; readOnly?: boolean; draftable?: boolean; source?: string;
   value?: string | number | boolean | null;
 };
-export type SettingsModel = { id: SettingsId; revision: string; scope: string; fields: SettingsField[] };
+export type SettingsModel = {
+  id: SettingsId; revision: string; scope: string; fields: SettingsField[];
+  overlayConnections?: { memberCount: number; inherited?: boolean; unavailableCount?: number };
+};
 export type SettingsChange = { action?: "replace" | "clear"; value?: string | number | boolean };
 export type SettingsDraftSecretActions = Record<string, "replace" | "clear">;
 export type SettingsDraftResult = {
@@ -99,6 +102,7 @@ export type SettingsDraftResult = {
 };
 export type SettingsPlan = {
   planId: string; scope: string; warning: string; warnings?: string[];
+  overlayConnections?: { names: string[] };
   changes: { field: string; action: string; label?: string; before?: string | number | boolean; after?: string | number | boolean }[];
 };
 

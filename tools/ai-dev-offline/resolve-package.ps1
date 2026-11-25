@@ -40,6 +40,7 @@ if($Location){
 $roots.Add($PSScriptRoot)
 $roots.Add((Split-Path -Parent $PSScriptRoot))
 $directories=New-Object 'Collections.Generic.List[string]'
+$bundleNamePattern='\A(?:ai-dev-offline-packages|ai-dev-offline-extensions|ai-dev-base-windows-x64)(?:-(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))?\.zip\z'
 foreach($root in @($roots|Select-Object -Unique)){
     $directories.Add($root)
     foreach($suffix in @('packages','payload','extensions','packages/extensions','payload/extensions','assets')){$directories.Add((Join-Path $root $suffix))}
@@ -55,9 +56,10 @@ foreach($directory in @($directories|Select-Object -Unique)){
     $file=Join-Path $directory $component.file
     if(Matches $file){return [pscustomobject]@{path=[IO.Path]::GetFullPath($file);id=$Id}}
     if(Test-Path -LiteralPath $file -PathType Leaf){$errors.Add('大小或 SHA256 不匹配：'+$file)}
-    foreach($name in @('ai-dev-offline-packages.zip','ai-dev-offline-extensions.zip','ai-dev-base-windows-x64.zip')){
-        $archive=Join-Path $directory $name
-        if(Test-Path -LiteralPath $archive -PathType Leaf){$archives.Add($archive)}
+    if(Test-Path -LiteralPath $directory -PathType Container){
+        foreach($archive in Get-ChildItem -LiteralPath $directory -Force -File -Filter '*.zip'){
+            if($archive.Name -match $bundleNamePattern){$archives.Add($archive.FullName)}
+        }
     }
 }
 $cache=Join-Path $env:LOCALAPPDATA ('AiDevOffline/Packages/'+$component.sha256)

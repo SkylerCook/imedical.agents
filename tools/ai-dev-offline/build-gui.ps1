@@ -1,9 +1,26 @@
 ﻿#requires -Version 5.1
 param([string]$MaterialZip,[string]$OutputFile,[string]$PreviewDirectory,[string]$PackagesFile,[switch]$ToolsOnly)
 $ErrorActionPreference='Stop'
-if(-not $MaterialZip){$MaterialZip=Join-Path $PSScriptRoot '../dist/ai-dev-base-windows-x64.zip'}
-if(-not $OutputFile){$OutputFile=Join-Path $PSScriptRoot '../dist/ai-dev-offline-tools.zip'}
-if(-not $PackagesFile){$PackagesFile=Join-Path ([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($OutputFile))) 'ai-dev-offline-packages.zip'}
+. (Join-Path $PSScriptRoot 'release-artifact.ps1')
+$manifest=Get-Content -LiteralPath "$PSScriptRoot/manifest.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+$dist=Join-Path $PSScriptRoot '../dist'
+if(-not $OutputFile){
+    $OutputFile=Get-AiDevArtifactPath $dist 'ai-dev-offline-tools' $manifest.releaseVersions.tools
+    Assert-AiDevArtifactSlot $OutputFile 'ai-dev-offline-tools'
+}
+if(-not $PackagesFile){
+    $directory=[IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($OutputFile))
+    $PackagesFile=Get-AiDevArtifactPath $directory 'ai-dev-offline-packages' $manifest.releaseVersions.packages
+    if(-not $ToolsOnly){
+        $legacy=Join-Path $directory 'ai-dev-offline-packages.zip'
+        if(-not (Test-Path -LiteralPath $PackagesFile) -and (Test-Path -LiteralPath $legacy -PathType Leaf)){$PackagesFile=$legacy}
+        Assert-AiDevArtifactSlot $PackagesFile 'ai-dev-offline-packages'
+    }
+}
+if(-not $MaterialZip -and -not $ToolsOnly -and -not (Test-Path -LiteralPath $PackagesFile)){
+    $MaterialZip=Get-AiDevArtifactPath $dist 'ai-dev-base-windows-x64' $manifest.releaseVersions.base
+    if(-not (Test-Path -LiteralPath $MaterialZip -PathType Leaf)){$MaterialZip=Join-Path $dist 'ai-dev-base-windows-x64.zip'}
+}
 if(Test-Path -LiteralPath $OutputFile){throw 'tools-output-already-exists: archive the previous tools ZIP before rebuilding'}
 if([IO.Path]::GetFullPath($OutputFile) -ieq [IO.Path]::GetFullPath($PackagesFile)){throw 'tools-and-packages-must-differ'}
 $tempRoot=Join-Path ([IO.Path]::GetTempPath()) 'Codex'
@@ -49,7 +66,6 @@ function New-PartialPath([string]$Destination) {
 try {
     $tools=Join-Path $stage 'tools'
     [void][IO.Directory]::CreateDirectory($tools)
-    $manifest=Get-Content -LiteralPath "$PSScriptRoot/manifest.json" -Raw -Encoding UTF8 | ConvertFrom-Json
     $manifest.components=@($manifest.components|Where-Object id -ne 'codebuddy')
     $manifest.bundleId='ai-dev-offline-gui-windows-x64'
     $manifest|ConvertTo-Json -Depth 10|Set-Content -LiteralPath "$tools/manifest.json" -Encoding UTF8

@@ -202,3 +202,32 @@ test('Overlay connection setup writes its resolved ContextRoot and never alters 
   assert.equal(fs.existsSync(path.join(root,'.agents/config/project.jsonc')),false);
   assert.equal(owner.inspectProfiles({projectRoot:root}).active,'current');
 });
+
+test('an independently edited Overlay IRIS profile can keep the declared root service configuration', t => {
+  const {root,put} = fixture(t);
+  const capabilityRoot = path.join(root,'standard','.agents');
+  const context = {mode:'workspace-overlay',workspaceRoot:root,contextRoot:path.join(root,'.agents'),capabilityRoot,
+    manifest:{projectEnvFallback:'standard/.agents/config/project-env.json'}};
+  const profile = {host:'member.invalid',port:52773,scheme:'http',namespace:'TEST',credentialRef:'private:module'};
+  const main = {irisConnections:{source:'project.jsonc',active:'module',profiles:{module:profile}}};
+  put('standard/.agents/config/project-env.json',{
+    iris:{host:'standard.invalid',port:52773,scheme:'http',namespace:'ROOT'},
+    web:{basePath:'/shared',frontendTransport:'atelier'},sftp:{enabled:false},
+  });
+  put('.agents/config/project.jsonc',main);
+  assert.equal(environment.read(context).config.web,undefined);
+  main.irisConnections.inheritServices = true;
+  put('.agents/config/project.jsonc',main);
+  const result = environment.read(context);
+  assert.equal(result.config.iris.host,'member.invalid');
+  assert.equal(result.config.web.basePath,'/shared');
+  assert.equal(result.config.web.frontendTransport,'atelier');
+  assert.equal(result.config.sftp.enabled,false);
+  assert.equal(result.inherited,false);
+  assert.equal(environment.read(context,{inherit:false}).config.web,undefined);
+  main.serviceConnections = {web:{basePath:'/module'}};
+  put('.agents/config/project.jsonc',main);
+  assert.equal(environment.read(context).config.web.basePath,'/module');
+  context.manifest.projectEnvFallback = 'foreign/project-env.json';
+  assert.throws(() => environment.read(context),/project-env-fallback-invalid/);
+});

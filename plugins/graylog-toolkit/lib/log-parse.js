@@ -166,6 +166,16 @@ function frameSourceSite(text, preferredFrame, frameworkPrefixes) {
   return biz ? toSite(biz) : null;
 }
 
+// 业务拦截器统一日志的 errorLevel：「接收到业务异常，错误级别为：<level>，错误码为：…」
+// 只取「错误级别为：」后到下一个逗号前的值，小写归一，供分类层判「异常 / 提醒」。
+// 实测该值由 CompletionExceptionComp.getDescOfAlertLevel 转成中文（错误/提醒/信息/警告/严重）。
+const BUSINESS_LEVEL_RE = /错误级别为[：:]\s*([^，,]+?)\s*(?:[，,]|$)/;
+
+function parseBusinessErrorLevel(text) {
+  const m = BUSINESS_LEVEL_RE.exec(String(text || ''));
+  return m ? m[1].trim().toLowerCase() : '';
+}
+
 function stackLines(text) {
   return String(text || '').split(/\r?\n/);
 }
@@ -183,4 +193,5 @@ module.exports = {
   textOf, parseStack, firstFrameOf, messageTemplate, deriveErrorKey,
   parseSlow, deriveSlowKey,
   extractUrls, urlPath, normalizeMessage, frameSourceSite, stackLines, isUsableTraceId,
+  BUSINESS_LEVEL_RE, parseBusinessErrorLevel,
 };

@@ -47,6 +47,19 @@ try {
     [IO.File]::WriteAllText((Join-Path $legacy 'node.zip'),'corrupt')
     $missing=& $script -Id node -Optional
     Assert (-not $missing.path -and $missing.error.Contains('SHA256')) 'corrupt material did not explain verification failure'
+    Remove-Item -LiteralPath (Join-Path $legacy 'node.zip')
+
+    $invalidVersioned=Join-Path $root 'ai-dev-offline-packages-1.0.0.zip'
+    $zip=[IO.Compression.ZipFile]::Open($invalidVersioned,[IO.Compression.ZipArchiveMode]::Create)
+    $invalidBytes=[byte[]]$bytes.Clone()
+    $invalidBytes[0]=$invalidBytes[0] -bxor 1
+    try {$stream=$zip.CreateEntry('packages/node.zip').Open();try {$stream.Write($invalidBytes,0,$invalidBytes.Length)}finally{$stream.Dispose()}}finally{$zip.Dispose()}
+    $missing=& $script -Id node -Optional
+    Assert (-not $missing.path -and $missing.error.Contains($invalidVersioned) -and $missing.error.Contains('SHA256')) 'versioned archive must pass digest verification'
+
+    Copy-Item -LiteralPath $archive -Destination (Join-Path $root 'ai-dev-offline-packages-2.0.0.zip')
+    $found=& $script -Id node
+    Assert ((Get-FileHash -LiteralPath $found.path -Algorithm SHA256).Hash -eq $digest) 'matching versioned archive not discovered'
     Write-Host "$checks package discovery checks passed on Windows PowerShell $($PSVersionTable.PSVersion)"
 } finally {
     $env:LOCALAPPDATA=$local

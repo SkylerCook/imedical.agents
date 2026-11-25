@@ -29,7 +29,7 @@ node "$CapabilityRoot/scripts/configure-agents.js" verify "$WorkspaceRoot"
 
 ## 使用工作台安装与更新
 
-在 Windows x64 上按发行记录校验并解压 `agents-workbench-react.zip`，双击 `start-workbench.cmd` 并选择工程根目录。自 0.4.0 起，双击启动后命令窗口自动关闭，关闭最后一个工作台标签页后服务自动收尾退出。需要保留启动输出时，可在现有终端指定工程目录。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。在线检测与首装访问框架源，离线操作使用团队批准的完整能力包。
+在 Windows x64 上按同版本发行记录校验并解压工作台 ZIP，双击 `start-workbench.cmd`。首次使用请选工程根目录。新版会记住上次成功进入的工程，点击页首工程名可另开工程页签。双击启动后命令窗口自动关闭，关闭最后一个工作台标签页后服务自动收尾退出。需要保留启动输出时，可在现有终端指定工程目录。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。在线检测与首装访问框架源，离线操作使用团队批准的完整能力包。
 
 ```powershell
 & ./start-workbench.cmd --project "<工程根目录>"

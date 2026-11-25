@@ -237,7 +237,15 @@ const server = http.createServer((req,res) => {
  if (process.send) process.send({address,bootstrap:framework.bootstrap});
  console.log(`Workbench: ${address}`);
  if (process.platform !== 'win32' || !process.argv.includes('--open')) return;
- require('../src/release-launcher').openBrowser(address.split('#')[0] + '#bootstrap=' + framework.bootstrap);
+ let recent;
+ if (projectRoot && !process.argv.includes('--demo') && settingsBinding && projectIdentity() === settingsBinding) {
+  try { recent = require('../src/recent-projects').projectIdentity(projectRoot); }
+  catch { /* A project that cannot be identified is left out of launch history. */ }
+ }
+ void require('../src/release-launcher').openBrowser(address.split('#')[0] + '#bootstrap=' + framework.bootstrap)
+  .then(opened => {
+   if (opened && recent) return require('../src/recent-projects').rememberProject(recent.path, recent.id);
+  });
 });
 
 function shutdown() {

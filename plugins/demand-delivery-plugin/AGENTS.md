@@ -8,7 +8,7 @@
 
 用户要求需求提交信息或明确提交时读取 [demand-commit](skills/demand-commit/SKILL.md)。使用项目已确认的数字需求号、standard/project 类型及精确文件范围；project 暂无编号时支持显式 `--no-id`，执行模式及约束见技能。与项目提交规范冲突时停止并说明，不替换项目规范。
 
-连续人工验收、逐号交付或查询验收/交付编号汇总时，读取 [demand-acceptance](skills/demand-acceptance/SKILL.md)，复用已有台账。`demand-acceptance --pass` 是验收通过并交付入口。范围确认、暂停和权限请求见技能[调用与授权](skills/demand-acceptance/SKILL.md#调用与授权)。默认定位当前工作区来源，`--worktree [路径]` 显式指定来源，最终实仓目标单独核实。明确批次用标准验收状态流；主子混合归属及整组完成按[代码归属](../../docs/demand-code-ownership.md)核对。
+连续人工验收、逐号交付、查询交付状态或汇总验收/交付编号时，读取 [demand-acceptance](skills/demand-acceptance/SKILL.md)，复用已有台账。`demand-acceptance --pass` 是验收通过并交付入口。范围确认、暂停和权限请求见技能[调用与授权](skills/demand-acceptance/SKILL.md#调用与授权)。默认定位当前工作区来源，`--worktree [路径]` 显式指定来源，最终实仓目标单独核实。明确批次用标准验收状态流；主子混合归属及整组完成按[代码归属](../../docs/demand-code-ownership.md)核对。
 
 通用提交与验收索引不依赖 IRIS 或 BOS；选用标版 BOS 日志阶段时需已接入 bos-plugin。验收默认先 commit/push 再补日志，BOS 缺口或结果未知仅暂停日志，Git 完成即释放发布权；完整交付仍须全部适用回执，见技能“逐号交付”。新入口通过项目 plugin profile 接入；更新器按旧能力使用证据迁移项目引用与 owner 启用状态，旧入口已移除。各入口按自身授权契约执行，部署不包含在验收交付中。
 

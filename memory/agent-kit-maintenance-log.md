@@ -1,5 +1,10 @@
 # imedical.agents 维护日志
 
+## 2026-11-25 工作台 0.7.0 工程历史与多页签
+
+- Windows 启动器恢复上次成功打开的工程。顶部工程菜单可从本机历史或文件夹选择器另开工程。取消或选中当前目录时留在原页。试用及发行校验见[工作台说明](../tools/agents-workbench/react/README.md#构建工作台发行包)。
+- Windows PowerShell 5.1 和隔离 Edge 验证启动、同名工程、新工程及不同页签独立使用。保留已验收的 0.6.1 框架运行树，覆盖已有工程的检查与更新接续。
+
 - coding 0.34.12 增加 OS010，核对 $GET 第一实参的变量引用与多维属性声明。
 
 - 工程配置迁移保留 Web 前端部署通道，省略时沿用 SFTP。插件状态保存兼容带或不带 UTF-8 BOM 的 base64 输入。工程配置专项 9 项通过。
@@ -17,6 +22,17 @@
 - coding 0.34.8 将 CLS 全文和 OS 条款选择前移到首次后端写入，评审复用同一规则入口。
 
 - coding 0.34.7 增加 OS009。受管源码 Review / Pack 根据时间戳目标和展示值来源检查写入，复用冻结范围中的字段声明和已有复核回执。
+
+## 2026-11-25 需求验收交付回执
+
+- demand-delivery-plugin 0.10.1 将交付结论与接续动作放在回执开头，按目标仓库记录实仓提交和远端核验。BOS 日志、历史部署及批次可复制编号采用技能中的回执格式。
+- Windows 本地验收和主子需求专项共 41 项通过，覆盖部分推送、模拟 BOS 恢复、共享回执和编号汇总。文档链接与插件清单检查通过，工作区版本审计与 HEAD 相比新增发现 0 项。更新后的真实业务回执沿既有 P2 队列观察。
+
+## 2026-11-25 graylog-toolkit 业务异常按错误级别分「异常/提醒」
+
+- 依据 `CompletionExceptionComp` 实测：拦截器统一日志「接收到业务异常，错误级别为：<中文>…」恒以 ERROR 打印，识别改靠消息前缀；`HisBusinessException` 抛出堆栈不再作为业务信号。
+- graylog-toolkit 0.2.0 新增 `parseBusinessErrorLevel`，`business-control` 簇按「错误级别为：」中文值定级：`错误`→P0 异常，提醒/信息/警告/严重→P1 提醒；簇新增 `businessAlertCount`/`businessNoticeCount`/`businessLevel`。渲染仍显示 P0/P1，不分栏。
+- 消费方 imedicalxc-doctor-graylog-error-triage 1.0.1 同步 `severity`/`disposition` 配置；schema、example、接入手册、使用指南、SKILL、owner-classification 的业务信号与严重度口径一并更新。发布记录见 `releases/plugin/<name>/<version>.md`。
 
 ## 2026-11-23 配置 Markdown 占位项增量合并
 

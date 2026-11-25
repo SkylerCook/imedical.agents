@@ -69,7 +69,8 @@
       "properties": {
         "businessLoggers": { "type": "array", "items": { "type": "string" } },
         "businessMessagePrefixes": { "type": "array", "items": { "type": "string" } },
-        "businessExceptionClasses": { "type": "array", "items": { "type": "string" } }
+        "businessExceptionClasses": { "type": "array", "items": { "type": "string" } },
+        "businessAlertErrorLevels": { "type": "array", "items": { "type": "string" }, "description": "日志「错误级别为：」后的中文值命中即判为「异常」（默认 [\"错误\"]）；其余值（提醒/信息/警告/严重）判为「提醒」" }
       }
     },
     "disposition": {

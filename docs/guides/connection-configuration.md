@@ -10,6 +10,10 @@
 
 已有 VS Code 服务器条目时，新增开发库档案可以填写原服务器名，沿用原条目的主机、Web 端口和协议，再确认该库的命名空间及私有凭据。目标与已有条目一致时，工作台保留该服务器条目，只切换当前服务器和命名空间，并按绑定范围同步其他入口。
 
+在标准根的「工程配置 → 编辑工程连接 → 开发库档案」选择目标后，预览会列出根工程和参与切换的模块。确认后，同一次操作覆盖这些成员当前生效的 IRIS 连接，包括模块单独设置过的连接。切换范围由登记关系与指向标准根的 `projectEnvFallback` 决定。其他工程配置字段仍从各自工作台维护。
+
+需要单独切某个模块时，从该模块的工作台选择或新增档案。保存只作用于该模块，下次标准根批量切库时会再次统一。首次为继承模块建立独立档案时，若提示共享框架版本过旧，先更新标准根的 `.agents`。保存后重连正在使用的 Agent 客户端，用 `check_config` 核对实际目标。VS Code 使用用户级服务器配置时，从 VS Code 核对当前服务器。
+
 | 要找的信息 | 从哪里查看 | 如何核对 |
 |---|---|---|
 | BOS 查询地址、访问密钥、Token、人员和组 | 默认打开 `%LOCALAPPDATA%\imedical-agents\bos\config.json`，查看 `bos-demand-query` 段。自定义路径见下方 BOS 小节 | `defaults` 离线校验；`check` 连接远端并发现查询工具 |
@@ -17,7 +21,7 @@
 | 知识检索提供方、公司网关和 Embedding 凭据 | `KNOWLEDGE_RAG_CONFIG` 指向的仓外 JSON，按 providers 分段，默认 company | 无服务时直接本地检索；配置与公司索引选装见[检索指南](knowledge-retrieval.md) |
 | MCP 名称、启动命令、URL、headers、启用状态 | 当前客户端实际加载的用户级或项目级 MCP 配置 | 核对客户端工具发现结果，文件存在不等于已加载 |
 | IRIS MCP 目标、凭据来源和启动参数 | 当前工程已有 `.mcp.json`、客户端实际注册与 `check_config`；是否使用 `.iris-agentic-dev.toml` 以运行时来源为准 | 按 [IRIS 诊断](../../plugins/coding-iris-plugin/rules/iris_agentic_dev.md#诊断)检查 `connection_source` 等字段 |
-| IRIS 部署、导出、Web/Broker 脚本参数 | 当前 `ContextRoot/config/project-env.json` | 按[工具说明](../../plugins/coding-iris-plugin/scripts/iris-tools/README.md)核对，Overlay 回退规则见下节 |
+| IRIS 部署、导出、Web/Broker 脚本参数 | 当前 `ContextRoot/config/project.jsonc` 或现有 `project-env.json` | 按[工具说明](../../plugins/coding-iris-plugin/scripts/iris-tools/README.md)核对，Overlay 回退规则见下节 |
 | IRIS 开发方式与项目环境 | 当前 `ContextRoot/config/iris-development.json` | [初始化](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)或已启用项目更新自动补缺文件；模式和环境按明确事实由 Agent 填写，旧缺省保留 |
 | IRIS 远端准入与资格证据 | 当前 `ContextRoot/config/iris-remote-policy.json` | connected 按需上下文自动生成缺失骨架，保持禁用/pending；协调目录、许可池及资格证据沿[接入协议](../../plugins/coding-iris-plugin/references/project-demand-development.md#首次接入)准备，真实验证后启用 |
 | 其它 MCP 或服务 | 先查实际调用入口及 owner 文档，再定位客户端注册、引用的环境变量、文件或系统凭据项 | 按对应读取代码判断，不套用 BOS 或 IRIS 优先级 |
@@ -74,7 +78,7 @@
 
 同名服务可能同时出现在客户端注册、项目文件和插件脚本里。以本次调用链为准，不能把“搜到了文件”当作“该文件正在生效”。不同客户端的注册位置、格式、覆盖顺序与刷新方式按实际宿主核对，不假定所有人的安装路径相同。
 
-标准项目使用自己的上下文。Overlay 按[工作区说明](../workspace-overlay.md)解析 `WorkspaceRoot`、`ContextRoot`、`CapabilityRoot`，不逐级猜父目录。部署脚本先读 `ContextRoot/config/project-env.json`；仅在文件不存在且 Overlay manifest 明确声明 `projectEnvFallback` 时回退。文件存在但无效不能靠回退掩盖。
+标准项目使用自己的上下文。Overlay 按[工作区说明](../workspace-overlay.md)解析 `WorkspaceRoot`、`ContextRoot`、`CapabilityRoot`。部署脚本先读取模块自己的工程连接，缺少本地连接时按 manifest 声明的 `projectEnvFallback` 取得标准根配置。模块配置无效时先修复该配置。由工作台首次建立独立 IRIS 档案的模块继续从声明的标准根取得未配置的 Web 和 SFTP 服务分节。
 
 IRIS 同步有方向：已有 `.mcp.json` 时按该事实补齐 `project-env.json`；没有 `.mcp.json` 且已确定 `project-env.json` 为事实来源时，才用现有同步工具生成 MCP 配置。查阅不执行同步或覆盖，详见[工具说明](../../plugins/coding-iris-plugin/scripts/iris-tools/README.md)。
 

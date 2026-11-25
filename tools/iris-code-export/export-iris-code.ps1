@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
 按 UTF-8 TXT 清单从内网 IRIS 读取当前源码，保存到指定本地目录。

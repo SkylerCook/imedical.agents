@@ -85,6 +85,8 @@ commit 的 unknown/失败应先读官方计划及实际 Git，判断是否已有
 
 ## 输出与证据
 
+[交付回执](../skills/demand-acceptance/SKILL.md#交付回执)由 Agent 按台账和执行证据整理，已有索引时按需读取 `status --id <需求号>` 和编号汇总。
+
 v2 JSON 汇总增加 groupCompletion（主需求 id、成员 ids、组 completed），按所有成员实际完成计算；单项完成不等于整组完成。`report` 支持 accepted/delivered/failed/deferred/pending 与 markdown/json/csv。Markdown 输出遵循技能的 BOS 编号契约；CSV 仅一行编号。accepted 只取人工通过；delivered 按 deliveryActions 逐项核对成功，不把自动验证当人类验收。
 
 `pending` 仅按 `decision.status` 筛选，Markdown 标题为“待用户验收结论”；不表示需求待澄清，也不表示存在人工补验。`automatic.status/evidenceRefs/gaps` 分别保留自动验证结果、证据与缺口；编号报告不推导补验数量，详细报告按[测试协议](../../../agents/_shared/testing-protocol.md#结果与交接)核对现有记录。空 gaps 只表示未记录专项补验项。JSON/CSV 与既有状态枚举保持兼容。

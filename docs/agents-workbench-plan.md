@@ -338,7 +338,7 @@ tools/agents-workbench/
   tests/                        # 计划补充跨前后端的部署和打包验收
 ```
 
-保留现有构建入口 `react/package-runtime.mjs` 和本机服务 `prototype/serve.js`。第11章的 `src/`、`build/` 文件名描述待实现职责，实施时优先落到现有入口，职责可直接复用时合并。正式运行包固定为 `tools/dist/agents-workbench-react.zip`，随包依赖由暂存流程从源仓收集。工程 `.agents` 沿原规则部署。
+保留现有构建入口 `react/package-runtime.mjs` 和本机服务 `prototype/serve.js`。第11章的 `src/`、`build/` 文件名描述待实现职责，实施时优先落到现有入口，职责可直接复用时合并。正式运行包在源仓 `tools/dist/` 交付，ZIP 与发行记录带相同版本。随包依赖由暂存流程从源仓收集。工程 `.agents` 沿原规则部署。
 
 工作台可在未安装框架时启动并提供说明、环境检查和安装入口；不能从被管理项目require任意模块来完成“只读识别”。识别使用工作台打包的可信resolver，执行项目脚本前显示来源与revision并核对框架信任和兼容性。
 
@@ -443,7 +443,7 @@ Windows standard 源码试点的插件管理预览按实际安装情况提供补
 
 原更新器在 `Check` 阶段也会加载已装插件声明的迁移脚本。工作台执行前同时核对已验证的完整提交号及其运行文件，检查已装插件声明的脚本是否在场。即使文件树相同，新提交仍需单独验证。其它提交可以查看工程身份和实际版本。
 
-**Windows standard 试点。** 固定交付包为 `tools/dist/agents-workbench-react.zip`，版本、SHA-256、兼容范围和旧包位置见同目录 `agents-workbench-react.release.json`。包内含便携 Node 24.22.3、预编译界面、字体与许可、手册和可信首装脚本。双击 `start-workbench.cmd` 选中工程，首页提供首装、只读检查和更新提示词。Git 取版沿框架来源，工作台启动可离线。
+**Windows standard 试点。** 从 `tools/dist/` 获取当前工作台 ZIP 和同版本发行记录，核对版本、SHA-256 和兼容范围。包内含便携 Node、预编译界面、字体与许可、手册和可信首装脚本。双击 `start-workbench.cmd` 选中工程，首页提供首装、只读检查和更新提示词。Git 取版沿框架来源，工作台启动可离线。
 
 **0.2.0 试点证据。** 同一 ZIP 从中文空格路径解压，在不依赖系统 Node 的 Windows 环境中用真实浏览器完成非空工程首装、部分克隆工程从 `b65675b6` 取版到 `5520bdf7`、写入与读回。独立核验真实 `imedical` 的 `b65675b6` 执行树和落盘运行文件符合试点校验。写入验证在隔离工程完成，模块及医院 Overlay 的共享更新沿单独验收路径推进。原型 `0.1.0` 已归档至 `tools/dist/history/agents-workbench-react/0.1.0/`。
 

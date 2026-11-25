@@ -174,6 +174,50 @@ async function probeProject(origin, expected, signal) {
   } catch { throw new ReleaseLaunchError('project-not-ready'); }
 }
 
+async function launchProjectWindow(projectRoot, expected, { signal, stillCurrent, standalone = false } = {}) {
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(), 15000).unref();
+  const startupSignal = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal;
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
+    !/^(port|node_options|node_path|node_channel_fd|node_channel_serialization_mode|workbench_startup_parent|workbench_launch_anchor)$/iu.test(name)));
+  if (standalone) Object.assign(env, {WORKBENCH_BACKGROUND:'1', WORKBENCH_TRACK_PROJECTS:'1'});
+  else env.WORKBENCH_STARTUP_PARENT = '1';
+  let child;
+  try {
+    startupSignal.throwIfAborted();
+    const launcher = path.join(__dirname, 'start-release.js');
+    child = fork(launcher, ['--project', projectRoot], {
+      cwd: path.resolve(__dirname, '../../..'), execArgv: [], env: { ...env, PORT: '0' },
+      detached: standalone, windowsHide: true, stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+    });
+    const stopped = once(child, 'exit', { signal: startupSignal }).then(() => { throw Error('project-startup-failed'); });
+    const ready = async () => {
+      const [message] = await once(child, 'message', { signal: startupSignal });
+      const origin = readStartupAddress(message);
+      const state = await probeProject(origin, expected, startupSignal);
+      if (stillCurrent && !stillCurrent(state)) throw Error('project-target-changed');
+      startupSignal.throwIfAborted();
+      return `${origin}/#bootstrap=${message.bootstrap}`;
+    };
+    const address = await Promise.race([ready(), stopped]);
+    if (standalone && child.connected) child.disconnect();
+    child.unref();
+    child.channel?.unref();
+    return address;
+  } catch (error) {
+    if (child?.pid && child.exitCode === null && child.signalCode === null) {
+      const stopped = once(child, 'exit', { signal: AbortSignal.timeout(3000) });
+      child.kill();
+      await stopped.catch(() => {});
+    }
+    if (error.message === 'project-target-changed') throw error;
+    throw Error(deadline.signal.aborted ? 'project-startup-timeout' : 'project-startup-failed');
+  } finally {
+    clearTimeout(timer);
+    deadline.abort();
+  }
+}
+
 async function launchImported(release, projectRoot, expected, { signal, startupTimeoutMs, anchor, port = '0', owned = false }) {
   const timeout = AbortSignal.timeout(startupTimeoutMs);
   const probeSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
@@ -282,4 +326,4 @@ function openBrowser(address, signal) {
   return result;
 }
 
-module.exports = { importAndLaunchRelease, launchSelectedRelease, openBrowser, ReleaseLaunchError, readStartupAddress, probeProject };
+module.exports = { importAndLaunchRelease, launchSelectedRelease, launchProjectWindow, openBrowser, ReleaseLaunchError, readStartupAddress, probeProject };

@@ -17,7 +17,7 @@ from playwright.sync_api import expect, sync_playwright
 
 REPO = Path(__file__).resolve().parents[3]
 ORIGIN = "https://gitee.com/skyler-cook/imedical.agents.git"
-ARCHIVE = "agents-workbench-react.zip"
+RELEASE_RECORD = re.compile(r"agents-workbench-react(?:-[0-9]+\.[0-9]+\.[0-9]+)?\.release\.json")
 UPDATE = "导入工作台新版"
 ROLLBACK = "恢复旧版工作台"
 
@@ -273,9 +273,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("new_archive", type=Path)
     parser.add_argument("new_record", type=Path)
-    parser.add_argument("--old-archive", type=Path, default=REPO / "tools/dist" / ARCHIVE)
-    parser.add_argument("--old-record", type=Path, default=REPO / "tools/dist/agents-workbench-react.release.json")
+    parser.add_argument("--old-archive", type=Path)
+    parser.add_argument("--old-record", type=Path)
     args = parser.parse_args()
+    if not args.old_record:
+        dist = REPO / "tools/dist"
+        records = [entry for entry in dist.glob("*.release.json") if entry.is_file() and RELEASE_RECORD.fullmatch(entry.name)]
+        if len(records) != 1:
+            parser.error("expected one current Workbench release record in tools/dist, or specify --old-record")
+        args.old_record = records[0]
+    if not args.old_archive:
+        args.old_archive = args.old_record.with_name(args.old_record.name.removesuffix(".release.json") + ".zip")
     parent = Path("D:/tmp/Codex") if Path("D:/tmp/Codex").is_dir() else Path(tempfile.gettempdir()) / "Codex"
     parent.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="workbench-release-browser-", dir=parent) as directory:

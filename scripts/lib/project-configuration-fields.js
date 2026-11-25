@@ -78,6 +78,7 @@ const sections = {
     }),
     serverName:text('IRIS MCP 服务名','工程的 IRIS MCP 注册名称。',generated),
     source:text('框架连接来源','项目 JSONC 接管后记录配置来源。',generated),
+    inheritServices:toggle('沿用共享服务配置','模块独立维护 IRIS 档案时，未单独配置的 Web 和 SFTP 继续使用共享来源。',generated),
   }),
   irisRemotePolicy:group('IRIS 远程策略','受管远端操作的连接与协调策略。',{
     schema:text('规则版本','远程操作策略使用的数据契约。',generated),

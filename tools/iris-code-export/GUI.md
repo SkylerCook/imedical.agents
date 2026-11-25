@@ -1,6 +1,6 @@
 # 项目源码基线工具使用说明
 
-工具只读取当前服务器源码，不向服务器导入、编译或修改对象。“导入共享基线”只写入本地工作目录。完整解压 `iris-code-export-gui.zip` 后运行 `IRISSourceExporter.exe`。界面继续使用 C# WinForms，采集仍使用原有 PowerShell 引擎，没有新增浏览器或其它运行时依赖。
+工具只读取当前服务器源码，不向服务器导入、编译或修改对象。“导入共享基线”只写入本地工作目录。完整解压 `iris-code-export-gui-<version>.zip` 后运行 `IRISSourceExporter.exe`。界面继续使用 C# WinForms，采集仍使用原有 PowerShell 引擎，没有新增浏览器或其它运行时依赖。
 
 现场环境仍需 Windows PowerShell 5.1 及其 .NET Framework 前置条件（WMF 5.1 要求至少 4.5.2）；无需 Node、Git 或 AI 工具。启动时检查 PowerShell 版本，缺依赖会明确停止，不安装、不升级系统组件。已具备这些环境的 Win7 SP1 可进入验收范围；Windows 版本名本身不代表已满足依赖。新界面尚未在 Win7、Win10 真机验收，不把本机通过称为三系统均已支持。
 
@@ -96,7 +96,7 @@ Web 文件保留目录结构和原始字节，可包括图片、无扩展名和�
 
 ## 构建与维护
 
-`build-gui.ps1` 在 Windows 构建 `tools/dist/iris-code-export-gui.zip`；构建电脑需要 Node 22.5+ 和 .NET Framework 编译器，现场不需要 Node。界面在 ExporterForm / ExporterWorkflow / ExporterWorkbench；项目索引、候选接纳、发布恢复和交付核验在 ProjectBaseline；网络和会话仍由原 exporter / gui-worker 负责。
+`build-gui.ps1` 在 Windows 构建 `iris-code-export-gui-<version>.zip`。命令行和 GUI 包共用源码目录 `VERSION` 中的工具版本，出包前按变更递增。`tools/dist/` 已有当前 GUI 包时，请用 `-OutputFile` 在临时目录生成候选，再沿工具交付约定切换当前版本。构建电脑需要 Node 22.5+ 和 .NET Framework 编译器，现场不需要 Node。界面在 ExporterForm / ExporterWorkflow / ExporterWorkbench，项目索引、候选接纳、发布恢复和交付核验在 ProjectBaseline，网络和会话由 exporter / gui-worker 负责。
 
 专项测试：`scripts/tests/iris-project-baseline.tests.cjs` 覆盖持续增补、检查更新、保护与恢复，并实际跑原生窗体到模拟服务器的完整链路；`scripts/tests/iris-export-gui.tests.cjs` 覆盖采集、会话和原生布局；分组落盘与恢复沿 checkpoint 专项。模拟字体缩放不替代 Win7 / Win10 真机与远程桌面验收。
 

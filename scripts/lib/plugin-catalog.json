@@ -556,7 +556,7 @@
       "directory": "demand-delivery-plugin",
       "manifest": {
         "name": "demand-delivery-plugin",
-        "version": "0.10.0",
+        "version": "0.10.1",
         "displayName": "Demand Delivery Plugin",
         "description": "跨技术栈的需求提交，支持 project 显式无编号提交，以及连续人工验收、逐号交付恢复。",
         "entry": "AGENTS.md",
@@ -591,7 +591,7 @@
           }
         ]
       },
-      "manifestHash": "7bd77da7bc8571c609e5ab395a3ab0e9899ff170c0401e73ecf6a9da1de0ed44"
+      "manifestHash": "076011ec64ee24c0c1459f208e98db588e05f6961f679a7637dfa0091ed36698"
     },
     {
       "directory": "extract-doc",

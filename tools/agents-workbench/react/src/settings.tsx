@@ -38,19 +38,21 @@ function groupFields(model: SettingsModel) {
     fields.push(field);
     groups.set(section, fields);
   }
-  return [...groups].map(([section, fields]) => {
+  const ordered = [...groups];
+  if (model.overlayConnections) ordered.sort(([a], [b]) => Number(b === "irisConnections") - Number(a === "irisConnections"));
+  return ordered.map(([section, fields]) => {
     const names: Record<string, string> = {
       irisConnections: "开发库档案", irisDevelopment: "IRIS 开发环境", deployment: "插件部署策略", web: "Web 路径与会话", sftp: "SFTP 文件连接", "bos-demand-query": "BOS 需求查询",
       "bos-code-update-log": "BOS 开发日志", "providers.company": "公司知识提供方",
       "providers.openai": "OpenAI 知识提供方",
     };
-    if (section.startsWith("pluginSettings.")) return {title:section.slice(15),source:fields[0]?.source ?? "ContextRoot/config/project.jsonc",fields};
+    if (section.startsWith("pluginSettings.")) return {section,title:section.slice(15),source:fields[0]?.source ?? "ContextRoot/config/project.jsonc",fields};
     const title = names[section] ?? (model.id === "project" ? "IRIS 开发连接" : "默认提供方");
     let source = model.id === "bos" ? "BOS_MCP_CONFIG" : "KNOWLEDGE_RAG_CONFIG";
     if (model.id === "project") {
       source = fields[0]?.source ?? ((section === "deployment" || section === "irisDevelopment" || section === "irisConnections") ? "ContextRoot/config/project.jsonc" : section ? `.agents/config/project-env.json · ${section}` : ".agents/config/project-env.json · VS Code · MCP/TOML");
     }
-    return { title, source, fields };
+    return { section, title, source, fields };
   });
 }
 
@@ -133,10 +135,23 @@ function SecretField({ field, allowClear }: { field: SettingsField; allowClear: 
   </div>;
 }
 
-function SettingsFields({ model, draft, handoff }: { model: SettingsModel; draft: ValueDraft; handoff:()=>void }) {
+function SettingsFields({ model, draft, handoff, previewBatch }: {
+  model: SettingsModel; draft: ValueDraft; handoff: () => void; previewBatch: () => void;
+}) {
+  const overlay = model.overlayConnections;
+  const rootBatch = overlay && overlay.inherited === undefined;
   return groupFields(model).map(group => <fieldset key={group.title} className="min-w-0 rounded-lg border p-3 sm:p-4">
     <legend className="px-2 font-medium">{group.title}</legend>
     <p className="mb-3 break-all text-xs text-muted-foreground">{model.scope} · {group.source}</p>
+    {group.section === "irisConnections" && overlay && <div className="mb-4 space-y-1.5 text-sm">
+      {overlay.inherited !== undefined ? <>
+        <p>{overlay.inherited ? "部署配置继承主工程。填写新档案标识和连接字段，可单独切换本模块。" : "在此保存只修改当前模块的连接。"}</p>
+        <p className="text-muted-foreground">主工程下次批量切换时会覆盖本模块的当前连接。</p>
+      </> : <>
+        <p>切换开发库会同时覆盖主工程和 {overlay.memberCount} 个模块的当前 IRIS 连接。</p>
+        {!!overlay.unavailableCount && <p className="text-muted-foreground">有 {overlay.unavailableCount} 个登记项需要核对，预览可查看详情。</p>}
+      </>}
+    </div>}
     <div className="grid gap-4 sm:grid-cols-2">
       {group.fields.map(field => {
         const label = fieldLabel(field);
@@ -168,6 +183,9 @@ function SettingsFields({ model, draft, handoff }: { model: SettingsModel; draft
         </div>;
       })}
     </div>
+    {group.section === "irisConnections" && rootBatch &&
+      group.fields.some(field => field.id === "irisConnections.active" && !field.readOnly) &&
+      <Button type="button" variant="outline" size="sm" className="mt-4" onClick={previewBatch}>预览批量切换</Button>}
   </fieldset>);
 }
 
@@ -311,10 +329,9 @@ export function SettingsDialog({ id, onClose, onSaved, handoff }: { handoff:()=>
     }
   }
 
-  async function preview(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function preview(formElement: HTMLFormElement, batchSelection = false) {
     if (!model || busy || conflicts.length) return;
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
     const nextDraft = readDraft(model, form);
     const changes: Record<string, SettingsChange> = {};
     const requested: FieldDelta[] = [];
@@ -330,7 +347,7 @@ export function SettingsDialog({ id, onClose, onSaved, handoff }: { handoff:()=>
         });
       } else {
         if (Object.hasOwn(nextDraft, field.id)) {
-          const control = event.currentTarget.elements.namedItem(field.id);
+          const control = formElement.elements.namedItem(field.id);
           if (control instanceof HTMLInputElement && !control.reportValidity()) return;
           const typed = inputValue(field, value);
           if (typed === null) return;
@@ -338,6 +355,14 @@ export function SettingsDialog({ id, onClose, onSaved, handoff }: { handoff:()=>
           requested.push({ id: field.id, name: fieldLabel(field), before: String(field.value ?? ""), after: String(typed) });
         }
       }
+    }
+    if (batchSelection && !changes["irisConnections.new"]) {
+      if (requested.some(field => field.id !== "irisConnections.active")) {
+        setError("请先处理表单中的其他修改，再预览批量切换。");
+        return;
+      }
+      const selected = form.get("irisConnections.active");
+      if (typeof selected === "string" && selected) changes["irisConnections.active"] = { value: selected };
     }
     setDraft(nextDraft);
     setError("");
@@ -402,10 +427,11 @@ export function SettingsDialog({ id, onClose, onSaved, handoff }: { handoff:()=>
     }
   }
 
-  const description = shared
+  const batch = plan?.overlayConnections;
+  const description = batch && phase === "preview" ? "切换会覆盖所列工作区的当前 IRIS 连接，保存后逐个核对。" : shared
     ? "共享个人配置 · 保存影响引用同一来源的所有工程。"
     : "当前工程 · 预览列出涉及文件，保存后逐文件读回。";
-  const title = phase === "preview" ? shared ? "确认共享配置修改" : "确认工程配置修改"
+  const title = phase === "preview" ? batch ? "确认批量切换开发库" : shared ? "确认共享配置修改" : "确认工程配置修改"
     : phase === "saved" ? "保存结果" : titles[id];
   let actions;
   if (phase === "edit" && model) actions = <>
@@ -424,7 +450,7 @@ export function SettingsDialog({ id, onClose, onSaved, handoff }: { handoff:()=>
   if (phase === "preview") actions = <>
     <Button variant="outline" disabled={busy} onClick={() => { setPhase("edit"); setPlan(undefined); setError(""); }}>重新编辑</Button>
     {plan?.changes.length ? <Button disabled={busy} onClick={apply}>
-      {busy ? "保存并读回中…" : shared ? "保存到共享个人配置" : "保存到当前工程"}
+      {busy ? batch ? "正在批量切换…" : "保存并读回中…" : batch ? "切换主工程和全部模块" : shared ? "保存到共享个人配置" : "保存到当前工程"}
     </Button> : null}
   </>;
 
@@ -449,12 +475,17 @@ export function SettingsDialog({ id, onClose, onSaved, handoff }: { handoff:()=>
             {field.canKeep && <Button variant="outline" onClick={() => resolveConflict(field, true)}>保留我的修改</Button>}
           </div>
         </fieldset>)}
-      </div> : model.fields.length ? <form ref={formRef} noValidate id="settings-form" onSubmit={preview} autoComplete="off" className="space-y-4">
-        <fieldset disabled={busy} className="min-w-0 space-y-4"><SettingsFields model={model} draft={draft} handoff={handoff} /></fieldset>
+      </div> : model.fields.length ? <form ref={formRef} noValidate id="settings-form" onSubmit={(event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        void preview(event.currentTarget);
+      }} autoComplete="off" className="space-y-4">
+        <fieldset disabled={busy} className="min-w-0 space-y-4"><SettingsFields model={model} draft={draft} handoff={handoff}
+          previewBatch={() => { if (formRef.current) void preview(formRef.current, true); }} /></fieldset>
       </form> : <Notice>当前来源没有工作台支持的字段，请核对文件结构。</Notice>}
     </>}
     {phase === "preview" && plan && <div tabIndex={-1} ref={phaseFocus} className="space-y-3 outline-none">
       <Notice>{plan.scope}</Notice>
+      {batch && <p className="wrap-anywhere text-muted-foreground">模块 · {batch.names.join("、")}</p>}
       {plan.changes.length > 0 && delta.length > 0 && <GridTable label="字段变更" headers={["将改的字段", "当前值", "候选值"]}
         rows={delta.map(field => [field.name, field.before || "未填写", field.after || "清空"])} />}
       <p className="text-muted-foreground">{plan.warning}</p>
@@ -464,7 +495,9 @@ export function SettingsDialog({ id, onClose, onSaved, handoff }: { handoff:()=>
         : <Notice>没有实际变更。</Notice>}
       <p className="text-xs text-muted-foreground">预览有效期 5 分钟。返回编辑时需重新输入替换凭据。</p>
     </div>}
-    {phase === "saved" && <div tabIndex={-1} ref={phaseFocus} className="outline-none"><Notice>{message}</Notice>{delta.some(d=>d.id.startsWith("irisConnections.")) && <VerifyConnection handoff={handoff} />}</div>}
+    {phase === "saved" && <div tabIndex={-1} ref={phaseFocus} className="space-y-3 outline-none"><Notice>{message}</Notice>
+      {!batch && model?.scope !== "当前工作区" && delta.some(d=>d.id.startsWith("irisConnections.")) && <VerifyConnection handoff={handoff} />}
+    </div>}
     {draftFeedback && (phase === "edit" || phase === "saved") && <Notice error={draftFeedback.error}>{draftFeedback.message}</Notice>}
     {error && phase !== "read-error" && <Notice error>{error} {recoveryRequired
       ? <Button asChild variant="outline" size="sm" className="ml-1"><a href={href("tasks")}>查看保存回执</a></Button>

@@ -1,6 +1,6 @@
 {
   "name": "imedicalxc-doctor-graylog-error-triage",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "displayName": "iMedicalXC Doctor Graylog Error Triage",
   "description": "HIS 医生站 Graylog 报错巡检：30 分钟水位线增量采集 ERROR 日志，按堆栈自校准归属（本组/基础设施/他组/待定），前端界面操作穿透，生成本组修正清单与他组通知文档，并按 errorHash 去重推送 QQ 群。",
   "entry": "AGENTS.md",

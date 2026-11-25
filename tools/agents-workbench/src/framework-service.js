@@ -6,7 +6,9 @@ const { Worker } = require('node:worker_threads');
 const { createKnowledgeBuildService } = require('./knowledge-build');
 const { pickOfflinePackage, readSelection } = require('./offline-framework-actions');
 const { createReleaseUpdateService } = require('./release-update');
-const { resolveOverlayTarget, createOverlayOpener } = require('./overlay-open');
+const { resolveOverlayTarget, openOverlayProject } = require('./overlay-open');
+const { createProjectOpener } = require('./project-open');
+const { projectId, rememberProject } = require('./recent-projects');
 const { hostHandoff, projectHandoff, taskHandoff, updateHandoff } = require('./agent-handoff');
 const projectConfig = require('../../ai-dev-offline/configure-project');
 
@@ -14,11 +16,18 @@ const recoveryErrors = new Set(['project-recovery-not-available','project-recove
 const boundDeploymentStatuses = ['standard','partial','invalid-head','unknown-source'];
 const updateNoteStatuses = [...boundDeploymentStatuses,'overlay-declared','invalid-declaration'];
 
+function openedProjectIdentity(root) {
+  if (!root || process.env.WORKBENCH_TRACK_PROJECTS !== '1') return null;
+  try { return projectId(root); }
+  catch { return null; }
+}
+
 function createFrameworkService(root, { pickOffline = pickOfflinePackage, releaseUpdate = createReleaseUpdateService(root), readUpdateHead, writeSettings, manualSource, pluginEntry, watchPage } = {}) {
   const id = crypto.randomUUID();
   const pickerLifetime = new AbortController();
   const knowledgeBuild = createKnowledgeBuildService(root);
-  const overlayOpener = createOverlayOpener();
+  const openProject = createProjectOpener(root,{signal:pickerLifetime.signal});
+  const historyId = openedProjectIdentity(root);
   const secret = () => crypto.randomBytes(32).toString('hex');
   const recoveryKey = crypto.randomBytes(32);
   const signRecovery = fingerprint => crypto.createHmac('sha256',recoveryKey).update(fingerprint).digest('hex');
@@ -89,7 +98,7 @@ function createFrameworkService(root, { pickOffline = pickOfflinePackage, releas
     const target = currentTarget();
     if (!target) return reply(409,{error:'overlay-target-changed'});
     try {
-      const result = await overlayOpener.open(target,() => Boolean(currentTarget()));
+      const result = await openOverlayProject(target,() => Boolean(currentTarget()),pickerLifetime.signal);
       return reply(200,result);
     } catch (error) {
       const code = ['overlay-target-changed','overlay-startup-timeout'].includes(error.message) ? error.message : 'overlay-startup-failed';
@@ -258,6 +267,7 @@ function createFrameworkService(root, { pickOffline = pickOfflinePackage, releas
       // Browser cookies share a host across ports. Each bound workbench owns its cookie.
       cookie = `wb-${id}=${secret()}`; csrf = secret();
       res.setHeader('Set-Cookie',cookie + '; HttpOnly; SameSite=Strict; Path=/framework/');
+      if (historyId) void rememberProject(root,historyId);
       return reply(200,{csrf});
     }
     if (route === 'framework/page-presence' && watchPage) {
@@ -266,6 +276,10 @@ function createFrameworkService(root, { pickOffline = pickOfflinePackage, releas
     }
     if (isSettings) return writeSettings(route.slice(settingsPrefix.length), data, reply);
     if (route === 'framework/offline') return offlineRequest(data,reply);
+    if (route === 'framework/projects') {
+      const result = await openProject(data);
+      return reply(result.error ? result.error === 'invalid-action' ? 400 : 409 : 200,result);
+    }
     if (route === 'framework/overlay/open') return overlayRequest(data,reply);
     if (route === 'framework/overlay/refresh')
       return reply(409,{error:'framework-update-use-agent'});

@@ -18,7 +18,18 @@ function local(contextRoot) {
   const legacy = json(file);
   const configured = data.canonical(main.value);
   const credentials = configured ? json(store.filePath(contextRoot,data.credentialFile)) || {} : {};
-  return {config:data.read(main.value,legacy,credentials),configPath:configured ? main.file : file,canonical:configured};
+  const inheritServices = main.value.irisConnections?.inheritServices === true;
+  return {config:data.read(main.value,legacy,credentials),configPath:configured ? main.file : file,canonical:configured,
+    ...(inheritServices ? {inheritServices} : {})};
+}
+
+function readFallback(context, fallback, sharedOnly = false) {
+  if (typeof fallback !== 'string' || !fallback.trim()) throw Error('project-env-fallback-invalid');
+  const configPath = path.resolve(context.workspaceRoot,fallback);
+  const sharedLegacy = context.capabilityRoot && path.join(context.capabilityRoot,'config','project-env.json');
+  if (sharedLegacy && require('./project-directories').same(configPath,sharedLegacy)) return local(context.capabilityRoot);
+  if (sharedOnly) throw Error('project-env-fallback-invalid');
+  return {config:json(configPath),configPath,canonical:false};
 }
 
 function read(context, {optional = false, inherit = true} = {}) {
@@ -26,12 +37,14 @@ function read(context, {optional = false, inherit = true} = {}) {
   let inherited = false;
   const fallback = context.mode === 'workspace-overlay' && context.manifest?.projectEnvFallback;
   if (!result.config && inherit && fallback !== undefined && fallback !== false) {
-    if (typeof fallback !== 'string' || !fallback.trim()) throw Error('project-env-fallback-invalid');
-    const configPath = path.resolve(context.workspaceRoot,fallback);
-    const sharedLegacy = context.capabilityRoot && path.join(context.capabilityRoot,'config','project-env.json');
-    if (sharedLegacy && require('./project-directories').same(configPath,sharedLegacy)) result = local(context.capabilityRoot);
-    else result = {config:json(configPath),configPath,canonical:false};
+    result = readFallback(context,fallback);
     inherited = true;
+  } else if (result.inheritServices && inherit && context.mode === 'workspace-overlay') {
+    const shared = readFallback(context,fallback,true).config;
+    if (!shared) throw Error('project-env-missing');
+    const {web,sftp} = shared;
+    // The module owns its IRIS target and dispatch bindings. Service sections can still come from the root.
+    result.config = {...(web ? {web} : {}), ...(sftp ? {sftp} : {}), ...result.config};
   }
   if (!result.config && (!optional || inherited)) throw Error('project-env-missing');
   if (inherited) for (const field of ['host','port','scheme','namespace']) {
