@@ -25,7 +25,7 @@ def git(directory, *args):
 
 def verify_outer_record(archive, release, record_file):
     record = json.loads(record_file.read_text(encoding="utf-8-sig"))
-    assert record["file"] == "agents-workbench-react.zip", "unexpected release filename"
+    assert record["file"] == "agents-workbench-react.zip", "unexpected release type identifier"
     assert record["bytes"] == archive.stat().st_size, "release ZIP size differs from the external record"
     digest = sha256()
     with archive.open("rb") as stream:

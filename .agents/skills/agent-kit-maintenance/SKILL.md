@@ -74,9 +74,9 @@ node --test --test-name-pattern="project links resolve" scripts/tests/documentat
 
 ## 工作台随包更新
 
-1. **判断打包影响。** 提交前对照 `tools/agents-workbench/react/package-runtime.mjs` 和 React 构建输入核对拟提交差异。重点检查随包的 `docs/guides/*.md`、更新和 Overlay 手册、启动器、打包复制的模块、插件 manifest 及便携 Node。已有 `tools/dist/agents-workbench-react.release.json` 时，用其中的 `sourceBaseRevision` 补查上次发包以来的随包差异。仅影响业务工程已安装能力的改动沿 `.agents` 更新验证。需要同步工作台首装版本时，核对发行包固定的框架提交与运行树。
+1. **判断打包影响。** 提交前对照 `tools/agents-workbench/react/package-runtime.mjs` 和 React 构建输入核对拟提交差异。重点检查随包的 `docs/guides/*.md`、更新和 Overlay 手册、启动器、打包复制的模块、插件 manifest 及便携 Node。读取 `tools/dist/` 当前工作台发行记录的 `sourceBaseRevision`，核对上次发包以来的随包差异。仅影响业务工程已安装能力的改动沿 `.agents` 更新验证。需要同步工作台首装版本时，核对发行包固定的框架提交与运行树。
 2. **提交前完成工作台验证。** 影响包内内容时，在本批补齐所需源改动。准备新版正式包时同步 `package.json` 和 `package-lock.json` 的版本。前端构建输入变动时先重建界面。用现有 `stage` 暂存候选，验证受影响入口。仅改随包手册时，核对暂存内容和「使用手册」读到的新内容。随包运行时、启动器及安装更新入口有改动时，验证相应的启动、首装或更新路径。
-3. **从实际提交交付。** 按[工作台发行说明](../../../tools/agents-workbench/react/README.md#构建工作台发行包)，在 `c + p` 流程中从本次干净提交运行 `stage:release`。核对包内版本、源码提交与发行记录一致，检查 ZIP 大小和 SHA-256，再成套更新 `tools/dist/`。正式包验收覆盖从上次发行到本次实际入包的改动。
+3. **从实际提交交付。** 按[工作台发行说明](../../../tools/agents-workbench/react/README.md#构建工作台发行包)，在 `c + p` 流程中从本次干净提交运行 `stage:release`。核对包内版本、源码提交与发行记录一致，检查 ZIP 大小和 SHA-256，按[工具交付约定](../../../tools/README.md#工具交付约定)成套更新带版本的 ZIP 和发行记录。按[本机试用解压](../../../tools/agents-workbench/react/README.md#本机试用解压)更新试用副本并交付启动入口。正式包验收覆盖从上次发行到本次实际入包的改动。
 
 ## 业务需求夹带框架变更的回看门禁
 

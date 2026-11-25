@@ -1,12 +1,14 @@
 # AI 开发基础工具离线物料包
 
-r7 增加 ObjectScript 扩展安装入口，支持已有与便携 VS Code，固定用户指定的 3.8.3-SNAPSHOT 并禁用其自动更新。扩展原包单独交付 `tools/dist/ai-dev-offline-extensions.zip`，包含缺少时补装的 Server Manager。
+r7 增加 ObjectScript 扩展安装入口，支持已有与便携 VS Code，固定用户指定的 3.8.3-SNAPSHOT 并禁用其自动更新。扩展原包单独交付为 `tools/dist/ai-dev-offline-extensions-<version>.zip`，包含缺少时补装的 Server Manager。
 
 面向安装人员的入口见 [GUI 安装助手](GUI.md)。GUI ZIP 支持六项工具按需安装、环境变量恢复，以及预览、合并和恢复 IRIS/Caché 项目配置。首次到院可从主窗口安装 [医院 HTTPS 证书](GUI.md#医院-https-证书)，之后多个工程可复用证书信任。下文保留原物料包及命令入口说明。
 
 2026-10-29 固定物料组合，2026-10-30 补充用户设置自动配置，目标为 **Windows 10/11 x64**。本期准备六项基础工具、CodeBuddy VSIX、安全模板、PATH 配置及 PowerShell 7 用户终端配置入口。其它 AI 客户端后补；不含任何真实医院配置、凭据、项目源码或业务依赖。
 
-原命令行物料包固定为 `tools/dist/ai-dev-base-windows-x64.zip`，包含 MCP/TOML 模板与 PATH 工具。GUI r6 分为工具能力包 `tools/dist/ai-dev-offline-tools.zip` 和安装原包 `tools/dist/ai-dev-offline-packages.zip`，解压到同一目录后形成 tools/ 与 packages/。后续仅更新小型工具包，原包按版本复用。支持先配置后部署 MCP，旧版 payload 布局也可直接更新。这里的路径相对于仓库根目录，历史包放在 `tools/dist/history/ai-dev-offline/`。
+命令行物料包 `tools/dist/ai-dev-base-windows-x64-<version>.zip` 包含 MCP/TOML 模板与 PATH 工具。GUI 工具能力包 `tools/dist/ai-dev-offline-tools-<version>.zip` 和安装原包 `tools/dist/ai-dev-offline-packages-<version>.zip` 解压到同一目录后形成 `tools/` 与 `packages/`。旧包可沿原命名和 `payload/` 布局使用。支持先配置后部署 MCP，安装原包和扩展按各自版本独立复用。
+
+各包的发布版本取自 `manifest.json` 的 `releaseVersions` 和扩展清单 `extensions.json` 的 `releaseVersion`。维护者按源仓 `tools/README.md` 的「工具交付约定」用 `-OutputFile` 明确指定候选 ZIP，验收通过后归档该交付品的前版。命令行物料包用 `prepare-package.ps1 -Action Pack` 打包，扩展包用 `build-extensions.ps1` 打包。原包的文件名、大小与 SHA256 沿组件清单核对。
 
 这是可带到现场的官方原包集合，附本地校验、手工部署步骤和显式调用的环境变量配置工具。**不是已经通过干净环境验收的一键安装器**。包完整性通过、工具能够启动、项目能够工作是三个不同结论；当前实际证据见 [PREPARATION-REPORT.md](PREPARATION-REPORT.md)。制包不改变准备机安装或系统变量；现场工具只处理明确选择的组件，不自动扫描电脑或探测未选组件。
 
@@ -154,7 +156,8 @@ Rollback 必须仍与本次写入结果一致才恢复；出现后来 PATH 修�
 & .\tools\ai-dev-offline\prepare-package.ps1 -Action Download -WorkRoot 'D:\tmp\Codex\ai-dev-offline-<task-id>'
 # 同一目录可续传；可加 -Components node,python 先准备最小批次。
 # 确认有需要时，可加 -DirectMicrosoftCdn 仅直连微软官方 CDN，不修改代理配置。
-& .\tools\ai-dev-offline\prepare-package.ps1 -Action Pack -WorkRoot 'D:\tmp\Codex\ai-dev-offline-<task-id>'
+& .\tools\ai-dev-offline\prepare-package.ps1 -Action Pack -WorkRoot 'D:\tmp\Codex\ai-dev-offline-<task-id>' `
+  -OutputFile 'D:\tmp\Codex\ai-dev-offline-<task-id>\ai-dev-base-windows-x64-<version>.zip'
 ```
 
 先读回逐组件 checkpoint 和原包，再扩展下载。脚本只读固定 manifest，不取 latest；断点续传只影响原包下载。CodeBuddy 的 HTTP 压缩传输使用 curl `--compressed`，不可用解码后字节偏移续传；残留 partial 必须由调用者核对本任务归属后明确清理，再重新下载该小包。已有完整文件必须重新校验；损坏文件、未知 work 目录、路径链接和已存在的输出 ZIP 均停止。Pack 重新校验全部原包并逐项读回 ZIP 流核对字节与哈希后才改为正式名称。固定版本升级必须重新核对官方元数据和运行兼容，不自动改清单。失败时保留本任务目录以便恢复；独立解压核验 ZIP 成功后，由调用任务按确认过的绝对路径清理该目录。

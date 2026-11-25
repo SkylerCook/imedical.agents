@@ -1,4 +1,4 @@
-r9：主窗口增加“医院 HTTPS 证书…”。选择医院提供的公开证书，核对 SHA-256 指纹后导入当前 Windows 用户信任库。已信任时跳过，导入后重启 VS Code。仅更新工具 ZIP。
+r9：主窗口增加“医院 HTTPS 证书…”。选择医院提供的公开证书，核对 SHA-256 指纹后导入当前 Windows 用户信任库。已信任时跳过，导入后重启 VS Code。工具 ZIP 采用 0.9.0 包名，助手可自动发现带版本号的原包和扩展 ZIP。
 
 2026-11-17：Node 默认部署版本升级为 24.22.3；同时更新工具 ZIP 与基础原包 ZIP。已有安装不自动替换，安装后重开终端。
 
@@ -7,7 +7,7 @@ r8：自动发现原包 ZIP、进程互斥自动释放、任务进度与安全�
 
 r7：ObjectScript 离线安装
 
-更新 tools ZIP，并将 ai-dev-offline-extensions.zip 解压到同一根目录，形成 packages/extensions。
+更新工具 ZIP，并将扩展 ZIP 的内容解压到同一根目录，形成 packages/extensions。
 主窗口点击“ObjectScript 扩展…”，选择已有或便携版 Code.exe，点击“安装并禁用自动更新”。
 固定安装 3.8.3-SNAPSHOT，仅禁用该扩展自动更新；缺少 Server Manager 时补装随包依赖。
 要求 VS Code 1.109.0 及以上的 1.x 版本。已有六项基础安装原包继续复用。
@@ -21,8 +21,8 @@ r7：ObjectScript 离线安装
   tools/       助手程序、配置脚本、manifest 与解析库
   packages/    六项离线安装原包
 
-首次使用：将 ai-dev-offline-tools.zip 和 ai-dev-offline-packages.zip 解压到同一目录，再运行 tools/开发工具安装助手.exe。
-后续更新：关闭助手，将新版 ai-dev-offline-tools.zip 解压到同一目录，覆盖 tools。packages 可继续复用，只有所选组件版本变化时才需要补充相应原包。
+首次使用：将工具 ZIP 与安装原包 ZIP 的内容解压到同一目录，再运行 tools/开发工具安装助手.exe。
+后续更新：关闭助手，将新版工具 ZIP 的内容解压到同一目录，覆盖 tools。packages 可继续复用，只有所选组件版本变化时才需要补充相应原包。
 
 旧版更新方式
 

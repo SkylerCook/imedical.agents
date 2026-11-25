@@ -4,21 +4,25 @@
 
 | 工具 | 使用说明 | 交付包（本机生成） |
 |---|---|---|
-| .agents 工程工作台 | [离线运行与交互演示](agents-workbench/react/README.md) | `dist/agents-workbench-react.zip`，内含便携 Node 24 和界面字体 |
-| IRIS 内网源码导出与离线交付 | [iris-code-export](iris-code-export/README.md) | `dist/iris-code-export.zip` |
-| IRIS Windows 项目源码基线（增补、检查、按项目版本保存及导入复用） | [GUI 操作说明](iris-code-export/GUI.md) | `dist/iris-code-export-gui.zip` |
-| AI 开发工具安装与 IRIS/Caché 项目配置 GUI（Windows 10/11 x64） | [GUI 操作说明](ai-dev-offline/GUI.md) | 工具能力 `dist/ai-dev-offline-tools.zip`；安装原包 `dist/ai-dev-offline-packages.zip`；ObjectScript 扩展 `dist/ai-dev-offline-extensions.zip` |
-| AI 开发基础工具离线物料与命令入口（Windows x64） | [ai-dev-offline](ai-dev-offline/README.md) | `dist/ai-dev-base-windows-x64.zip` |
+| .agents 工程工作台 | [离线运行与交互演示](agents-workbench/react/README.md) | `agents-workbench-react-<版本>.zip`，附同版本发行记录 |
+| IRIS 内网源码导出与离线交付 | [iris-code-export](iris-code-export/README.md) | `iris-code-export-<版本>.zip` |
+| IRIS Windows 项目源码基线（增补、检查、按项目版本保存及导入复用） | [GUI 操作说明](iris-code-export/GUI.md) | `iris-code-export-gui-<版本>.zip` |
+| AI 开发工具安装与 IRIS/Caché 项目配置 GUI（Windows 10/11 x64） | [GUI 操作说明](ai-dev-offline/GUI.md) | `ai-dev-offline-tools-<版本>.zip`、`ai-dev-offline-packages-<版本>.zip`、`ai-dev-offline-extensions-<版本>.zip` |
+| AI 开发基础工具离线物料与命令入口（Windows x64） | [ai-dev-offline](ai-dev-offline/README.md) | `ai-dev-base-windows-x64-<版本>.zip` |
 
 导出包包含 `README.md`、`export-iris-code.ps1`、`export-version-baseline.ps1`、`source-delivery.ps1`、`files.example.txt`、生成的 `catalogs/` 与 `images/` 目录示例截图，不包含构建脚本、Node.js、XML 编辑器、框架文件、测试、连接配置或现场源码。XML 带回后由 AI 修改的流程继续归 coding 插件。
 
-维护者从仓库根重建 ZIP（PowerShell，打包电脑需要 Node.js >=22.5.0；现场运行不需要）：
+维护者从仓库根可按以下命令构建源码导出候选包。打包电脑需要 Node.js >=22.5.0。
 
 ```powershell
-& .\tools\iris-code-export\build-package.ps1
+& .\tools\iris-code-export\build-package.ps1 -OutputFile '<任务临时目录>\iris-code-export-<版本>.zip'
 ```
 
-同一功能、同一形态只保留一份源码和一个固定名称的最新 ZIP。源码导出工具固定为命令行版 `dist/iris-code-export.zip` 与 GUI 版 `dist/iris-code-export-gui.zip`；旧但有用的包放 `dist/history/`，无用或已核实完全重复的产物删除，不再并列日期版、计时版等入口。`tools/dist/` 只放正式压缩包，由 Git 忽略；打包、解压验证均使用任务专属临时目录，完成后立即清理，不在 dist 保留解压副本。
+## 工具交付约定
+
+1. 用工具自身的版本来源命名 `<交付品>-<版本>.zip`，相配的发行记录也使用同一版本。命令行和 GUI 可分别交付，独立维护的离线物料包可分别发版。包内启动入口、目录结构和上游安装原包名称沿用各工具的兼容约定。
+2. 在任务临时目录构建并验收候选 ZIP。换版前核对现有包及配套记录的版本和归属，把前一版整套归档到 `tools/dist/history/<交付品>/<版本>/`。能确认归属但无法确定版本的旧固定名包可归 `legacy/`。有占用或归属不清时先保留现场并报告。
+3. 将验收通过的新 ZIP 和配套记录放在 `tools/dist/`，读回版本及 SHA-256，确认根目录每个交付品只有一套当前正式版。工作台另按[本机试用解压](agents-workbench/react/README.md#本机试用解压)提供可直接启动的副本。
 
 需要保留已获授权的本机连接示例时，将示例文本放任务临时目录，用 -LocalExampleFile 指定；构建器仅替换临时 README 的 local-atelier-example 标记，不改共享源。真实地址只留本机被忽略的 ZIP，账号密码始终不写文件。构建器逐文件核对归档摘要后清理自己的暂存目录；示例临时文件由调用任务清理。独立测试直接解压实际 ZIP，核对源脚本、生成清单、截图及 README 模板。
 

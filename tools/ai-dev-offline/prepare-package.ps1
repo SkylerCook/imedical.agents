@@ -9,11 +9,15 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $sourceRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-if (-not $OutputFile) { $OutputFile = Join-Path $sourceRoot '../dist/ai-dev-base-windows-x64.zip' }
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $work = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($WorkRoot)
 $manifest = Get-Content -LiteralPath (Join-Path $sourceRoot 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($Action -eq 'Pack' -and -not $OutputFile) {
+    . (Join-Path $sourceRoot 'release-artifact.ps1')
+    $OutputFile = Get-AiDevArtifactPath (Join-Path $sourceRoot '../dist') 'ai-dev-base-windows-x64' $manifest.releaseVersions.base
+    Assert-AiDevArtifactSlot $OutputFile 'ai-dev-base-windows-x64'
+}
 function Assert-NoLink([string]$Path) {
     $p = [IO.Path]::GetFullPath($Path)
     while ($p) {

@@ -2,7 +2,7 @@
 
 Windows 10/11 x64，使用系统 Windows PowerShell 5.1 和 .NET Framework。当前为 r9，工具能力和离线安装原包分别交付。
 
-正式工具包为仓库根目录下 `tools/dist/ai-dev-offline-tools.zip`，安装原包为 `tools/dist/ai-dev-offline-packages.zip`。首次使用时将两份 ZIP 解压到同一个目录，得到以下结构，双击 `tools/开发工具安装助手.exe`。
+从仓库根目录 `tools/dist/` 获取正式工具包 `ai-dev-offline-tools-<version>.zip` 和安装原包 `ai-dev-offline-packages-<version>.zip`。首次使用时将两份 ZIP 的内容解压到同一个目录，得到以下结构，双击 `tools/开发工具安装助手.exe`。
 
 ```text
 开发环境工具包/
@@ -16,7 +16,7 @@ Windows 10/11 x64，使用系统 Windows PowerShell 5.1 和 .NET Framework。当
 
 后续只需关闭助手，用新版工具 ZIP 覆盖 `tools/`。`packages/` 可以长期复用，所选组件原包版本变化时才补充对应原包。manifest 随工具能力交付，用于安装前校验版本、大小和 SHA256。
 
-旧版目录中已有 `开发工具安装助手.exe` 和 `payload/` 时，将工具 ZIP 内 **tools 文件夹里面的全部内容** 复制到旧助手目录，替换同名文件、合并 vendor 即可。助手优先复用旧版 `payload/`，也支持把它在同一磁盘内移动为与 tools 并列的 `packages/`。旧版完整包及历史更新包保存在 `tools/dist/history/ai-dev-offline/`。
+旧版目录中已有 `开发工具安装助手.exe` 和 `payload/` 时，将工具 ZIP 内 **tools 文件夹里面的全部内容** 复制到旧助手目录，替换同名文件、合并 vendor 即可。助手优先复用旧版 `payload/`，也支持把它在同一磁盘内移动为与 tools 并列的 `packages/`。旧版完整包及历史更新包在 `tools/dist/history/` 下按交付品和版本查找。
 
 1. 选择安装目录，默认优先 D 盘。没有 D 盘时使用当前用户的程序目录。
 2. 逐项选择“安装并配置”、“已有工具，仅配置”或“仅安装，保留环境”。已有工具用“选择”按钮定位对应 exe。全部工具默认跳过。
@@ -57,7 +57,7 @@ ObjectScript 窗口会检查当前版本，替换前自动将本机已安装版�
 
 ## 现场快速部署
 
-首次到现场，请携带 `ai-dev-offline-tools.zip` 与 `ai-dev-offline-packages.zip`。在现场允许的位置建立独立工具目录，将两份 ZIP 解压到同一目录，确认 `tools` 和 `packages` 直接并排，避免解压软件多套一层 ZIP 同名文件夹。
+首次到现场，请携带工具 ZIP 与安装原包 ZIP。在现场允许的位置建立独立工具目录，将两份 ZIP 的内容解压到同一目录，确认 `tools` 和 `packages` 直接并排。
 
 1. 进入 `tools`，双击 `开发工具安装助手.exe`。保留同目录的脚本和 vendor 文件夹一起使用。
 2. 选择软件安装目录，按需选择“安装并配置”“已有工具，仅配置”或“仅安装，保留环境”。环境变量默认选“当前用户”，然后点击“开始安装与配置”。现场业务使用的旧 Java/Python，可先选择“仅安装，保留环境”验证新程序。
@@ -69,7 +69,7 @@ ObjectScript 窗口会检查当前版本，替换前自动将本机已安装版�
 
 项目配置会按勾选项更新项目 `.vscode/settings.json`、`.mcp.json`、`.iris-agentic-dev.toml` 以及所选 VS Code 用户设置。连接凭据与配置备份留在本机，详细落点和恢复方法见下文。
 
-以后更新时关闭助手，将新的 `ai-dev-offline-tools.zip` 解压到相同工具根目录并覆盖 `tools`。安装原包版本匹配时继续复用 `packages`。遇到错误点击主窗口“导出日志…”，将日志和错误截图反馈。
+以后更新时关闭助手，将新版工具 ZIP 的内容解压到相同工具根目录并覆盖 `tools`。安装原包版本匹配时继续复用 `packages`。遇到错误点击主窗口“导出日志…”，将日志和错误截图反馈。
 
 ## 医院 HTTPS 证书
 
@@ -81,7 +81,7 @@ ObjectScript 窗口会检查当前版本，替换前自动将本机已安装版�
 
 ## 安装固定版本 ObjectScript 扩展
 
-现场需要 `ai-dev-offline-tools.zip` 与 `ai-dev-offline-extensions.zip`，两份解压到同一个工具根目录。扩展补充包约 761 KiB，形成 `packages/extensions/`，其中包含用户指定的 ObjectScript `3.8.3-SNAPSHOT` 和其必需依赖 Server Manager `3.16.0`。已有六项基础原包继续复用；首次还需要安装 VS Code 等工具时，再携带 `ai-dev-offline-packages.zip`。
+现场需要工具 ZIP 与 `ai-dev-offline-extensions-<version>.zip`，两份内容解压到同一个工具根目录。扩展补充包约 761 KiB，形成 `packages/extensions/`，其中包含用户指定的 ObjectScript `3.8.3-SNAPSHOT` 和其必需依赖 Server Manager `3.16.0`。已有六项基础原包继续复用。首次还需要安装 VS Code 等工具时，再携带安装原包 ZIP。
 
 1. 打开 `tools/开发工具安装助手.exe`，点击底部“ObjectScript 扩展…”。
 2. 核对自动找到的 VS Code，也可选择现场已有或新安装便携版的 `Code.exe`。这个 VSIX 要求 VS Code 1.109.0 及以上的 1.x 版本。
@@ -125,9 +125,9 @@ JSONC 增量合并保留其他配置与注释，TOML 合并后校验所有字段
 
 ## 维护者
 
-运行 `build-gui.ps1` 生成 `../dist/ai-dev-offline-tools.zip`，同时准备或校验复用 `../dist/ai-dev-offline-packages.zip`。首次准备原包 ZIP 时从 `../dist/ai-dev-base-windows-x64.zip` 提取六项固定原包，逐项重新校验 SHA256。原包 ZIP 已存在且与 manifest 一致时保留其原始字节和修改时间；版本不一致时提示归档旧原包后再构建。
+运行 `build-gui.ps1` 构建工具 ZIP，并准备或校验复用安装原包 ZIP。用 `-OutputFile` 和 `-PackagesFile` 指定候选输出路径或待复用的现有原包 ZIP，版本取 `manifest.json` 的 `releaseVersions`。首次准备原包 ZIP 时从命令行物料包提取六项固定原包，可用 `-MaterialZip` 指定经过核验的物料包。构建器逐项重新校验 SHA256。原包 ZIP 与清单一致时复用原始字节和修改时间。
 
-只更新工具能力时使用 `build-gui.ps1 -ToolsOnly`，该模式只编译并校验工具 ZIP，可以在没有大体积物料包的环境中执行。工具 ZIP 统一包含 tools/，原包 ZIP 统一包含 packages/。构建器验证条目数量、路径与逐文件摘要，预览参数只生成 tools/ 运行目录。旧工具 ZIP 先归档至 `../dist/history/ai-dev-offline/`，再生成固定名称最新版。安装参数依据 [Git 官方自解压器实现](https://github.com/git-for-windows/7-Zip/blob/master/CPP/7zip/Bundles/SFXSetup/SfxSetup.cpp) 和 [Python 官方 Windows 安装说明](https://docs.python.org/3.14/using/windows.html)。
+只更新工具能力时使用 `build-gui.ps1 -ToolsOnly -OutputFile <候选ZIP路径>`。工具、安装原包和扩展各自升级，继续复用通过校验的旧原包。工具 ZIP 包含 `tools/`，原包 ZIP 包含 `packages/`，预览参数只生成 `tools/` 运行目录。验收和替换最新包按源仓 `tools/README.md` 的「工具交付约定」执行。安装参数依据 [Git 官方自解压器实现](https://github.com/git-for-windows/7-Zip/blob/master/CPP/7zip/Bundles/SFXSetup/SfxSetup.cpp) 和 [Python 官方 Windows 安装说明](https://docs.python.org/3.14/using/windows.html)。
 
 项目配置复用本目录的 JSONC 编辑器及 `jsonc-parser 3.3.1`。TOML 校验使用固定 `@iarna/toml 2.2.5` 的同步解析器及其最小依赖，来源、发布摘要、逐文件 SHA256 和 ISC 许可证保存在 `vendor/iarna-toml/`，现场无需 npm install。该库面向 TOML 0.5，遇到超出支持语法的配置会报告解析失败并保留原件。[上游源码](https://github.com/iarna/iarna-toml)
 

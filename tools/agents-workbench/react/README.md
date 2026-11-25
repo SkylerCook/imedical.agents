@@ -2,7 +2,7 @@
 
 ## 解压运行
 
-将 `tools/dist/agents-workbench-react.zip` 完整解压。在 Windows x64 双击新版 `start-workbench.cmd`。系统文件夹选择器支持在地址栏粘贴工程路径，选定后由默认浏览器打开工程首页。包内包含便携 Node.js 24.22.3、编译后的页面、Maple Mono NF CN 中文字体、手册和本地依赖。框架首装和更新需要本机 Git、Windows PowerShell 5.1，以及可访问的 Git 来源或已批准的完整离线能力包。
+将 `tools/dist/` 中的当前工作台 ZIP 完整解压。在 Windows x64 双击新版 `start-workbench.cmd`。系统文件夹选择器支持在地址栏粘贴工程路径，选定后由默认浏览器打开工程首页。包内包含便携 Node.js 24.22.3、编译后的页面、Maple Mono NF CN 中文字体、手册和本地依赖。框架首装和更新需要本机 Git、Windows PowerShell 5.1，以及可访问的 Git 来源或已批准的完整离线能力包。
 
 ```powershell
 & ./start-workbench.cmd --project "<工程根目录>"
@@ -16,7 +16,7 @@
 
 ## 更新工作台
 
-从团队发放渠道取得新版 `agents-workbench-react.zip` 和该 ZIP 对应的工作台发行记录。支持导入的 Windows 正式工作台可在工程首页点击「导入工作台新版」，先选择 ZIP，再选择工作台发行记录。框架离线发行记录用于 `capability.bundle`。工作台校验材料后并排导入，用包内 Node 启动新版并核对当前工程和界面。其他工程使用同一发行包时，可复用内容一致的版本目录。
+从团队发放渠道取得新版工作台 ZIP 和同版本的工作台发行记录。支持导入的 Windows 正式工作台可在工程首页点击「导入工作台新版」，先选择 ZIP，再选择工作台发行记录。框架离线发行记录用于 `capability.bundle`。工作台校验材料后并排导入，用包内 Node 启动新版并核对当前工程和界面。其他工程使用同一发行包时，可复用内容一致的版本目录。
 
 检查通过后，可点击「打开新版工作台」。下次从原 `start-workbench.cmd` 打开当前工程时，启动器会优先使用已核验的新版。新版启动失败时，启动器自动打开旧版。也可在新版工程首页点击「恢复旧版工作台」，打开旧版并恢复该工程的默认版本。两个版本都可从各自安装目录启动，旧版页面可以继续处理已开始的工作。
 
@@ -101,7 +101,7 @@ node tools/agents-workbench/build/build-offline-package.js verify --package "<�
 
 ### 构建工作台发行包
 
-改动影响工作台或随包文件时，`c + p` 包含提交、推送、从同一提交打包验收并更新 `tools/dist/` 的正式包和发行记录。
+改动影响工作台或随包文件时，`c + p` 包含提交、推送、从同一提交打包验收、更新 `tools/dist/` 的正式包和发行记录，以及[本机试用解压](#本机试用解压)。
 
 从 0.2.1 起，正式发行的源码、编译后的界面、安装器和随包手册必须来自同一 Git 提交。先提交发布所需的代码和文档，再从该提交的干净工作区运行 `stage:release`。它先自动重建界面，再暂存发行所需文件。选用已按 [AI 开发离线环境](../../ai-dev-offline/README.md)清单校验的 Windows x64 Node 原包，解压后将其目录传给打包入口。暂存目录使用工作区外的任务专属新目录。
 
@@ -115,8 +115,8 @@ Pop-Location
 替换正式 ZIP 前完成以下核对。
 
 1. 在暂存目录核对 `workbench-release.json` 的版本、完整 Git 提交 SHA、Node 版本、安装器和随包文档摘要。团队使用手册、`docs/update-agents.md` 和 `docs/workspace-overlay.md` 均取自该提交，保留原路径。
-2. 将暂存内容压成待验收的 `agents-workbench-react.zip`，记录 ZIP 字节数和 SHA-256。用同一 ZIP 在独立中文空格目录解包，验证启动、工程绑定、离线打开使用手册及跳转更新恢复和 Overlay 两阶段流程。使用隔离工程验证首装、发现版本和复制提示词，核对只读发现前后的 Git 引用及落盘状态。
-3. 校验通过后，核对现有 ZIP 与原发行记录的 SHA-256，再一并移入 `tools/dist/history/agents-workbench-react/<旧版本>/`。将验证过的新版 ZIP 和 `agents-workbench-react.release.json` 放到 `tools/dist/`，再次核对文件大小、SHA-256 和记录内的源码提交。历史版本在各自目录保留同名 ZIP。
+2. 将暂存内容压成 `agents-workbench-react-<版本>.zip`，生成同版本的 `agents-workbench-react-<版本>.release.json`，记录 ZIP 字节数和 SHA-256。发行记录的 `file` 字段固定为兼容标识 `agents-workbench-react.zip`，旧版工作台仍可按所选路径导入。用同一 ZIP 在独立中文空格目录解包，验证启动、工程绑定、离线手册、更新恢复和 Overlay 两阶段流程。使用隔离工程验证首装、发现版本和复制提示词，核对只读发现前后的 Git 引用及落盘状态。
+3. 通过验收后，按[工具交付约定](../../README.md#工具交付约定)归档上一版 ZIP 与发行记录，更新 `tools/dist/` 的正式包和记录，再核对文件大小、SHA-256 和记录内的源码提交。
 
 Windows 隔离验收需要 Python Playwright、Edge 和 Git。此命令对照包外发行记录与 Git 核对候选 ZIP、手册和固定的框架运行树。它从同一个 ZIP 验证离线手册跳转、历史工程更新接续和新工程安装，并检查上游观测与实际落盘版本的区别。验收路径不使用系统 Node。
 
@@ -126,7 +126,13 @@ python tools/agents-workbench/tests/standard-pilot.py "<待验收 ZIP 路径>" -
 
 新版本同时验证试点工程当前使用的已核验版本。用 `--installed-revision <原工程的完整框架提交>` 可在隔离镜像复现该升级起点。需要继续支持的前序版本应登记完整提交和对应运行树，避免下次发包时丢失正常接续路径。
 
-可用 `python tools/agents-workbench/tests/release-browser-pilot.py "<待验收 ZIP>" "<对应包外发行记录>"` 复验换版。它从 `tools/dist` 当前正式包导入候选包，也可用 `--old-archive` 和 `--old-record` 指定历史正式包。验收通过原 PowerShell 导入器和 Windows Edge 检查工程独立、从新版入口回退，以及候选目录不可用或新版进程启动后退出时的自动回退。测试预先提供文件路径，现场选择窗口另行验证。
+可用 `python tools/agents-workbench/tests/release-browser-pilot.py "<待验收 ZIP>" "<对应包外发行记录>"` 复验换版。它从 `tools/dist` 中唯一的当前正式包导入候选包，兼容历史固定名。用 `--old-archive` 和 `--old-record` 可指定历史正式包。验收通过原 PowerShell 导入器和 Windows Edge 检查工程独立、从新版入口回退，以及候选目录不可用或新版进程启动后退出时的自动回退。测试预先提供文件路径，现场选择窗口另行验证。
+
+### 本机试用解压
+
+1. 正式包验收通过后，用上次交付记录和包内版本定位旧试用目录。核对路径位于 `tools/dist/ai-tools/`，确认归属、目录及文件均为普通条目，且没有运行占用或后续用途，即可在重新解压前删除。保留工作台导入的版本、回退所需目录、含 `.workbench-launch` 的目录及归属不明的目录。
+2. 从正式 ZIP 在任务临时目录完整解压，核对包内版本、源码提交和 `start-workbench.cmd`，再放入 `tools/dist/ai-tools/agents-workbench-react-<版本>/`。目标冲突时保留现场并报告。
+3. 本次交付结果记录试用目录并给出 `start-workbench.cmd` 入口，供下次定位旧副本。正式 ZIP 和发行记录沿历史归档流程保存。
 
 ## 开发预览
 

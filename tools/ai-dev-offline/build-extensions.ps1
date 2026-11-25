@@ -1,13 +1,18 @@
 #requires -Version 5.1
 param([string]$OutputFile)
 $ErrorActionPreference='Stop'
-if(-not $OutputFile){$OutputFile=Join-Path $PSScriptRoot '../dist/ai-dev-offline-extensions.zip'}
+$manifest=Get-Content -LiteralPath "$PSScriptRoot/extensions.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+if(-not $OutputFile){
+    . (Join-Path $PSScriptRoot 'release-artifact.ps1')
+    $OutputFile=Get-AiDevArtifactPath (Join-Path $PSScriptRoot '../dist') 'ai-dev-offline-extensions' $manifest.releaseVersion
+    Assert-AiDevArtifactSlot $OutputFile 'ai-dev-offline-extensions'
+}
 if(Test-Path -LiteralPath $OutputFile){throw 'extensions-output-already-exists: archive the previous ZIP before rebuilding'}
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 Add-Type -AssemblyName System.IO.Compression
-$manifest=Get-Content -LiteralPath "$PSScriptRoot/extensions.json" -Raw -Encoding UTF8 | ConvertFrom-Json
 $partial=[IO.Path]::GetFullPath($OutputFile)+'.partial'
 if(Test-Path -LiteralPath $partial){throw 'partial-already-exists'}
+[void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($partial))
 try {
     $zip=[IO.Compression.ZipFile]::Open($partial,[IO.Compression.ZipArchiveMode]::Create)
     try {foreach($component in $manifest.extensions){

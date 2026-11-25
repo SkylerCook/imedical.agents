@@ -38,7 +38,8 @@ test.before(async () => {
   fs.mkdirSync(parent, {recursive: true});
   portableParent = fs.mkdtempSync(path.join(parent, 'iris-portable-'));
   const target = path.join(portableParent, '独立 工具');
-  const zip = path.join(repository, 'tools/dist/iris-code-export.zip');
+  const packageVersion = fs.readFileSync(path.join(repository, 'tools/iris-code-export/VERSION'), 'utf8').trim();
+  const zip = process.env.IRIS_TEST_PORTABLE_ZIP || path.join(repository, `tools/dist/iris-code-export-${packageVersion}.zip`);
   const result = await invoke('Expand-Archive -LiteralPath ' + quote(zip) + ' -DestinationPath ' + quote(target) + ' -ErrorAction Stop');
   assert.equal(result.code, 0, result.stderr);
   portableRoot = target;
@@ -566,12 +567,17 @@ function versionFixture(f, {mixed = false} = {}) {
 }
 test('all packaged version catalogs pass offline planning with scope and mixed Web paths disclosed', {skip: !windows}, async t => {
   const f = fixture(t), output = path.join(f.root,'snapshot');
+  const catalogRoot = path.join(repository, 'docs/reference/project-export-map/doctor');
+  const versions = [['v8.3','doctor'],['v8.4','doctor'],['v8.5','doctor'],['v9.0','doctor'],
+    ['v9.0.2','doctor'],['v9.1','doctor'],['v9.2','all-products']];
   let result = await run('export-version-baseline.ps1', ['-ListVersions']);
-  assert.equal(result.code,0,result.stderr); assert.equal(JSON.parse(result.stdout).length,7);
-  for (const [version, count, scope] of [['v8.3',910,'doctor'],['v8.4',2850,'doctor'],['v8.5',3141,'doctor'],['v9.0',3426,'doctor'],['v9.0.2',3705,'doctor'],['v9.1',4796,'doctor'],['v9.2',5352,'all-products']]) {
+  assert.equal(result.code,0,result.stderr); assert.equal(JSON.parse(result.stdout).length,versions.length);
+  for (const [version, scope] of versions) {
+    const original = fs.readFileSync(path.join(catalogRoot, `${version}.txt`), 'utf8');
+    const codeCount = original.split(/\r?\n/).filter(line => /^(?!#).+\.(?:cls|mac|inc|int|csp|csr|js|css|html|htm)$/i.test(line.trim())).length;
     result = await run('export-version-baseline.ps1', ['-Version',version,'-Scope',scope,'-OutputDirectory',output,'-PlanOnly']);
     assert.equal(result.code,0,result.stderr); const preview=JSON.parse(result.stdout);
-    assert.equal(preview.total,count); assert.equal(preview.webPathsNeedConfirmation,version==='v9.1'); assert.equal(fs.existsSync(output),false);
+    assert.equal(preview.total,codeCount); assert.equal(preview.webPathsNeedConfirmation,version==='v9.1'); assert.equal(fs.existsSync(output),false);
     assert.equal(preview.selection.meaning,'version-defines-scope-content-from-current-instance');
   }
   for (const version of ['v9.2','v9.9']) {
