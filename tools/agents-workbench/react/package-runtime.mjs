@@ -142,6 +142,8 @@ for (const file of [
   "tools/agents-workbench/src/release-launcher.js",
   "tools/agents-workbench/src/release-selection.js",
   "tools/agents-workbench/src/start-release.js",
+  "tools/agents-workbench/src/recent-projects.js",
+  "tools/agents-workbench/src/project-open.js",
   "tools/agents-workbench/src/release-update.js",
   "tools/agents-workbench/src/framework-service.js",
   "tools/agents-workbench/src/framework-worker.js",
@@ -184,7 +186,9 @@ for (const directory of pluginDirectories.filter(Boolean)) {
 }
 
 const { version } = JSON.parse(readFileSync(join(repo, react, "package.json"), "utf8"));
-const startup = runtime ? `将 ZIP 完整解压，在 Windows x64 上双击新版 \`start-workbench.cmd\`。可在 Windows 文件夹对话框的地址栏粘贴工程路径并选择文件夹，浏览器随后打开工作台。包内提供便携 Node.js ${nodeVersion}。
+const startup = runtime ? `将 ZIP 完整解压，在 Windows x64 上双击新版 \`start-workbench.cmd\`。工作台会打开上次成功进入的工程。首次使用或没有可用的上次记录时，系统会请你选择工程文件夹。可在对话框地址栏粘贴工程路径。包内提供便携 Node.js ${nodeVersion}。
+
+在工作台顶部点击当前工程名，可从「最近打开」另开已访问工程，或用「打开工程…」选择新目录。选到当前工程时留在原页签。最近记录按 Windows 用户保存在本机，卸载或更换工作台包后仍可沿用。
 
 \`\`\`powershell
 & ./start-workbench.cmd --project "<工程根目录>"
@@ -214,7 +218,7 @@ ${runtime ? "\n已有工程断网更新时，把另行核验的框架物料一�
 
 ${formal
     ? "在工程首页导入团队发放的新版 ZIP 和包外发行记录后，原启动器会为该工程优先打开已核验的版本。新版启动失败时自动使用旧版，也可在新版首页点击「恢复旧版工作台」。"
-    : "将试用 ZIP 完整解压到独立的新目录，双击新目录的 `start-workbench.cmd`，选择同一工程即可。继续用旧版本时，打开原目录的启动器。正式版界面里的「导入工作台新版」只接受带包外发行记录的正式 ZIP。"}
+    : "将试用 ZIP 完整解压到独立的新目录，从新目录的 `start-workbench.cmd` 打开工程。继续用旧版本时，从原目录启动。正式版界面里的「导入工作台新版」只接受带包外发行记录的正式 ZIP。"}
 
 ## 启动与退出
 
@@ -222,7 +226,7 @@ ${formal
 
 使用 --demo 可查看虚构工程。
 
-双击启动器并选择工程后，浏览器打开工作台，命令窗口自动关闭。每个实例仅监听 127.0.0.1，可并行打开多个工程。关闭同一实例最后一个工作台页面后自动退出，刷新时有短暂的重连时间。退出等待已接受的操作完成，向量构建在当前批次保存并读回后暂停。需要查看启动输出时可在终端用 --project 指定工程，按 Ctrl+C 也可请求退出。
+双击启动器打开工程后，浏览器打开工作台，命令窗口自动关闭。每个实例仅监听 127.0.0.1，可并行打开多个工程。关闭同一实例最后一个工作台页面后自动退出，刷新时有短暂的重连时间。退出等待已接受的操作完成，向量构建在当前批次保存并读回后暂停。需要查看启动输出时可在终端用 --project 指定工程，按 Ctrl+C 也可请求退出。
 `, "utf8");
 
 const sha256 = relative => createHash("sha256").update(readFileSync(join(destination, relative))).digest("hex");

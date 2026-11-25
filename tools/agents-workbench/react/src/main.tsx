@@ -14,6 +14,7 @@ import {
 import { DemoPages } from "./demo-pages";
 import { demoName, projects } from "./demo-model";
 import { AppearanceMenu } from "./appearance";
+import { ProjectMenu } from "./project-menu";
 import { RealPages } from "./real-pages";
 import { href, readRoute, type DemoId, type Navigation, type Page, type Params } from "./routes";
 import { Status } from "./ui";
@@ -134,7 +135,8 @@ function Workbench() {
       <header className="flex min-h-12 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
         <SidebarTrigger className="-ml-1 shrink-0" />
         <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-        <h1 className="min-w-0 truncate text-base font-medium" title={name}>{name}</h1>
+        {!demo && boundName ? <ProjectMenu name={name} />
+          : <h1 className="min-w-0 truncate text-base font-medium" title={name}>{name}</h1>}
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {demo && <>
           {demoLabel?.parent && <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex"><a href={href("modules", "root")}>所属工作区</a></Button>}

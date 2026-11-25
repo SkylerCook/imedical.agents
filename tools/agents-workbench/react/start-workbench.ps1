@@ -1,4 +1,17 @@
-﻿$ErrorActionPreference = 'Stop'
+﻿param([switch]$PickOnly)
+$ErrorActionPreference = 'Stop'
+
+$node = Join-Path $PSScriptRoot 'runtime\node.exe'
+$entry = Join-Path $PSScriptRoot 'tools\agents-workbench\src\start-release.js'
+if (-not $PickOnly) {
+    $encodedProject = & $node $entry --recent-project
+    if ($LASTEXITCODE -eq 0 -and $encodedProject) {
+        # Base64 keeps non-ASCII paths intact through Windows PowerShell's native stdout decoding.
+        $projectRoot = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encodedProject))
+        & $node $entry --background --open --project $projectRoot
+        exit $LASTEXITCODE
+    }
+}
 
 Add-Type -TypeDefinition @'
 using System;
@@ -100,7 +113,10 @@ public static class WorkbenchFolderPicker
 $projectRoot = [WorkbenchFolderPicker]::Select('选择工程文件夹')
 if (-not $projectRoot) { exit 0 }
 
-$node = Join-Path $PSScriptRoot 'runtime\node.exe'
-$entry = Join-Path $PSScriptRoot 'tools\agents-workbench\src\start-release.js'
+if ($PickOnly) {
+    [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+    [Console]::WriteLine($projectRoot)
+    exit 0
+}
 & $node $entry --background --open --project $projectRoot
 exit $LASTEXITCODE

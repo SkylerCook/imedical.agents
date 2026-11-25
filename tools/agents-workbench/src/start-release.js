@@ -5,11 +5,19 @@ const { once } = require('node:events');
 const path = require('node:path');
 const { localApplication, readSelection, saveSelection } = require('./release-selection');
 
+function recentTarget(args, root) {
+  if (!root || !args.includes('--open') || args.includes('--demo')) return null;
+  try { return require('./recent-projects').projectIdentity(path.resolve(root)); }
+  catch { return null; }
+}
+
 async function launchBackground(args) {
   const { openBrowser, readStartupAddress } = require('./release-launcher');
   const deadline = new AbortController();
   const timer = setTimeout(() => deadline.abort(), 25000).unref();
   const open = args.includes('--open');
+  const index = args.indexOf('--project');
+  const recent = index === -1 ? null : recentTarget(args, args[index + 1]);
   let child;
   try {
     child = fork(__filename, args.filter(arg => !['--background', '--open'].includes(arg)), {
@@ -25,6 +33,7 @@ async function launchBackground(args) {
     if (open && !await openBrowser(`${origin}/#bootstrap=${message.bootstrap}`, deadline.signal)) {
       throw Error('Could not open the browser. Please restart Workbench.');
     }
+    if (recent) await require('./recent-projects').rememberProject(recent.path, recent.id);
     console.log(`Workbench: ${message.address}`);
     if (process.connected) process.send({ ...message, pid: child.pid });
     if (child.connected) child.disconnect();
@@ -54,6 +63,7 @@ async function openDefault(projectRoot) {
   if (!selection || selection.current.base) return false;
 
   const { launchSelectedRelease, openBrowser } = require('./release-launcher');
+  const recent = recentTarget(process.argv, projectRoot);
   const startup = new AbortController();
   const signals = ['SIGINT', 'SIGTERM', 'SIGBREAK'];
   let next = selection.current;
@@ -90,7 +100,9 @@ async function openDefault(projectRoot) {
     const address = new URL(started.address);
     console.log(`Workbench: ${address.origin}/#home`);
     if (process.send) process.send({ address: `${address.origin}/#home`, bootstrap: address.hash.slice('#bootstrap='.length) });
-    if (process.argv.includes('--open')) openBrowser(started.address);
+    if (process.argv.includes('--open') && await openBrowser(started.address) && recent) {
+      await require('./recent-projects').rememberProject(recent.path, recent.id);
+    }
     const [code] = await started.ended;
     process.exitCode = code ?? 1;
     return true;
@@ -101,6 +113,14 @@ async function openDefault(projectRoot) {
 
 const projectIndex = process.argv.indexOf('--project');
 async function main() {
+  if (process.argv.length === 3 && process.argv[2] === '--recent-project') {
+    const recent = require('./recent-projects').lastRecentProject();
+    if (recent) process.stdout.write(Buffer.from(recent.path, 'utf8').toString('base64') + '\n');
+    return;
+  }
+  if (process.platform === 'win32' && process.argv.includes('--open') && !process.argv.includes('--demo')) {
+    process.env.WORKBENCH_TRACK_PROJECTS = '1';
+  }
   if (process.platform === 'win32' && process.argv.includes('--background')) return launchBackground(process.argv.slice(2));
   if (!await openDefault(projectIndex === -1 ? null : process.argv[projectIndex + 1])) require('../prototype/serve');
 }
