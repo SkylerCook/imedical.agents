@@ -6,9 +6,9 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { resolveWorkspaceContext, resolveSourceFilePath, resolveGitRootForPath } = require('../../../scripts/lib/workspace-context');
+const { TYPES, configureHook, verifyStandardCommitMessage } = require('./commit-message-policy');
 
 const SCHEMA = 'iris-demand-commit-plan/v1';
-const TYPES = new Set(['feat', 'fix', 'refactor', 'docs', 'chore']);
 const KINDS = new Set(['standard', 'project']);
 const PROCESS_BUDGET_MS = 120000;
 const processStartedAt = Date.now();
@@ -490,12 +490,25 @@ function verifyCommand(args) {
 }
 
 function main() {
+  const [, , command, action, ...options] = process.argv;
+  if (command === 'hook') {
+    const args = parseArgs(['node', 'commit-demand.js', command, ...options]);
+    if (!['enable', 'status', 'disable'].includes(action) || !args.repo || options.length !== 2) {
+      throw new Error('用法: commit-demand.js hook <enable|status|disable> --repo <Git 仓库根目录>');
+    }
+    console.log(JSON.stringify(configureHook(path.resolve(args.repo), action), null, 2));
+    return;
+  }
   const args = parseArgs(process.argv);
   if (args.command === 'plan') planCommand(args);
   else if (args.command === 'review') reviewCommand(args);
   else if (args.command === 'apply') applyCommand(args);
   else if (args.command === 'verify') verifyCommand(args);
-  else throw new Error('用法: commit-demand.js <plan|review|apply|verify> ...');
+  else if (args.command === 'verify-message') {
+    if (!args.repo || !args.commit || !args.demand) throw new Error('用法: commit-demand.js verify-message --repo <仓库> --commit <完整 SHA> --demand <需求号>');
+    verifyStandardCommitMessage(path.resolve(args.repo), args.commit, args.demand);
+    console.log(JSON.stringify({ status: 'verified', commit: args.commit, demand: args.demand }));
+  } else throw new Error('用法: commit-demand.js <plan|review|apply|verify|verify-message|hook> ...');
 }
 
 if (require.main === module) {

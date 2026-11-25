@@ -65,8 +65,16 @@ test('preserves server Storage in upload and backfills it to source after compil
 
 test('deploys the full SQLStorage extension and verifies the compiled map by column and Piece', async t => {
  const {baseline,candidate,mapping}=sqlStorageFixture();
- const f=fixture(t,[candidate]),file=f.files[0];
+ const invalid=candidate.replace('<Piece>6</Piece>','<Piece>5</Piece>');
+ const f=fixture(t,[invalid]),file=f.files[0];
  f.remote.set(file.remotePath,Buffer.from(baseline));
+ const blocked=await run({...f,kind:'backend'});
+ assert.equal(blocked.reason,'storage-review-required');
+ assert.equal(blocked.details.cause,'candidate-storage-change');
+ assert.match(blocked.details.hint,/Property.*SQLMap.*Data.*SqlFieldName/);
+ assert.match(blocked.details.hint,/<Delimiter>"\^"<\/Delimiter>.*已映射最大段号的 Piece.*保留原有段号/);
+ assert.deepEqual(f.events,['read:'+file.remotePath]);
+ fs.writeFileSync(file.localPath,candidate);
  const formatted=candidate.replace(mapping,'').replace('<Data name="Current_Value">',mapping+'<Data name="Current_Value">');
  const put=f.adapter.put;
  f.adapter.put=async upload=>{
@@ -156,7 +164,17 @@ test('new persistent class round trip and property evolution preserve BOM, CRLF 
  assert.equal(result.status,'verified');assert.equal(result.localStorageSync.files[0],file.remotePath);
  let local=fs.readFileSync(file.localPath,'utf8');assert.ok(local.startsWith('\uFEFF'));assert.ok(!local.replace(/\r\n/g,'').includes('\n'));
  assert.ok(local.includes('/// local comment\r\nProperty Name As %String;\r\n'));
- const updated=local.replace('Property Name As %String;','Property Name As %String;\r\nProperty Added As %String;');fs.writeFileSync(file.localPath,updated);version++;
+ const updated=local.replace('Property Name As %String;','Property Name As %String;\r\nProperty Added As %String;');
+ const handEdited=updated.replace('</Data>','<Value name="2"><Value>Added</Value></Value>\r\n</Data>');
+ assert.notEqual(handEdited,updated);
+ fs.writeFileSync(file.localPath,handEdited);
+ result=await run({...f,kind:'backend'});
+ assert.equal(result.reason,'storage-review-required');
+ assert.equal(result.details.cause,'candidate-storage-change');
+ assert.match(result.details.hint,/%Storage\.Persistent.*只新增 Property.*保留基线的既有 Storage.*编译并核对回填结果/);
+ assert.equal(compiles,1);
+ assert.equal(f.events.filter(event=>event.startsWith('put:')).length,1);
+ fs.writeFileSync(file.localPath,updated);version++;
  result=await run({...f,kind:'backend'});assert.equal(result.status,'verified');assert.equal(result.files[0].storageSynced,true);
  local=fs.readFileSync(file.localPath,'utf8');assert.ok(local.includes('<Value name="2">'));assert.ok(local.includes('Property Added As %String;\r\n'));
  const before=fs.readFileSync(file.localPath);f.adapter.compile=async()=>({status:'compiled'});
@@ -207,7 +225,10 @@ test('all preflights run before writes: Storage conflicts and invalid UTF8 stop 
  assert.equal(f.events.some(x=>x.startsWith('put:')),false);
  const storage=fixture(t,['Class Demo.A\n{\n}\n','Class Demo.B\n{\nStorage Default\n{\n<DataLocation>^Local</DataLocation>\n}\n}\n']);
  storage.remote.set(storage.files[1].remotePath,Buffer.from('Class Demo.B\n{\nStorage Default\n{\n<DataLocation>^Remote</DataLocation>\n}\n}\n'));
- assert.equal((await run({...storage,kind:'backend'})).reason,'storage-review-required');
+ const blocked=await run({...storage,kind:'backend'});
+ assert.equal(blocked.reason,'storage-review-required');
+ assert.equal(blocked.details.cause,'candidate-storage-change');
+ assert.match(blocked.details.hint,/只读核对基线、远端和待上传源码，确认实际存储策略/);
  assert.equal(storage.events.some(x=>x.startsWith('put:')),false);
 });
 

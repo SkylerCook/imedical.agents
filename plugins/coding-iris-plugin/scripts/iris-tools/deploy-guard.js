@@ -136,10 +136,16 @@ function validate(file,content,base,remote) {
  let sqlStorage;
  if(/\.cls$/i.test(file)) {
   const previousStorage=storage(base);
-  if(previousStorage!==storage(remote))stop('storage-review-required',{file});
+  if(previousStorage!==storage(remote))stop('storage-review-required',{
+   file,cause:'remote-storage-drift',
+   hint:'远端 Storage 与部署基线不一致。先只读核对远端类、当前会话基线和最近一次部署回执，确认是否已有编译回填或其他变更，再决定如何处理。再次编译不会消除基线差异。'
+  });
   if(previousStorage!==storage(content)) {
-   sqlStorage=require('./storage-sync').sqlStorageExtension(base,content,remote);
-   if(!sqlStorage)stop('storage-review-required',{file});
+   const {sqlStorageExtension,storageReviewHint}=require('./storage-sync');
+   sqlStorage=sqlStorageExtension(base,content,remote);
+   if(!sqlStorage)stop('storage-review-required',{
+    file,cause:'candidate-storage-change',hint:storageReviewHint(previousStorage ? base : null)
+   });
   }
  }
  if(/^(<<<<<<< |=======\s*$|>>>>>>> )/m.test(content))stop('conflict-markers',{file});

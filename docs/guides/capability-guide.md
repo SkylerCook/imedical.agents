@@ -89,6 +89,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) 的 `--plan` 为已验证改动生成方案，明确 `--commit` 才执行本地提交；push 独立授权。当前用户或项目约定须明确 standard/project、标题与精确文件，默认要求数字需求号，无需 IRIS profile。project 提前开发尚无编号时，显式使用 `demand-commit --plan --no-id` 或 `demand-commit --commit --no-id`；仅该参数不产生提交授权，standard 仍须编号。
 
+新标版提交在框架推送前按实际 SHA 核对完整消息。选定的标版业务仓可用 Git 2.54+ 显式启用本地格式钩子，已有共享钩子继续生效。 [标版提交格式](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md#提交格式)
+
 上游更新与需求无交集、内容和消息未变时，按[同步复核协议](../../plugins/demand-delivery-plugin/references/commit-upstream-check.md#head-前进后的自动接续)由 Agent 重新 plan 后沿用已有授权接续。技能自行同步，有无 hook 均适用；`--plan` 仍不联网或提交。
 
 已有需求需要提交时使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md)。用户连续验收多个需求时使用 [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md)。报告按[共享测试协议](../../agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)。
@@ -328,7 +330,7 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 - [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：默认开发待办，`--proj` 仅项目来源，`--dev` 产品（所有非项目来源），可独立调用或与带日期的 `--workload` 组合，完整说明见[来源口径](../../plugins/bos-plugin/references/usage.md#项目与产品非项目来源口径)。`--todo` 查全部个人开发待办，`--todo 2026-10-23` 按预计完成时间查单日；`--workload 2026-10-01 2026-10-23` 按执行时间查工作量，日期必填，范围也可写为 `2026-10-01~2026-10-23`。新入口按接受人、当前人和状态组合分类，清除默认当前组，输出实际口径及待核对项，见[个人查询口径](../../plugins/bos-plugin/references/usage.md#个人待办与工作量口径)。所有待办默认创建日期升序，个人查询支持 `--sort 预计完成时间 --order asc` 等五类日期排序，排序与筛选独立，见[日期排序口径](../../plugins/bos-plugin/references/usage.md#日期排序口径)。默认列表含创建时间、需求号/完整标题，末尾默认追加发起人/发起组，可指定其它列或“只要需求串”（单行半角逗号分隔编号），格式选择仅影响 Agent 展示，完整契约见[输出格式](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md#输出格式)。原编号详情、发起/接受/当前人员或组及历史查询继续可用，旧通用 pending 仍按默认当前人＋所在组；切换筛选明确清除不用的默认条件。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。更新能力包并刷新已启用索引取得新入口，无私有配置迁移或旧文件清理。
 - [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，主动读取相关媒体并按项目技术栈实现与验证；“验收后提交”授权本地提交，标版需求全部实仓提交校验成功后自动准备本次日志计划，再请求 BOS 补录授权。“验收后提交并将本次提交补录到 BOS 代码更新日志”可提前明确两项授权。配置缺失、拒绝或补录失败保留本地已提交结果；完整正文可在 BOS 不可用时继续本地工作。
 
-- [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：仅标版适用，其他类型跳过且不列日志待办。请求“预览这些提交的 BOS 代码更新日志”只运行 plan；明确“把这些提交补录到 BOS”才执行 submit。只读已核验的实仓 commit，选择须明确 repo/ref/完整 hash；worktree 先合实仓，跨仓说明全部保留，不执行本地 commit/push；token 与 linkProject 使用本技能配置段，缺失不影响需求查询。
+- 代码更新日志仅适用标版需求。先按 repo/ref/完整 SHA 预览实仓提交，worktree 先合入实仓。预览会拦住无可登记文件的提交。历史消息格式有误且归属可核实时，可以补齐菜单和修改说明，再按原 SHA 查重及补录。BOS 写入沿用独立授权。token 与 linkProject 读取日志配置段。 [BOS 补录入口](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)
 
 工作量漏计或页面数量不同，按[差异复核](../../plugins/bos-plugin/references/usage.md#工作量差异复核)刷新原范围、逐号比较并解释待核对原因；输出并列候选、计入与待核对数，开发测试阶段按当前个人口径判断。
 

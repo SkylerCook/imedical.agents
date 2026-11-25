@@ -22,7 +22,7 @@ function fixture(t) {
   const repo = path.join(root, 'repo'); fs.mkdirSync(repo); git(repo, 'init', '-b', 'dev');
   const commit = (target, file, id = '100') => {
     fs.writeFileSync(path.join(target, file), id + '\n'); git(target, 'add', file);
-    git(target, 'commit', '-m', `fix(${id}):synthetic\n修改说明: preserve the selected behavior`);
+    git(target, 'commit', '-m', `fix(${id}):synthetic\n修改说明: preserve the selected behavior\n需求描述:${id} synthetic demand`);
     return git(target, 'rev-parse', 'HEAD');
   };
   const baseHash = commit(repo, 'base.txt', '1');
@@ -121,7 +121,11 @@ function batch(f, noCodeParent = false) {
   const pass = id => act('decide', { id, actor: 'user', quote: id + ' passed', status: 'passed' });
   const claim = id => { act('claim', { id, owner: 'worker' }); act('publish', { id, owner: 'worker' }); };
   const record = (id, phase, receipt, status = 'succeeded') => act('record', { id, owner: 'worker', phase, status, receipt });
-  const commit = (id, file, hash) => record(id, 'commit', { status: 'verified', demand: id, repositories: [{ root: f.repo, files: [file], message: `fix(${id}):synthetic\n修改说明: selected behavior`, execution: { status: 'verified', commit: hash } }] });
+  const commit = (id, file, hash) => record(id, 'commit', {
+    status: 'verified', kind: 'standard', demand: id,
+    repositories: [{ root: f.repo, files: [file], message: f.git(f.repo, 'show', '-s', '--format=%B', hash), execution: { status: 'verified', commit: hash } }],
+    i18nReview: { result: 'no-visible-impact', evidence: 'Only synthetic fixture files changed', commits: [{ root: f.repo, commit: hash }] }
+  });
   const bos = id => record(id, 'bos', { requirementCode: id, codeOwnerRequirementCode: id === '101' ? '100' : id, linkProject: 'synthetic', select: acceptance.selection(item(id)), submitted: true, resultCodes: ['000'] });
   const push = (id, hash) => record(id, 'push', { repositories: [{ key: 'ui', remote: 'origin', ref, commit: hash, remoteHash: f.git(f.repo, 'rev-parse', 'HEAD'), verified: true, containsVerified: true }] });
   return { state, act, item, pass, claim, record, commit, bos, push };

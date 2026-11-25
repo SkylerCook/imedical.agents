@@ -125,6 +125,18 @@ project 显式使用 `--no-id` 时省略需求号括号，保留两行：
 
 用户指定的 `type` 优先；否则按实际变更选择：新增能力用 `feat`，修复缺陷用 `fix`，无行为变化的结构调整用 `refactor`，纯文档用 `docs`，构建或配置维护用 `chore`。一个计划只处理一个需求号或一项明确无编号的 project 改动；独立需求不得合并提交。已确认主子需求的共享代码按[代码归属协议](../../../../docs/demand-code-ownership.md)唯一绑定主需求号，子需求引用该结果；不为子项重复提交或改写阶段历史。
 
+### 仓库级标版提交检查
+
+Git 2.54 或更新版的标版仓库可按需启用仓库本地命名 `commit-msg`。对明确指定的每个 Git 仓库根目录执行一次，前后端子仓分别配置。启用和停用在仓库主工作树执行，关联 worktree 共用同一仓库配置。已有 `core.hooksPath` 和其他钩子继续生效。普通 commit 和 amend 执行三行格式校验，Git 处于 merge、cherry-pick、revert 时保留其维护消息。仅对采用标版格式的仓库启用。
+
+```powershell
+node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js hook enable --repo <Git仓库根目录>
+node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js hook status --repo <Git仓库根目录>
+node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js hook disable --repo <Git仓库根目录>
+```
+
+本地 hook 记录运行命令的 Node.js 与脚本路径。升级或移动两者后再运行 `hook enable` 刷新。框架推送前核验独立于本地 hook，仅使用已确认的仓库、完整 SHA 和需求号，包括仍使用旧 Git 的项目。检查历史内容时使用 `%B` 读取全文，`--oneline` 仅显示首行。
+
 ## 仓库与文件边界
 
 - 以本次需求明确修改的文件为输入，通过文件路径解析 GitRoot。

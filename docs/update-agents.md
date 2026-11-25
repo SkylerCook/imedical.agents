@@ -791,6 +791,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 ## Git hook 可选启用
 
+标版提交消息检查随需求交付插件更新。在 Git 2.54+ 的选定标版业务仓，使用需求交付插件的仓库级命名钩子启停，现有共享钩子继续运行。框架推送新标版提交前仍会核对完整消息。下方的安装脚本负责提交前差异降噪。 [标版提交格式](../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md#提交格式)
+
 `.agents` 会随安装或更新分发提交前差异降噪能力，但不会自动启用：
 
 - `.agents/hooks/pre-commit`

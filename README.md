@@ -278,7 +278,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：默认个人待办，`--proj` 项目 / `--dev` 产品（非项目）可组合；`--todo [日期或范围]` 查个人开发待办（可不带日期，带日期按预计完成时间），`--workload 日期或范围` 查工作量（执行日期必填）；人员流转及状态组合见[个人查询口径](plugins/bos-plugin/references/usage.md#个人待办与工作量口径)。原人员/组、历史与编号详情查询继续可用；默认列表含创建时间，待办默认创建日期升序，可用 `--sort` / `--order` 指定其它日期及方向；必含需求号/标题，末尾默认追加发起人/发起组，可指定其它列或“只要需求串”，见[输出格式](plugins/bos-plugin/skills/bos-demand-query/SKILL.md#输出格式)。区分正文、图片和附件，不写回 BOS。
 - [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从 Git、主题及资料或工作记录生成需求文本/Excel；名称按[标版标签规则](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)逐条判断；支持给其他组提需，回填编号后仅代码按需衔接提交；结合上下文判断完成状态，已完成条目追加备注；无需查询凭据。
 - [主子需求与代码归属](docs/demand-code-ownership.md)：业务按验收拆分，共享代码唯一归主需求，主子日志复用真实提交；明确无代码可跳过对应阶段。
-- [bos-code-update-log](plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：仅为标版需求从已核验实仓 commit 生成预览并按授权补录 BOS 代码更新日志，worktree 先合入实仓；独立凭据与需求查询共用私有文件。
+- [bos-code-update-log](plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：为标版需求从已核验实仓 commit 生成预览并按授权补录。历史提交的消息格式有误时可按原 SHA 补录，预览阶段会指出无可登记文件的提交。worktree 先合入实仓，日志与需求查询共用私有配置文件。
 - [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，主动读取相关媒体并按技术栈实施、自查和验证；全部实仓提交校验成功后复用本次 repo/ref/hash 准备日志计划，再按明确 BOS 授权补录。IRIS 专项直达，正式协作按条件加载。
 
 0.4.0 统一按 skill 分段的私有配置，旧平铺文件须明确迁移，运行时不回退旧连接来源；见插件配置说明。插件默认 available。个人查询可使用用户级入口，不要求启用业务项目；项目使用按 profile 接入。普通更新不修改私有配置、用户级入口或客户端设置。首次使用与已有用户迁移见 [配置说明](plugins/bos-plugin/references/usage.md)和[接入说明](plugins/bos-plugin/references/adoption.md)，流程见 [bos-demand workflow](workflows/bos-demand.workflow.md)。
@@ -311,6 +311,8 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 日常交付回执把当前结论和待处理事项放在前面，按目标仓库列出提交和推送核验结果。 [交付回执示例](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#交付回执)
 
+框架推送新标版提交前检查实际提交对象的完整消息。Git 2.54+ 可对选定的标版业务仓另行启用本地格式钩子，已有钩子继续运行。 [标版提交格式](plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md#提交格式)
+
 ### coding-iris-plugin
 
 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力：
@@ -322,7 +324,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - CSP、JavaScript、CSS、HISUI 前端统一使用 canonical `utf8`：标版、医院项目的源码、上传内容和服务器运行编码均为 UTF-8，实际文件字节检测是最终门禁；旧 GB2312 仅保留显式历史工程兼容，明确的 backend-only Overlay 则记录 `N/A (backend-only)`。
 - 前端任务按目标工程 `project.jsonc` 的 `plugins` 节 执行条件 i18n 门禁：只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时，才追加 i18n 规则与稳定 key 检查；普通前端需求不进入完整 i18n workflow。
 - 本地优先、按需上传/编译的工作流约束。后端编译后回读并仅回填 Storage，覆盖新增表和字段演进；失败区分远端已编译与本地未同步，受管夜跑保留源码冻结版本复审门禁，见 [部署契约](plugins/coding-iris-plugin/references/deployment-protection.md#编译后-storage-同步)。
-- 已有 SQL Storage 类可随新增持久化字段部署符合条件的 `^` 分段映射，编译后回读核对字段落位。见[显式 SQL Storage 新增字段](plugins/coding-iris-plugin/references/deployment-protection.md#显式-sql-storage-新增字段)。
+- 已有显式 SQL Storage 类使用 `^` 分段时，新增持久化字段须同步填写 `SQLMap` 的新段位，编译后回读核对字段落位。部署拦截会提示先核对远端基线或如何修正上传候选。 [显式 SQL Storage 新增字段](plugins/coding-iris-plugin/references/deployment-protection.md#显式-sql-storage-新增字段)
 - 当前前端 UTF-8 原样编辑、导出和上传流程，以及仅供显式历史工程使用的 legacy GB2312 promote 兼容流程。
 - HISUI 控件/API 按需读取 `references/hisui-widget-index.md`，主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`；弹窗内面板留白、裁切与滚动异常见[宽度排查指导](plugins/coding-iris-plugin/references/hisui-style-index.md#弹窗内面板的宽度留白与滚动)。
 - HISUI 资产固定到上游 `4c09319`（2026-10-12），从 Gitee 的 `wanghc123/hisui` 检查更新。来源、构建与文件 SHA-256 见 [vendor 说明](vendor/hisui/README.md)；源仓具备只读检查、固定提交重建、校验与失败回滚入口，coding-iris-plugin 0.17.1 同步源码索引。沿正常能力包更新分发，不改已有项目预览路径；上游已知资源缺项与实际 HIS 应用 helper 分开核对。

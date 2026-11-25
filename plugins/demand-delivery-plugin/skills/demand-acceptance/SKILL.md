@@ -70,7 +70,9 @@ description: 连续接收人工需求验收并交付。demand-acceptance --pass 
 1. 向 demand-commit、push 和 bos-code-update-log 传递用户原话、已确定的批次范围和对应目标。遇到权限请求按[宿主审批](#宿主审批)接续。依赖、配置或权限缺口只阻塞受影响的阶段，先完成可独立推进的工作。
 2. 每条需求确定一名交付者。检查文件所属仓库与 worktree；不同活动 Git 写入者使用独立 worktree。同一目标仓库/分支的 commit→push 发布段串行，交付者开始该段前取得唯一发布权；全部约定 Git 动作成功后立即释放发布权和 worktree 写入占有，BOS 补录保留原交付者与来源证据，下一条可继续。若分仓并行，跨仓需求按完整仓库集合统一安排，避免部分占有造成等待。
 3. 按已确认来源与实仓目标核对需求差异；worktree 变更按需求补丁/片段合入。同一需求的多个来源按目标仓库形成完整变更，共享文件隔离未通过需求片段；无法隔离时暂停相关组。冲突或实质变化补充受影响验证，需人工补验时暂停该条。再调用 [demand-commit](../demand-commit/SKILL.md) 在实仓生成计划并执行已授权提交；已有有效实仓提交按等价证据核实后复用，不重复提交。阶段 worktree commit 只作来源及恢复点，不登记为最终交付 commit。记录全部目标仓库的真实 root/ref/完整 hash 后才进入下一步。
-4. 默认先由代码归属者推送一次，独立核对既定远端目标包含本次实仓提交并保存回执；parent 引用共享 push，own 子项独立交付。随后标版 BOS 需求仅用已保存的实仓 repo/ref/hash 调用 `bos-code-update-log`，parent 分别按自身编号补日志。已有日志先于 push 的批次仍可续接。BOS 依赖、配置、权限、失败或 running/unknown 仅暂停日志；主子日志均不作为 commit、push 或下一条 Git 发布的前置条件。非标版需求或非 BOS 项目跳过日志阶段。
+4. 标版每次实际 push 前核对已登记业务 SHA 的完整消息。批次先成功登记 `push/running`，普通单号对未推送仓执行 `node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js verify-message --repo <已确认Git仓库> --commit <业务完整SHA> --demand <需求号>`。使用已确认的源 SHA、remote 和目标 ref 推送，整合后的源 SHA 须经现有范围核对并包含该业务 SHA。独立回查远端包含业务 SHA 后保存成功回执。已推送仓及已取得远端包含证据的历史提交直接按原方式恢复回执。parent 引用共享 push，own 子项独立交付。
+
+   标版 BOS 需求随后仅用已保存的实仓 repo/ref/hash 调用 `bos-code-update-log`，parent 分别按自身编号补日志。已有日志先于 push 的批次仍可续接。BOS 依赖、配置、权限、失败或 running/unknown 仅暂停日志。非标版需求或非 BOS 项目跳过日志阶段。
 5. 每阶段成功即保存回执，独立推进尚可执行的阶段。部分仓失败保留已成功仓；BOS 超时/未知先只读核对，不能盲目重提。push 失败只恢复未成功目标；远端前进时定向检查与按授权整合，保留已登记的业务 hash，不能为补日志重做或重写提交。中断后先核对已有回执，再续接可执行的未完成阶段；BOS 待补记录保留精确选择、原状态、失败/未知证据和恢复条件，不空转等待或阻塞后续需求。
 
 单号完整交付以全部适用阶段的真实成功回执为准：日志适用范围内的 own 须实仓 commit、BOS 和目标 push 均成功；parent 须主实仓提交和 push 引用有效，自身日志适用时还须 BOS 成功；none 须人工通过、三代码阶段明确不适用且原因保留。整组完成还须所有主子项完成，JSON 汇总的 groupCompletion 单独计算组状态。非标版需求或非 BOS 项目按自身适用阶段判定。仅登记或推送修复分支不能报告完整交付。

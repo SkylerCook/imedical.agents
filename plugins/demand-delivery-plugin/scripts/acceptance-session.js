@@ -6,6 +6,7 @@ const SCHEMA = 'demand-acceptance-session/v1';
 const HIERARCHY_SCHEMA = 'demand-acceptance-session/v2';
 const { hasBindings, normalizeBindings } = require('../../../scripts/lib/demand-code-binding');
 const { verifyRealCommits } = require('../../../scripts/lib/real-repository-commit');
+const { verifyStandardCommitMessage } = require('./commit-message-policy');
 const ACTIONS = ['commit', 'bos-log', 'push'];
 const PHASES = ['commit', 'bos', 'push'];
 const now = () => new Date().toISOString();
@@ -400,6 +401,16 @@ function applyCore(state, command, input) {
   if (previous.status === 'succeeded') fail('Phase already succeeded; do not repeat the external action');
   if (phase === 'bos' && ['running', 'unknown'].includes(previous.status) && input.status === 'running') fail('BOS may already have been written; reconcile before retry');
   if (phase === 'bos' && previous.status === 'unknown') fail('Reconcile unknown BOS results explicitly');
+  const demandKind = item.demandKind || item.delivery.commit.kind || (state.scope.deliveryActions.includes('bos-log') ? 'standard' : 'project');
+  if (phase === 'push' && input.status === 'running' && demandKind === 'standard') {
+    const pushedKeys = new Set((previous.records || []).map(record => record.key));
+    for (const spec of item.repositories.filter(repo => !pushedKeys.has(repo.key))) {
+      const record = item.delivery.commit.records.find(entry => entry.key === spec.key);
+      const expectedRepo = state.scope.deliveryActions.includes('bos-log') ? spec.root : item.claim.worktrees?.[spec.key];
+      if (!record || !expectedRepo || canonical(record.repo) !== canonical(expectedRepo)) fail('Push needs the verified commit from the scoped repository');
+      verifyStandardCommitMessage(record.repo, record.hash, item.id);
+    }
+  }
   if (phase === 'bos' && input.status === 'running') {
     validateBosTarget(state, item, input.receipt);
     if (!sameSelection(input.receipt?.select, realSelection(state, item))) fail('BOS request must use the exact verified commit selection and real target refs');

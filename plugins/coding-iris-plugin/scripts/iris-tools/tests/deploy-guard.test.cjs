@@ -46,6 +46,8 @@ test('guarded deploys an additive SQL map against its saved baseline and refuses
  remote=Buffer.from(formatted.replace('<Piece>5</Piece>','<Piece>4</Piece>'));
  const blocked=await g.run(opts);
  assert.equal(blocked.reason,'storage-review-required');
+ assert.equal(blocked.details.cause,'remote-storage-drift');
+ assert.match(blocked.details.hint,/只读核对远端类、当前会话基线和最近一次部署回执/);
  assert.equal(puts,1);
  assert.equal(compiles,2);
 });

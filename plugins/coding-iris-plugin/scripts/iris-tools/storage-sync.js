@@ -103,6 +103,17 @@ function sqlStorageExtension(baseline, candidate, remote) {
   );
 }
 
+function storageReviewHint(baseline) {
+  const kind = baseline && require('./sql-storage-extension').reviewStorageKind(inspect(baseline));
+  if (kind === 'persistent') {
+    return '给默认 %Storage.Persistent 类新增持久属性时，只新增 Property，保留基线的既有 Storage。由部署工具编译并核对回填结果。';
+  }
+  if (kind === 'sql-caret') {
+    return '给显式 SQL Storage 已有的 ^ 分段数据节点新增字段时，同时新增持久 Property 和该节点 SQLMap 的 Data。Data 使用有效 SQL 字段名（优先取 SqlFieldName），填写 <Delimiter>"^"</Delimiter>，并选择已核实可用且大于该节点已映射最大段号的 Piece。保留原有段号和访问路径。无法确认节点或段号时，先核对现有映射。';
+  }
+  return '待上传源码的 Storage 与基线不一致。先只读核对基线、远端和待上传源码，确认实际存储策略及映射变更，再决定如何处理。';
+}
+
 // Only class-member separators and trailing empty ObjectScript method lines
 // are serialization trivia. Strings, comments, XML and method interiors stay exact.
 function normalize(source, parsed = inspect(source)) {
@@ -216,4 +227,4 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
   return plans;
 }
 
-module.exports = {uploadMatches, storage, sqlStorageExtension, inspect, body, backfill, reconcile};
+module.exports = {uploadMatches, storage, sqlStorageExtension, storageReviewHint, inspect, body, backfill, reconcile};

@@ -8,7 +8,7 @@ const test = require('node:test');
 const api = require('../scripts/acceptance-session');
 const cli = path.resolve(__dirname, '../scripts/acceptance-session.js');
 const fence = String.fromCharCode(96).repeat(3);
-function fixture(t, keys = ['api'], ids = ['10', '2'], deliveryActions = ['commit', 'bos-log', 'push']) {
+function fixture(t, keys = ['api'], ids = ['10', '2'], deliveryActions = ['commit', 'bos-log', 'push'], demandKind) {
   const temp = process.env.AGENT_TEST_TMPDIR || os.tmpdir();
   fs.mkdirSync(temp, { recursive: true });
   const root = fs.mkdtempSync(path.join(temp, 'acceptance-'));
@@ -19,7 +19,7 @@ function fixture(t, keys = ['api'], ids = ['10', '2'], deliveryActions = ['commi
   for (const key of keys) fs.mkdirSync(path.join(root, key));
   const directory = path.join(root, 'docs', 'acceptance');
   const input = { projectRoot: root, deliveryActions, demands: ids.map(id => ({
-    id, title: 'Synthetic change ' + id, automatic: { status: 'passed', gaps: ['native scenario pending'] },
+    id, title: 'Synthetic change ' + id, demandKind, automatic: { status: 'passed', gaps: ['native scenario pending'] },
     repositories: keys.map(key => ({ key, root: path.join(root, key), remote: 'origin', ref: 'refs/heads/dev', files: ['changed.txt'] }))
   })) };
   api.create(directory, input);
@@ -31,8 +31,10 @@ function fixture(t, keys = ['api'], ids = ['10', '2'], deliveryActions = ['commi
   const publish = (id = '10', owner = 'worker-a') => act('publish', { id, owner });
   const prepare = () => { decision(); authorize(); claim(); publish(); };
   const hashes = new Map();
-  const commit = (id = '10') => {
+  const commit = (id = '10', messages = {}) => {
     const item = state().demands.find(item => item.id === id);
+    const kind = item.demandKind || (deliveryActions.includes('bos-log') ? 'standard' : 'project');
+    const message = `fix(${id}):synthetic\n修改说明:preserve scope\n` + (kind === 'standard' ? `需求描述:${id} ${item.title}\n` : '');
     const repositories = item.repositories.map(repo => {
       const root = item.claim.worktrees[repo.key], cacheKey = root + ':' + id;
       const git = args => {
@@ -43,15 +45,15 @@ function fixture(t, keys = ['api'], ids = ['10', '2'], deliveryActions = ['commi
         if (!fs.existsSync(path.join(root, '.git'))) git(['init', '-b', 'dev']);
         for (const [key, value] of [['user.name', 'Fixture'], ['user.email', 'fixture@example.invalid'], ['commit.gpgSign', 'false'], ['core.hooksPath', path.join(root, 'empty-hooks')]]) git(['config', key, value]);
         fs.writeFileSync(path.join(root, 'changed.txt'), id + '\n'); git(['add', 'changed.txt']);
-        git(['commit', '-m', 'fix(' + id + '): synthetic\n修改说明: preserve scope']);
+        git(['commit', '-m', messages[repo.key] || message]);
         hashes.set(cacheKey, git(['rev-parse', 'HEAD']));
       }
       return {
       root: item.claim.worktrees[repo.key], files: repo.files,
-      message: 'fix(' + id + '): synthetic\n修改说明: preserve scope\n',
+      message,
       execution: { status: 'verified', commit: hashes.get(cacheKey) }
     }; });
-    return {status:'verified',kind:deliveryActions.includes('bos-log')?'standard':'project',demand:id,repositories,
+    return {status:'verified',kind,demand:id,repositories,
       i18nReview:{result:'no-visible-impact',evidence:'Reviewed fixture counters',commits:repositories.map(repo=>({root:repo.root,commit:repo.execution.commit}))}};
 
   };
@@ -389,4 +391,34 @@ test('pending push of a legacy standard commit resumes after scoped review', t =
   assert.throws(()=>f.record('push','running'),/i18n-review-required/);
   f.record('commit','succeeded',receipt);
   f.record('push','running');
+});
+
+test('standard push checks the recorded Git commit even when its receipt message is compliant', t => {
+  const f = fixture(t, ['api'], ['10']); f.prepare();
+  const receipt = f.commit('10', { api: '10 synthetic historical subject\n\nLegacy details' });
+  f.record('commit', 'succeeded', receipt);
+  const prior = f.state().demands[0].delivery;
+  assert.throws(() => f.record('push', 'running'), /standard-commit-message-invalid.*首行/);
+  assert.deepEqual(f.state().demands[0].delivery, prior);
+
+  f.record('push', 'succeeded', f.push('api'));
+  f.bos();
+  assert.equal(api.summarize(f.state(), 'delivered').csv, '10');
+});
+
+test('standard push resumes the remaining targets without rechecking successfully pushed historical targets', t => {
+  const f = fixture(t, ['api', 'web'], ['10']); f.prepare();
+  f.record('commit', 'succeeded', f.commit('10', { api: '10 historical subject' }));
+  f.record('push', 'succeeded', f.push('api'));
+  f.record('push', 'running');
+  assert.equal(f.state().demands[0].delivery.push.status, 'running');
+  f.record('push', 'succeeded', f.push('web'));
+  assert.equal(f.state().demands[0].delivery.push.status, 'succeeded');
+});
+
+test('explicit standard delivery checks the push message without enabling BOS', t => {
+  const f = fixture(t, ['api'], ['10'], ['commit', 'push'], 'standard'); f.prepare();
+  f.record('commit', 'succeeded', f.commit('10', { api: 'fix(10):short\n修改说明:legacy two-line message' }));
+  assert.throws(() => f.record('push', 'running'), /standard-commit-message-invalid.*第三行/);
+  assert.equal(f.state().demands[0].delivery.bos.status, 'not-applicable');
 });
