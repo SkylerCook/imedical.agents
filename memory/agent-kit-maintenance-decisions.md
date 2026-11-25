@@ -74,6 +74,7 @@
 - stale 清理只应删除由插件生成、且源文件已失效的 thin-index；不得删除业务项目自定义 `.agents/rules/`。
 - 独立分发单个插件时，若仍使用 `plugin-reference-thin-index`，必须同时带上根 canonical 脚本，否则选择 `copy` 或手工 thin-index。
 - Agent thin-index 不复用 `generate-plugin-thin-index.ps1`；由独立 `scripts/generate-agent-thin-index.ps1` 从 `agents/*/AGENT.md` 和 `AGENT.md` 的 YAML frontmatter 生成 `.agents/skills/<agent-name>/SKILL.md`，只做浅层 skill 路由。
+- 受管 Agent 入口包括可识别的历史生成模板。普通 Write 刷新内容差异，Check 报告过期并失败。自动刷新和显式 Force 均保护自定义内容、未知归属及链接。
 - 调度内核不硬编码产品 API；`serial`、`subagent`、`codex-session`、`human` 统一使用 action/result contract，由宿主 capability probe 后执行。工具原生配置生成仍不作为 canonical 来源，能力不可用时按 workflow 串行或人工降级。
 
 ## 组件版本治理

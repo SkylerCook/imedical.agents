@@ -580,7 +580,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `plugin-profile-name-migrated` | Write 已把旧插件名的状态迁移到 canonical 名称。 |
 | `generated` | dry-run 发现将生成 thin-index，或 write 已生成。 |
 | `unchanged` | 生成物内容已是最新，不需要写入。 |
-| `removed` | write 已清理 stale thin-index；清理阶段扫描所有指向已删除 `.agents/plugins/*/rules/*.md` 或 `.agents/plugins/*/skills/*/SKILL.md` 的受管入口，不受当前 `PluginPath` 限制。 |
+| `updated` | Write 已刷新受管 Agent 或插件 thin-index。 |
+| `removed` | Write 已清理确认归属的失效 thin-index，例如 canonical Agent 被删除后遗留的生成入口。 |
 |
 | `vendor-thin-index-generated` | vendor thin-index 已生成或 dry-run 报告将生成。 |
 | `vendor-thin-index-unchanged` | vendor thin-index 内容已是最新，不需要写入。 |
@@ -637,6 +638,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `workspace-context-resolver-restore-failed` | 停止。旧 sparse checkout 自动恢复失败；检查 `.agents` 是否为干净的独立 Git checkout、Git 版本和 sparse 状态。 |
 | `thin-index-script-missing` | 停止。报告插件缺少 thin-index 脚本。 |
 | `agent-thin-index-script-missing` | 停止。报告 `.agents/scripts/generate-agent-thin-index.ps1` 缺失；先更新 `.agents` 能力包。 |
+| `thin-index-stale` | DryRun 检出受管 Agent 或插件入口过期。Check 检出时以失败结束，应用普通 Write 后复查。 |
+| `thin-index-conflict` | 更新器以失败结束。冲突目标保留，按明细核对自定义内容、来源和链接。 |
 | `vendor-skill-sync-script-missing` | 停止。报告 `.agents/scripts/sync-vendor-skills.ps1` 缺失；先更新 `.agents` 能力包。 |
  | `vendor-thin-index-script-missing` | 停止。报告 `.agents/scripts/generate-vendor-thin-index.ps1` 缺失；先更新 `.agents` 能力包。 |
 | `sync-claudecode-skills-script-missing` | 停止。报告 `.agents/scripts/sync-claudecode-skills.ps1` 缺失；先更新 `.agents` 能力包。 |
@@ -697,7 +700,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/generate-age
 
 这些文件只做路由：要求继续读取 canonical `AGENT.md`（含 YAML frontmatter）、默认 workflow、agent registry 和 workflow registry。它们不是 Codex、Claude Code、OpenCode 或 CodeBuddy 的工具 adapter，也不复制插件规则全文。
 
-已部署项目不需要重新安装；常规 `update-agents.ps1 -Mode DryRun` 会报告缺失的 agent thin-index，确认无停止条件后执行 `-Mode Write` 即可补齐。若 canonical agent 被删除，脚本只清理带有 agent thin-index 标记且指向 `.agents/agents/*/AGENT.md` 的过期入口，不会删除插件 skill thin-index 或项目自定义 skill。
+普通 `Write` 会补齐缺失入口并刷新已过期的受管入口，分别报告 `generated` 和 `updated`。内容一致时报告 `unchanged`，保留现有文件。`DryRun` 和 `Check` 以只读方式检查本地索引，检出过期入口时报告 `thin-index-stale`，其中 `Check` 以失败结束。
+
+受管识别兼容 `bindings.yaml` 和 `plugin_profile.md` 时代的生成模板。与现有 canonical Agent 同名的自定义入口、未知来源及链接目标保留并报告 `thin-index-conflict`。`-ForceThinIndex` 在 `Write` 时可显式重写已识别的受管入口，仍执行相同的归属检查。
+
+已部署项目按普通更新取得新版脚本后执行 `Write`，再用 `Check` 复核。Overlay 先更新共享 CapabilityRoot，再逐 ContextRoot 执行 `Write -NoPull`。canonical Agent 已删除时，清理仅针对可识别的受管旧入口。
 
 ## Vendor skill 按依赖发现
 
@@ -880,7 +887,7 @@ source: .agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md
 
 已启用插件的 skill/rule 薄索引在普通 `Write` 中自动刷新生成的元数据，无需 `-ForceThinIndex`。内容一致报告 `unchanged`，受管内容变化报告 `updated`；`DryRun` / `Check` 报告 `thin-index-stale` 且不写文件，其中 `Check` 以失败结束，需执行 `Write` 后重新验收。不存在的入口仍按原流程生成。
 
-受管识别要求来源、标记及生成正文匹配，且不存在额外 frontmatter 字段；只有生成字段（skill 的 `name` / `description`，rule 另含 `task-affinity` / `related`）允许变化。直接修改这些生成字段会在更新时被源文件覆盖；项目定制应放在项目独立规则或配置。正文定制、来源不符、未知结构及目标或父目录链接保留并报告 `thin-index-conflict`，更新器以失败结束。`-ForceThinIndex` 对插件索引保留参数兼容，但不再越过归属保护；agent/vendor 独立生成器的既有语义不变。历史 root skill 迁移继续允许已知原文哈希，迁移后的受管索引可正常刷新。
+受管识别要求来源、标记及生成正文匹配，且不存在额外 frontmatter 字段；只有生成字段（skill 的 `name` / `description`，rule 另含 `task-affinity` / `related`）允许变化。直接修改这些生成字段会在更新时被源文件覆盖；项目定制应放在项目独立规则或配置。正文定制、来源不符、未知结构及目标或父目录链接保留并报告 `thin-index-conflict`，更新器以失败结束。`-ForceThinIndex` 对插件索引保留参数兼容，仍执行归属检查。历史 root skill 迁移继续允许已知原文哈希，迁移后的受管索引可正常刷新。
 
 已部署工程先更新能力包，再执行原有 `Write` / `Check`；无需删除旧索引。Overlay 先更新共享 CapabilityRoot，再逐 ContextRoot 执行 `Write -NoPull`。本行为只覆盖插件 skill/rule 通用生成器，不自动同步用户级技能副本。历史无 frontmatter 的 rule 若内容完全一致仍保留，无法确认归属的差异须人工核对。
 
@@ -1086,7 +1093,7 @@ coding 0.27.4：整包更新根 scripts 与 coding 插件，结束旧管理会�
 
 ### Agent 元数据合并迁移
 
-元数据由 `bindings.yaml` 原样迁入同目录 `AGENT.md` 的 YAML frontmatter。正常 Git 更新移除旧受跟踪文件，随后重新生成 agent thin-index；无需重新安装。本地有修改时先处理更新冲突，不手工覆盖。自定义读取器改读头部；宿主 adapter 格式不变。
+元数据由 `bindings.yaml` 原样迁入同目录 `AGENT.md` 的 YAML frontmatter。正常 Git 更新移除旧受跟踪文件，随后按普通 `Write` 刷新引用旧绑定文件的受管入口。已存在的自定义入口按 [Agent thin-index 更新机制](#agent-thin-index)核对冲突。自定义读取器改读头部。
 
 Codex 原生 Agent：显式 `-RuntimeAdapter Codex -Agent` 首次生成项目 TOML，普通更新刷新已有受管文件；自定义内容保留。技能操作入口复用 coding-agent-adaptation，说明见 [宿主适配](coding-agent-adaptation.md#codex-原生-agent)。
 

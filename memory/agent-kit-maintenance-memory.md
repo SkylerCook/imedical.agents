@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- 受管 Agent thin-index 随普通 Write 刷新，兼容此前引用 `bindings.yaml` 或 `plugin_profile.md` 的生成入口。Check 识别过期，定制与链接按冲突保留。见[更新手册](../docs/update-agents.md#agent-thin-index)。
+
 - demand-delivery-plugin 0.11.0 在推送前检查新标版提交的完整消息，Git 2.54+ 可按仓启用本地钩子。已有批次按原回执接续。 [标版提交格式](../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md#提交格式)
 
 - BOS 0.20.0 可按原 SHA 恢复格式有误的历史日志，预览提前拦截无可登记文件的提交。 [代码日志补录](../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)

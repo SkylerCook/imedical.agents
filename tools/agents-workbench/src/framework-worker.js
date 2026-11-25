@@ -18,6 +18,7 @@ const { exportProjectState } = require('./state-export');
 const runtimeTrees = ['scripts','plugins','vendor','hooks'];
 // Each pilot commit is approved with the digest of its deployed runtime entries.
 const trustedRuntime = new Map([
+  ['873c536087f380c69d4e76ad741f2a9ba2c92272', '0e7c1ecec9a76dbb6cb325fb09908171acc309b497397f8226deffc6d2506d3a'],
   ['eab5539774046e1931efae3baf2e3ccbc824586d', 'fe9fc4900494c1c05dc153d2c36602a3f58b8cbf56c5983d1254598807e05106'],
   ['484699523b38b67989c90e15b43391e220159df0', 'fe9fc4900494c1c05dc153d2c36602a3f58b8cbf56c5983d1254598807e05106'],
   ['f5aa2a3b2c14b91185f487217e498f33cfd938f2', '0fe4cec6d1782b07aef80faeba2034d7cdda293869d838e25feedd862f52a62a'],

@@ -1694,13 +1694,17 @@ else {
   }
 }
 
+$thinIndexFailures = @($results | Where-Object { $_.status -in @("conflict", "thin-index-conflict") -or ($Mode -eq "Check" -and $_.status -eq "thin-index-stale") })
 $completionFailure = $null
 if ($runtimeAdapterFailed) { $completionFailure = "Runtime skill adaptation incomplete; resolve the reported status before retrying." }
 elseif (@($results | Where-Object { $_.status -in @("config-migration-failed", "config-migration-conflict") }).Count -gt 0) {
   $completionFailure = "Required plugin configuration migration incomplete; completed steps are retained. Resolve the reported plugin conflict or failure and rerun the update."
 }
-elseif (@($results | Where-Object { $_.status -in @("conflict", "thin-index-conflict") -or ($Mode -eq "Check" -and $_.status -eq "thin-index-stale") }).Count -gt 0) {
-  $completionFailure = "Plugin thin-index verification incomplete; refresh stale indexes with Write and resolve preserved conflicts."
+elseif ($thinIndexFailures.Count -gt 0) {
+  $scope = if ($thinIndexFailures.phase -notcontains "agent-thin-index") { "Plugin" }
+  elseif (@($thinIndexFailures | Where-Object phase -ne "agent-thin-index").Count -gt 0) { "Agent and plugin" }
+  else { "Agent" }
+  $completionFailure = "$scope thin-index verification incomplete; refresh stale indexes with Write and resolve preserved conflicts."
 }
 elseif (@($results | Where-Object { $_.status -eq "skill-owner-migration-conflict" }).Count -gt 0) {
   $completionFailure = "Skill owner migration blocked; custom or linked targets were preserved."

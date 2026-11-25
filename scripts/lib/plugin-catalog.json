@@ -952,7 +952,7 @@
       "directory": "imedicalxc-doctor-extend-engineer",
       "manifest": {
         "name": "imedicalxc-doctor-extend-engineer",
-        "version": "1.0.6",
+        "version": "1.0.8",
         "displayName": "iMedicalXC Doctor Extend Engineer",
         "description": "HIS doctor workstation third-party system integration workflow orchestrator, covering brainstorming, design, implementation, testing, HIS validation, and CI/CD delivery.",
         "entry": "AGENTS.md",
@@ -1021,7 +1021,7 @@
           "vendor/word-reader"
         ]
       },
-      "manifestHash": "e2c26cca34f7871597d29c212111dcb135a08cb90e9f80b733deb401d4059305"
+      "manifestHash": "4bfbfbc948ee8e52defc76e4c64ecdbeb9ffa3b958e4972adecff3875f869407"
     },
     {
       "directory": "imedicalxc-doctor-graylog-error-triage",
@@ -1140,9 +1140,9 @@
       "directory": "imedicalxc-doctor-print-template-design",
       "manifest": {
         "name": "imedicalxc-doctor-print-template-design",
-        "version": "1.0.2",
+        "version": "1.0.3",
         "displayName": "HIS Print Template Design Plugin",
-        "description": "HIS打印模板设计和生成技能。覆盖从Word/docx参考文档到可导入.xlsx模板文件的完整流程，包括主模板+扩展模板双生成、UUID全量重生成、Sheet4返回参数字段修正。",
+        "description": "HIS打印模板设计与改造技能。新建场景从docx/图片/既有xlsx生成可导入的主模板与扩展模板；改造场景支持补齐字段、按接口返回值重构返回参数、编码与主键回退到既有模板以覆盖更新、布局微调。",
         "entry": "AGENTS.md",
         "skills": "skills/",
         "scripts": "scripts/",
@@ -1157,11 +1157,14 @@
           "住院证打印",
           "修改打印模板",
           "打印模板适配",
+          "模板编码回退",
+          "返回参数重构",
+          "打印空白",
           "生成.xlsx模板",
           "导出模板"
         ]
       },
-      "manifestHash": "9b5f4cca21a971aaa2fa719565e62f36ac9e64845bfef2f2bbb82511735beac6"
+      "manifestHash": "2c444bae4e7058ef8f966ee381c2ba8face1a50be59f7424cac5f6d6e560daf2"
     },
     {
       "directory": "iris-codegraph",

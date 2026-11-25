@@ -8,6 +8,13 @@ imedicalxc-doctor-extend-engineer 1.0.8 明确编码规约 U 的 `@since` 取生
 
 imedicalxc-doctor-extend-engineer 1.0.7 将编码规约 U 中写死的 `@author 张天文` 改为取执行机器实际 Git 提交人（`git config user.name`），取不到则留空，不再写死姓名。电子健康卡新厂家接入 skill 及其 references 本身无作者字段，仅该 skill 强制必读的规约含此项；其余规约、入口、依赖和部署流程不变。commit-report 成员名册中的同名条目属提交报告映射，未改动。发布记录见 `releases/plugin/imedicalxc-doctor-extend-engineer/1.0.7.md`。本次仅源仓提交，未部署业务副本。
 
+## 2026-11-25 Agent 薄索引默认刷新
+
+- 更新器将受管 Agent 索引的内容差异纳入过期检查。普通 Write 刷新 `bindings.yaml`、`plugin_profile.md` 时代的生成入口及受管路由差异。预演和 Check 报告 `thin-index-stale`，Check 返回失败；一致时保留文件，未知归属或链接按冲突保留。
+- 从 Git 历史生成首版及两个旧布局的实际索引，普通 Write 均完成刷新，复跑为 `unchanged`。PowerShell 7 和 Windows PowerShell 5.1 的生成器专项及完整更新器回归通过，覆盖标准工程、Overlay 和保留冲突文件。12 项插件索引作用域回归通过。生成器专项已接入三平台矩阵，macOS/Linux 结果待验证。
+- 已部署工程沿普通更新收敛，Overlay 按共享能力更新、各工作区刷新顺序处理。现行契约见[安装与更新手册](../docs/update-agents.md#agent-thin-index)。
+- 工作台 0.7.2 纳入 Agent 索引更新器与手册变更，保留正式版 0.7.1 已核验的框架运行树以接续现有工程。随包插件目录同步上游已发布的电子健康卡 1.0.8 和打印模板 1.0.3 清单。
+
 ## 2026-11-25 标版提交检查与历史日志恢复
 
 - demand-delivery-plugin 0.11.0 支持 Git 2.54+ 按标版业务仓配置命名 `commit-msg`，并在框架推送新的标版提交前核验实际 SHA 的完整消息。已有推送回执和部分成功续接沿原契约。

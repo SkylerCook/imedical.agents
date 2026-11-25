@@ -49,19 +49,6 @@ function Write-Result {
     }
 }
 
-function Test-IsUnderPath {
-    param(
-        [string]$Path,
-        [string]$ParentPath
-    )
-    $pathFull = [System.IO.Path]::GetFullPath($Path)
-    $parentFull = [System.IO.Path]::GetFullPath($ParentPath)
-    if (-not $parentFull.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
-        $parentFull = $parentFull + [System.IO.Path]::DirectorySeparatorChar
-    }
-    return $pathFull.StartsWith($parentFull, [System.StringComparison]::OrdinalIgnoreCase)
-}
-
 function Get-YamlScalarValue {
     param(
         [string[]]$Lines,
@@ -104,20 +91,107 @@ function Get-YamlListValues {
     return @($values)
 }
 
-function Get-AgentThinIndexSourcePath {
+function New-AgentThinIndexContent {
     param(
-        [string]$TargetFile,
-        [string]$ProjectRoot
+        [string]$AgentName,
+        [string]$Workflow,
+        [string[]]$RequiredPlugins,
+        [string]$Layout = 'current'
     )
-    $content = [System.IO.File]::ReadAllText($TargetFile, [System.Text.Encoding]::UTF8)
-    if ($content -notmatch "agent thin-index") {
-        return $null
+
+    $agentPath = ".agents/agents/$AgentName"
+    $usesBindings = $Layout -in @('bindings', 'original')
+    $profile = if ($Layout -eq 'current') { 'project.jsonc' } else { 'plugin_profile.md' }
+    $lines = @(
+        '---'
+        "name: $AgentName"
+        "description: Agent thin-index for $AgentName. Read canonical AGENT.md and workflow before executing."
+        '---'
+        ''
+        "# Agent Thin Index: $AgentName"
+        ''
+        'This file is generated from imedical.agents canonical agent definitions. It is an agent thin-index, not a tool adapter.'
+        'Do not maintain this file by hand. Change .agents/agents/ or .agents/workflows/, then rerun .agents/scripts/update-agents.ps1.'
+        ''
+        'Agent instruction: after reading this file, continue reading these canonical files before executing the target project task.'
+        ''
+        if ($usesBindings) {
+            "- Role definition: ``$agentPath/AGENT.md``"
+            "- Binding index: ``$agentPath/bindings.yaml``"
+        }
+        else {
+            "- Role definition and YAML metadata: ``$agentPath/AGENT.md``"
+        }
+        if ($Workflow) {
+            "- Default workflow: ``$Workflow``"
+        }
+        if ($Layout -ne 'original') {
+            ''
+            'Discovery-only registries (read only when the agent or workflow has not already been selected):'
+            ''
+        }
+        '- Agent registry: `.agents/agents/agent-registry.md`'
+        '- Workflow registry: `.agents/workflows/workflow-registry.md`'
+        ''
+        'Preflight checks:'
+        ''
+        '- Read target project root `AGENTS.md`.'
+        "- Read ``.agents/config/$profile`` and confirm required plugin states."
+        if ($RequiredPlugins.Count) {
+            foreach ($plugin in $RequiredPlugins) {
+                "- Required plugin ``$plugin`` must satisfy the enablement preconditions declared by the canonical agent."
+            }
+        }
+        else {
+            '- If this agent has no domain plugin dependency, still follow project `AGENTS.md` and `.agents/config/`.'
+        }
+        ''
+        'Do not:'
+        ''
+        '- Do not write server hosts, accounts, passwords, tokens, namespaces, or remote paths into this file, rules, memory, or reports.'
+        '- Do not treat tool-specific entries as canonical sources.'
+        '- Do not copy plugin rule bodies into this file; read canonical agent and plugin source files when needed.'
+    )
+    return $lines -join "`n"
+}
+
+function Test-ManagedAgentThinIndex {
+    param([string]$Content, [string]$AgentName)
+
+    # Only the workflow and plugin list can drift within a known generated layout.
+    # Re-render the whole document to require the expected owner and preserve edits.
+    $workflow = [regex]::Match($Content, '(?m)^- Default workflow: `(?<path>\.agents/workflows/[^`\n]+\.workflow\.md)`$').Groups['path'].Value
+    $plugins = @([regex]::Matches($Content, '(?m)^- Required plugin `(?<name>[^`\n]+)` must satisfy the enablement preconditions declared by the canonical agent\.$') |
+        ForEach-Object { $_.Groups['name'].Value })
+    $layout = 'current'
+    if ($Content.Contains('- Binding index: ')) {
+        $layout = if ($Content.Contains('Discovery-only registries (')) { 'bindings' } else { 'original' }
     }
-    $match = [System.Text.RegularExpressions.Regex]::Match($content, '(?<source>\.agents/agents/[^\s`]+/AGENT\.md)')
-    if (-not $match.Success) {
-        return $null
+    elseif ($Content.Contains('- Read `.agents/config/plugin_profile.md` and confirm required plugin states.')) {
+        $layout = 'profile'
     }
-    return [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot $match.Groups["source"].Value))
+    return $Content -ceq (New-AgentThinIndexContent -AgentName $AgentName -Workflow $workflow -RequiredPlugins $plugins -Layout $layout)
+}
+
+function Get-InvalidTargetDirectory {
+    param([string[]]$Paths)
+
+    foreach ($path in $Paths) {
+        $directory = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+        if ($null -ne $directory -and ((-not $directory.PSIsContainer) -or ($directory.Attributes -band [IO.FileAttributes]::ReparsePoint))) {
+            return $path
+        }
+    }
+}
+
+function Test-AgentThinIndexTargetConflict {
+    param([string]$TargetDirectory, [string]$TargetFile)
+
+    if (Get-InvalidTargetDirectory -Paths @($contextRootFull, $skillsTarget, $TargetDirectory)) {
+        return $true
+    }
+    $file = Get-Item -LiteralPath $TargetFile -Force -ErrorAction SilentlyContinue
+    return $null -ne $file -and ($file.PSIsContainer -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $file.LinkType -eq 'HardLink')
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
@@ -139,26 +213,47 @@ if (-not (Test-Path -LiteralPath $agentsSource -PathType Container)) {
     exit 1
 }
 
+$invalidRoot = Get-InvalidTargetDirectory -Paths @($contextRootFull, $skillsTarget)
+if ($invalidRoot) {
+    Write-Result -Status 'thin-index-conflict' -Target (Get-RelativePathPortable -From $projectRootFull -To $invalidRoot) -Reason 'linked or invalid target directory preserved' |
+        Format-List status, target, source, reason
+    return
+}
+
 if (Test-Path -LiteralPath $skillsTarget -PathType Container) {
     Get-ChildItem -LiteralPath $skillsTarget -Directory | Sort-Object Name | ForEach-Object {
+        $agentName = $_.Name
+        if ($agentName -notmatch '^[a-z0-9]+(?:-[a-z0-9]+)*-agent$') {
+            return
+        }
+        $sourcePath = Join-Path $agentsSource "$agentName/AGENT.md"
+        if (Test-Path -LiteralPath $sourcePath -PathType Leaf) {
+            return
+        }
         $targetFile = Join-Path $_.FullName "SKILL.md"
-        if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
+        if ((Test-AgentThinIndexTargetConflict -TargetDirectory $_.FullName -TargetFile $targetFile) -or
+            (-not (Test-Path -LiteralPath $targetFile -PathType Leaf))) {
             return
         }
-        $sourcePath = Get-AgentThinIndexSourcePath -TargetFile $targetFile -ProjectRoot $projectRootFull
-        if ($null -eq $sourcePath) {
+        $existing = [IO.File]::ReadAllText($targetFile, [Text.Encoding]::UTF8)
+        if (-not (Test-ManagedAgentThinIndex -Content $existing.Replace("`r`n", "`n") -AgentName $agentName)) {
             return
         }
-        if ((Test-IsUnderPath -Path $sourcePath -ParentPath $agentsSource) -and (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))) {
-            $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
-            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourcePath
-            if ($Mode -eq "Write") {
-                Remove-Item -LiteralPath $targetFile
-                $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "stale agent thin-index"))
+        $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
+        $sourceRel = ".agents/agents/$agentName/AGENT.md"
+        if ($Mode -eq 'Write') {
+            if ((Test-AgentThinIndexTargetConflict -TargetDirectory $_.FullName -TargetFile $targetFile) -or
+                (Test-Path -LiteralPath $sourcePath -PathType Leaf) -or
+                (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) -or
+                ([IO.File]::ReadAllText($targetFile, [Text.Encoding]::UTF8) -cne $existing)) {
+                $results.Add((Write-Result -Status 'thin-index-conflict' -Target $targetRel -Source $sourceRel -Reason 'source or target changed before removal'))
+                return
             }
-            else {
-                $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "stale agent thin-index"))
-            }
+            Remove-Item -LiteralPath $targetFile
+            $results.Add((Write-Result -Status 'removed' -Target $targetRel -Source $sourceRel -Reason 'stale agent thin-index'))
+        }
+        else {
+            $results.Add((Write-Result -Status 'stale' -Target $targetRel -Source $sourceRel -Reason 'stale agent thin-index'))
         }
     }
 }
@@ -184,12 +279,9 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
         $results.Add((Write-Result -Status "missing" -Target $targetRel -Source $sourceRel -Reason "agent directory has no AGENT.md"))
         return
     }
-    if (Test-Path -LiteralPath (Split-Path -Parent $targetFile) -PathType Leaf) {
-        $results.Add((Write-Result -Status "conflict" -Target (Get-RelativePathPortable -From $projectRootFull -To (Split-Path -Parent $targetFile)) -Source $sourceRel -Reason "skill target directory path is a file"))
-        return
-    }
-    if (Test-Path -LiteralPath $targetFile -PathType Container) {
-        $results.Add((Write-Result -Status "conflict" -Target $targetRel -Source $sourceRel -Reason "target SKILL.md path is a directory"))
+    $targetDirectory = Split-Path -Parent $targetFile
+    if (Test-AgentThinIndexTargetConflict -TargetDirectory $targetDirectory -TargetFile $targetFile) {
+        $results.Add((Write-Result -Status 'thin-index-conflict' -Target $targetRel -Source $sourceRel -Reason 'linked or invalid target preserved'))
         return
     }
 
@@ -200,14 +292,6 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
         return
     }
     $bindingLines = $header.Groups["yaml"].Value -split '\r?\n'
-    $bindingName = Get-YamlScalarValue -Lines $bindingLines -Key "name"
-    if ([string]::IsNullOrWhiteSpace($bindingName)) {
-        $bindingName = $agentName
-    }
-    $description = Get-YamlScalarValue -Lines $bindingLines -Key "description"
-    if ([string]::IsNullOrWhiteSpace($description)) {
-        $description = "Agent thin-index for $agentName."
-    }
     $defaultWorkflow = Get-YamlScalarValue -Lines $bindingLines -Key "defaultWorkflow"
     $requiredPlugins = @(Get-YamlListValues -Lines $bindingLines -Key "requiredPlugins")
     if ($requiredPlugins.Count -eq 0) {
@@ -224,65 +308,65 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
         }
     }
 
-    $contentLines = New-Object System.Collections.Generic.List[string]
-    $contentLines.Add("---")
-    $contentLines.Add("name: $agentName")
-    $contentLines.Add("description: Agent thin-index for $agentName. Read canonical AGENT.md and workflow before executing.")
-    $contentLines.Add("---")
-    $contentLines.Add("")
-    $contentLines.Add("# Agent Thin Index: $agentName")
-    $contentLines.Add("")
-    $contentLines.Add("This file is generated from imedical.agents canonical agent definitions. It is an agent thin-index, not a tool adapter.")
-    $contentLines.Add("Do not maintain this file by hand. Change `.agents/agents/` or `.agents/workflows/`, then rerun `.agents/scripts/update-agents.ps1`.")
-    $contentLines.Add("")
-    $contentLines.Add("Agent instruction: after reading this file, continue reading these canonical files before executing the target project task.")
-    $contentLines.Add("")
-    $contentLines.Add("- Role definition and YAML metadata: ``$sourceRel``")
-    if (-not [string]::IsNullOrWhiteSpace($workflowRel)) {
-        $contentLines.Add("- Default workflow: ``$workflowRel``")
-    }
-    $contentLines.Add("")
-    $contentLines.Add("Discovery-only registries (read only when the agent or workflow has not already been selected):")
-    $contentLines.Add("")
-    $contentLines.Add("- Agent registry: ``.agents/agents/agent-registry.md``")
-    $contentLines.Add("- Workflow registry: ``.agents/workflows/workflow-registry.md``")
-    $contentLines.Add("")
-    $contentLines.Add("Preflight checks:")
-    $contentLines.Add("")
-    $contentLines.Add("- Read target project root ``AGENTS.md``.")
-    $contentLines.Add("- Read ``.agents/config/project.jsonc`` and confirm required plugin states.")
-    if ($requiredPlugins.Count -gt 0) {
-        foreach ($plugin in $requiredPlugins) {
-            $contentLines.Add("- Required plugin ``$plugin`` must satisfy the enablement preconditions declared by the canonical agent.")
+    $content = New-AgentThinIndexContent -AgentName $agentName -Workflow $workflowRel -RequiredPlugins $requiredPlugins
+    $status = 'generated'
+    $exists = Test-Path -LiteralPath $targetFile -PathType Leaf
+    if ($exists) {
+        $original = [IO.File]::ReadAllText($targetFile, [Text.Encoding]::UTF8)
+        $existing = $original.Replace("`r`n", "`n")
+        if ($existing -ceq $content) {
+            if (-not $Force) {
+                $results.Add((Write-Result -Status 'unchanged' -Target $targetRel -Source $sourceRel -Reason 'managed agent thin-index is current'))
+                return
+            }
         }
-    }
-    else {
-        $contentLines.Add("- If this agent has no domain plugin dependency, still follow project ``AGENTS.md`` and ``.agents/config/``.")
-    }
-    $contentLines.Add("")
-    $contentLines.Add("Do not:")
-    $contentLines.Add("")
-    $contentLines.Add("- Do not write server hosts, accounts, passwords, tokens, namespaces, or remote paths into this file, rules, memory, or reports.")
-    $contentLines.Add("- Do not treat tool-specific entries as canonical sources.")
-    $contentLines.Add("- Do not copy plugin rule bodies into this file; read canonical agent and plugin source files when needed.")
-    $content = $contentLines -join [Environment]::NewLine
-
-    if ((Test-Path -LiteralPath $targetFile) -and (-not $Force)) {
-        $existing = [System.IO.File]::ReadAllText($targetFile, [System.Text.Encoding]::UTF8)
-        if ($existing -ne $content) {
-            $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "target exists; use -Force to overwrite"))
+        elseif (-not (Test-ManagedAgentThinIndex -Content $existing -AgentName $agentName)) {
+            $results.Add((Write-Result -Status 'thin-index-conflict' -Target $targetRel -Source $sourceRel -Reason 'custom or unrecognized content preserved'))
+            return
         }
         else {
-            $results.Add((Write-Result -Status "unchanged" -Target $targetRel -Source $sourceRel -Reason $Mode))
+            if ($Mode -ne 'Write') {
+                $results.Add((Write-Result -Status 'thin-index-stale' -Target $targetRel -Source $sourceRel -Reason 'managed agent thin-index differs; run Write to refresh'))
+                return
+            }
+            $status = 'updated'
         }
-        return
     }
 
-    if ($Mode -eq "Write") {
-        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $targetFile) | Out-Null
-        [System.IO.File]::WriteAllText($targetFile, $content, [System.Text.UTF8Encoding]::new($false))
+    if ($Mode -eq 'Write') {
+        if (Test-AgentThinIndexTargetConflict -TargetDirectory $targetDirectory -TargetFile $targetFile) {
+            $results.Add((Write-Result -Status 'thin-index-conflict' -Target $targetRel -Source $sourceRel -Reason 'target changed before write'))
+            return
+        }
+        New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
+        $temporary = Join-Path $targetDirectory ([IO.Path]::GetRandomFileName())
+        $stream = [IO.File]::Open($temporary, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
+        try {
+            try {
+                $bytes = [Text.Encoding]::UTF8.GetBytes($content.Replace("`n", [Environment]::NewLine))
+                $stream.Write($bytes, 0, $bytes.Length)
+            }
+            finally {
+                $stream.Dispose()
+            }
+            if ((Test-AgentThinIndexTargetConflict -TargetDirectory $targetDirectory -TargetFile $targetFile) -or
+                ($exists -and ((-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) -or
+                    ([IO.File]::ReadAllText($targetFile, [Text.Encoding]::UTF8) -cne $original)))) {
+                $results.Add((Write-Result -Status 'thin-index-conflict' -Target $targetRel -Source $sourceRel -Reason 'target changed before write'))
+                return
+            }
+            if ($exists) {
+                [IO.File]::Replace($temporary, $targetFile, [NullString]::Value)
+            }
+            else {
+                [IO.File]::Move($temporary, $targetFile)
+            }
+        }
+        finally {
+            if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary }
+        }
     }
-    $results.Add((Write-Result -Status "generated" -Target $targetRel -Source $sourceRel -Reason $Mode))
+    $results.Add((Write-Result -Status $status -Target $targetRel -Source $sourceRel -Reason $Mode))
 }
 
 $results | Format-List status, target, source, reason

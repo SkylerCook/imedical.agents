@@ -48,9 +48,164 @@ function Assert-Contains {
   }
 }
 
+function Assert-AgentThinIndexStatus {
+  param([string]$Output, [string]$Status, [string]$Name)
+  $pattern = '(?m)^status[ \t]*:[ \t]*{0}[ \t]*\r?\nplugin[ \t]*:[ \t]*\r?\nphase[ \t]*:[ \t]*agent-thin-index[ \t]*\r?\ntarget[ \t]*:[ \t]*\.agents/skills/{1}/SKILL\.md[ \t]*\r?$'
+  Assert-True ($Output -match ($pattern -f [regex]::Escape($Status), [regex]::Escape($Name))) "Agent thin-index $Name should report $Status"
+}
+
+function Invoke-ExpectedAgentIndexFailure {
+  param([string]$Updater, [hashtable]$Options, [string]$Mode, [switch]$Force)
+  $failed = $false
+  $output = [System.Collections.Generic.List[string]]::new()
+  try {
+    & $Updater @Options -Mode $Mode -ForceThinIndex:$Force | Out-String -Stream | ForEach-Object { $output.Add($_) }
+  }
+  catch { $failed = $true }
+  Assert-True $failed "Updater $Mode should fail when agent thin-index verification is incomplete"
+  return ($output -join [Environment]::NewLine)
+}
+
+function Assert-AgentThinIndexRefresh {
+  param([string]$ProjectRoot)
+  $contextRoot = Join-Path $ProjectRoot '.agents'
+  $updater = Join-Path $contextRoot 'scripts/update-agents.ps1'
+  $options = @{ ProjectRoot = $ProjectRoot; NoPull = $true; Detailed = $true; Plugin = 'sample-plugin' }
+  $utf8 = [Text.UTF8Encoding]::new($false)
+  $newline = [Environment]::NewLine
+  $names = @('coordinator-agent', 'iris-change-agent', 'i18n-agent')
+  $targets = @{}
+  $original = @{}
+  foreach ($name in $names) {
+    $targets[$name] = Join-Path $contextRoot "skills/$name/SKILL.md"
+    $original[$name] = [IO.File]::ReadAllText($targets[$name])
+  }
+
+  # Reproduce the templates before embedded metadata and before unified project configuration.
+  $legacyBinding = $original['coordinator-agent'].Replace('Role definition and YAML metadata:', 'Role definition:').
+    Replace('.agents/config/project.jsonc', '.agents/config/plugin_profile.md').
+    Replace('- Role definition: ' + '`.agents/agents/coordinator-agent/AGENT.md`',
+      '- Role definition: ' + '`.agents/agents/coordinator-agent/AGENT.md`' + $newline + '- Binding index: ' + '`.agents/agents/coordinator-agent/bindings.yaml`')
+  Assert-Contains $legacyBinding 'coordinator-agent/bindings.yaml' 'Legacy fixture must reference bindings.yaml'
+  [IO.File]::WriteAllText($targets['coordinator-agent'], $legacyBinding, $utf8)
+  [IO.File]::WriteAllText($targets['iris-change-agent'], $original['iris-change-agent'].Replace('.agents/config/project.jsonc', '.agents/config/plugin_profile.md'), $utf8)
+  $agentSource = Join-Path $contextRoot 'agents/i18n-agent/AGENT.md'
+  $agentSourceBytes = [IO.File]::ReadAllBytes($agentSource)
+  $agentDefinition = [IO.File]::ReadAllText($agentSource)
+  [IO.File]::WriteAllText($agentSource, $agentDefinition.Replace('defaultWorkflow: i18n-change', 'defaultWorkflow: standard-change').Replace('  - i18n-iris-plugin', '  - sample-plugin'), $utf8)
+
+  $removedAgent = 'retired-agent'
+  $customAgent = 'retired-custom-agent'
+  $removedIndex = Join-Path $contextRoot "skills/$removedAgent/SKILL.md"
+  $retiredCustom = Join-Path $contextRoot "skills/$customAgent/SKILL.md"
+  foreach ($index in @($removedIndex, $retiredCustom)) {
+    New-Item -ItemType Directory -Path (Split-Path -Parent $index) | Out-Null
+  }
+  [IO.File]::WriteAllText($removedIndex, $legacyBinding.Replace('coordinator-agent', $removedAgent), $utf8)
+  $retiredCustomText = $legacyBinding.Replace('coordinator-agent', $customAgent) + $newline + 'Local instructions'
+  [IO.File]::WriteAllText($retiredCustom, $retiredCustomText, $utf8)
+  $before = @{}
+  foreach ($name in $names) {
+    $before[$name] = (Get-FileHash -LiteralPath $targets[$name]).Hash
+  }
+
+  $preview = & $updater @options -Mode DryRun | Out-String
+  $check = Invoke-ExpectedAgentIndexFailure -Updater $updater -Options $options -Mode Check
+  Assert-AgentThinIndexStatus $preview 'stale' $removedAgent
+  Assert-True (Test-Path -LiteralPath $removedIndex -PathType Leaf) 'Preview and Check must preserve the retired agent index'
+  foreach ($name in $names) {
+    Assert-AgentThinIndexStatus $preview 'thin-index-stale' $name
+    Assert-AgentThinIndexStatus $check 'thin-index-stale' $name
+    Assert-True ((Get-FileHash -LiteralPath $targets[$name]).Hash -eq $before[$name]) "Preview and Check must preserve bytes for $name"
+  }
+
+  $write = & $updater @options -Mode Write | Out-String
+  foreach ($name in $names) {
+    Assert-AgentThinIndexStatus $write 'updated' $name
+  }
+  Assert-AgentThinIndexStatus $write 'removed' $removedAgent
+  Assert-True (-not (Test-Path -LiteralPath $removedIndex)) 'Write must remove the retired managed agent index'
+  Assert-True ([IO.File]::ReadAllText($retiredCustom) -ceq $retiredCustomText) 'Retired agent cleanup must preserve custom text'
+  foreach ($name in @('coordinator-agent', 'iris-change-agent')) {
+    Assert-True ([IO.File]::ReadAllText($targets[$name]) -ceq $original[$name]) "Write must migrate $name to the current template"
+  }
+  $changed = [IO.File]::ReadAllText($targets['i18n-agent'])
+  Assert-Contains $changed '.agents/workflows/standard-change.workflow.md' 'Write must refresh the default workflow'
+  Assert-Contains $changed '- Required plugin `sample-plugin`' 'Write must refresh required plugins'
+  Assert-True (-not $changed.Contains('i18n-iris-plugin')) 'A removed plugin must disappear from the agent index'
+  [IO.File]::WriteAllBytes($agentSource, $agentSourceBytes)
+
+  $coordinatorTarget = $targets['coordinator-agent']
+  [IO.File]::SetLastWriteTimeUtc($coordinatorTarget, [datetime]::UtcNow.AddDays(-1))
+  $unchangedTime = [IO.File]::GetLastWriteTimeUtc($coordinatorTarget)
+  $repeat = & $updater @options -Mode Write | Out-String
+  Assert-AgentThinIndexStatus $repeat 'unchanged' 'coordinator-agent'
+  Assert-AgentThinIndexStatus $repeat 'updated' 'i18n-agent'
+  Assert-True ([IO.File]::GetLastWriteTimeUtc($coordinatorTarget) -eq $unchangedTime) 'Repeated Write must not rewrite unchanged agent indexes'
+  $currentCheck = & $updater @options -Mode Check | Out-String
+  foreach ($name in $names) {
+    Assert-AgentThinIndexStatus $currentCheck 'unchanged' $name
+  }
+  $force = & $updater @options -Mode Write -ForceThinIndex | Out-String
+  Assert-AgentThinIndexStatus $force 'generated' 'coordinator-agent'
+  Assert-True ([IO.File]::GetLastWriteTimeUtc($coordinatorTarget) -gt $unchangedTime) 'Force must still rewrite a known agent index'
+  Assert-True ([IO.File]::ReadAllText($coordinatorTarget) -ceq $original['coordinator-agent']) 'Force must preserve the generated content'
+
+  $custom = @{
+    'coordinator-agent' = '# Local coordinator skill'
+    'iris-change-agent' = $original['iris-change-agent'].Replace('.agents/agents/iris-change-agent/AGENT.md', '.agents/agents/coordinator-agent/AGENT.md')
+    'i18n-agent' = $original['i18n-agent'] + $newline + 'Local instructions'
+  }
+  foreach ($name in $names) {
+    [IO.File]::WriteAllText($targets[$name], $custom[$name], $utf8)
+  }
+  $conflicts = Invoke-ExpectedAgentIndexFailure -Updater $updater -Options $options -Mode Write
+  $forceConflicts = Invoke-ExpectedAgentIndexFailure -Updater $updater -Options $options -Mode Write -Force
+  foreach ($name in $names) {
+    Assert-AgentThinIndexStatus $conflicts 'thin-index-conflict' $name
+    Assert-AgentThinIndexStatus $forceConflicts 'thin-index-conflict' $name
+    Assert-True ([IO.File]::ReadAllText($targets[$name]) -ceq $custom[$name]) "Write must preserve the conflicting contents of $name"
+  }
+
+  $outside = Join-Path $ProjectRoot 'outside-agent-skill'
+  New-Item -ItemType Directory -Path $outside | Out-Null
+  $outsideIndex = Join-Path $outside 'SKILL.md'
+  [IO.File]::WriteAllText($outsideIndex, $legacyBinding, $utf8)
+  $linksDirectory = Split-Path -Parent $coordinatorTarget
+  Remove-Item -LiteralPath $coordinatorTarget
+  [IO.Directory]::Delete($linksDirectory)
+  try {
+    $linkType = if ($env:OS -eq 'Windows_NT') { 'Junction' } else { 'SymbolicLink' }
+    New-Item -ItemType $linkType -Path $linksDirectory -Target $outside | Out-Null
+    # The updater's ownership migration blocks linked paths before the generator runs.
+    $generator = Join-Path $contextRoot 'scripts/generate-agent-thin-index.ps1'
+    $linkConflict = & $generator -ProjectRoot $ProjectRoot -Mode Write -Force | Out-String
+    Assert-True ($linkConflict -match '(?m)^status[ \t]*:[ \t]*thin-index-conflict[ \t]*\r?\ntarget[ \t]*:[ \t]*\.agents/skills/coordinator-agent/SKILL\.md[ \t]*\r?$') 'Force must report a conflict for the linked agent directory'
+    Assert-True ([IO.File]::ReadAllText($outsideIndex) -ceq $legacyBinding) 'Force must preserve the content reached through the linked target directory'
+  }
+  finally {
+    $linkedItem = Get-Item -LiteralPath $linksDirectory -Force -ErrorAction SilentlyContinue
+    if ($linkedItem -and ($linkedItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+      [IO.Directory]::Delete($linksDirectory)
+    }
+  }
+  Assert-True (-not (Test-Path -LiteralPath $linksDirectory)) 'Test junction must be removed before restoring the workspace fixture'
+  New-Item -ItemType Directory -Path $linksDirectory | Out-Null
+  foreach ($name in $names) {
+    [IO.File]::WriteAllText($targets[$name], $original[$name], $utf8)
+  }
+}
+
 function Get-AgentsTestTemp {
   if (-not [string]::IsNullOrWhiteSpace($env:AGENTS_TEST_TEMP)) { return $env:AGENTS_TEST_TEMP }
   return [System.IO.Path]::GetTempPath()
+}
+
+function New-TestProjectEntrypoint {
+  param([string]$Root, [string]$Title)
+  Set-Content -Encoding UTF8 -LiteralPath (Join-Path $Root 'AGENTS.md') -Value "# $Title"
+  & node (Join-Path $repoRoot 'scripts/sync-documentation-entry.js') --project-root $Root --mode Write | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Cannot initialize the fixture's documentation and feedback entrypoints"
 }
 
 function New-TestProject {
@@ -276,7 +431,7 @@ function New-TestProject {
     '& $canonicalScript -PluginPath $PluginPath -ProjectRoot $ProjectRoot -Mode $Mode -ExcludeSkill $ExcludeSkill -ExcludeRule $ExcludeRule -Force:$Force'
   )
 
-  Set-Content -Encoding UTF8 -Path (Join-Path $root "AGENTS.md") -Value @("# Target Project", '- 能力包使用、操作指南或连接配置排查：先读取 [.agents 文档入口](.agents/docs/README.md)，再按问题进入对应指南。')
+  New-TestProjectEntrypoint -Root $root -Title 'Target Project'
   Set-Content -Encoding UTF8 -Path (Join-Path $root "CLAUDE.md") -Value "# Existing Claude Entry"
 
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor/test-vendor/skills/vendor-test-skill") | Out-Null
@@ -334,8 +489,6 @@ function New-OverlayTestProject {
   git -C $workspaceRoot config user.email "test@example.invalid" | Out-Null
   git -C $workspaceRoot config user.name "Test User" | Out-Null
   New-Item -ItemType Junction -Path (Join-Path $workspaceRoot "backend") -Target $sourceTarget | Out-Null
-  Set-Content -Encoding UTF8 -Path (Join-Path $workspaceRoot "AGENTS.md") -Value @("# Overlay Test Project", '- 能力包使用、操作指南或连接配置排查：先按 `.agents/capability.json` 解析 `CapabilityRoot`，读取其 `docs/README.md`，再按问题进入对应指南。')
-
   $capabilityRoot = Join-Path $CapabilityProjectRoot ".agents"
   $manifest = [ordered]@{
     schemaVersion = 1
@@ -351,6 +504,7 @@ function New-OverlayTestProject {
   }
   [System.IO.File]::WriteAllText((Join-Path $contextRoot "capability.json"), ($manifest | ConvertTo-Json -Depth 10), [System.Text.UTF8Encoding]::new($false))
 
+  New-TestProjectEntrypoint -Root $workspaceRoot -Title 'Overlay Test Project'
   & (Join-Path $capabilityRoot "scripts/initialize-workspace-overlay.ps1") -WorkspaceRoot $workspaceRoot -Mode Write | Out-Null
   [System.IO.File]::WriteAllLines((Join-Path $contextRoot "config/plugin_profile.md"), @(
     "# Plugin Profile",
@@ -1276,14 +1430,22 @@ try {
   $overlayDocsOwnerHash = (Get-FileHash -LiteralPath $overlayDocsOwner -Algorithm SHA256).Hash
   $overlayMissingDocs = Get-TestEmptyDocsDirectory -Root $overlayProject.WorkspaceRoot
   Remove-Item -LiteralPath $overlayMissingDocs -Force
+  $overlayAgentIndex = Join-Path $overlayProject.ContextRoot 'skills/coordinator-agent/SKILL.md'
+  $overlayCurrentAgentIndex = [IO.File]::ReadAllText($overlayAgentIndex)
+  $overlayOldAgentIndex = $overlayCurrentAgentIndex.Replace('.agents/config/project.jsonc', '.agents/config/plugin_profile.md')
+  [IO.File]::WriteAllText($overlayAgentIndex, $overlayOldAgentIndex, [Text.UTF8Encoding]::new($false))
   New-Item -ItemType Directory -Force -Path (Join-Path $overlayDocsSibling ".agents/config"), (Join-Path $overlayDocsSibling "docs") | Out-Null
   [IO.File]::WriteAllText((Join-Path $overlayDocsSibling ".agents/config/documentation-layout.json"), "unrelated-invalid-config", [Text.UTF8Encoding]::new($false))
   [IO.File]::WriteAllText((Join-Path $overlayDocsSibling "docs/keep.md"), "unrelated sibling knowledge", [Text.UTF8Encoding]::new($false))
   $overlayDocsPreview = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode DryRun -NoPull -Detailed | Out-String
   Assert-Contains $overlayDocsPreview "docs-layout-directories-missing" "Overlay DryRun should report the current workspace's missing docs directories"
   Assert-True (-not (Test-Path -LiteralPath $overlayMissingDocs)) "Overlay DryRun must not restore docs directories"
+  Assert-AgentThinIndexStatus $overlayDocsPreview 'thin-index-stale' 'coordinator-agent'
+  Assert-True ([IO.File]::ReadAllText($overlayAgentIndex) -ceq $overlayOldAgentIndex) 'Overlay DryRun must preserve the local agent index'
   $overlayDocsWrite = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Write -NoPull -Detailed | Out-String
   Assert-Contains $overlayDocsWrite "docs-layout-updated" "Configured Overlay Write should restore declared empty docs directories"
+  Assert-AgentThinIndexStatus $overlayDocsWrite 'updated' 'coordinator-agent'
+  Assert-True ([IO.File]::ReadAllText($overlayAgentIndex) -ceq $overlayCurrentAgentIndex) 'Overlay Write must refresh the agent index in ContextRoot'
   Assert-True (Test-Path -LiteralPath $overlayMissingDocs -PathType Container) "Overlay docs restoration must target the current workspace"
   Assert-True ((Get-FileHash -LiteralPath $overlayDocsOwner -Algorithm SHA256).Hash -eq $overlayDocsOwnerHash) "Ordinary Overlay update must preserve local docs ownership configuration"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayCapabilityProject "docs"))) "Overlay docs restoration must not initialize the capability owner's knowledge base"
@@ -1479,6 +1641,7 @@ try {
   }
   $migrationRecovered = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $projectRoot -Mode Check -NoPull -Detailed -Plugin sample-plugin 2>&1 | Out-String
   Assert-True ($LASTEXITCODE -eq 0) "Correcting the migration should allow an ordinary retry"
+  Assert-AgentThinIndexRefresh -ProjectRoot $projectRoot
   $nativeWrite = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -RuntimeAdapter Codex -Agent -Detailed | Out-String
   Assert-Contains $nativeWrite "runtime-agent-ready" "Codex native adaptation should succeed"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".codex/agents/i18n-agent.toml")) "Codex native Agent should be generated"
