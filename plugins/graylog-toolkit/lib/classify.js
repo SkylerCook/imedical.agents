@@ -3,15 +3,18 @@
 // 输入已落盘的日志条目 + 归属索引，输出按 errorHash 聚合的簇与分组。
 // 规则数据全部来自 cfg（severity / disposition / classify / ownerGroups），默认值仅作兜底。
 
-const { parseStack, frameSourceSite } = require('./log-parse');
+const { parseStack, frameSourceSite, parseBusinessErrorLevel } = require('./log-parse');
 const oi = require('./owner-index');
 
-// 业务正常处理抛出的异常有确定信号（实测）：业务拦截器 logger、消息首行「业务异常(...)：」、业务异常类名。
-// 命中任一即视为 P1 候选；都不命中按不可预知程序异常处理（P0），宁可误报不可漏报。
+// 业务正常处理抛出的异常以业务拦截器统一日志为准（实测 CompletionExceptionComp.complete）：
+// logger 为 CompletionExceptionComp（非 HisBusinessInterceptor），可靠信号是消息首行「接收到业务异常，错误级别为：…」。
+// 不再把 HisBusinessException 异常类本身当作业务信号，避免重复捕获其抛出的异常堆栈。
+// 「错误级别为：」后打印的是中文描述（getDescOfAlertLevel）：错误→「异常」（需干预），提醒/信息/警告/严重及其余→「提醒」（前端可提示，不强制改码）。
 const DEFAULT_BUSINESS = {
   loggers: ['com.mediway.his.server.advise.HisBusinessInterceptor'],
-  messagePrefixes: ['业务异常('],
-  exceptionClasses: ['HisBusinessException', 'DocBusinessException', 'BaseBusinessException', 'BusinessException'],
+  messagePrefixes: ['接收到业务异常，错误级别为：'],
+  exceptionClasses: ['DocBusinessException', 'BaseBusinessException', 'BusinessException'],
+  alertErrorLevels: ['错误'],
 };
 
 // 处置分类回答「这条报错要不要动、动哪里」，与严重度正交：
@@ -21,7 +24,7 @@ const DEFAULT_BUSINESS = {
 // - business-escalation 业务异常包裹外部调用失败，或提示本就是给开发排障的
 // 混合簇按此顺序取最高优先级（最需要动作的在前），并保留计数。
 const DEFAULT_DISPOSITION = {
-  businessExceptionClasses: ['HisBusinessException', 'DocBusinessException', 'BaseBusinessException', 'BusinessException'],
+  businessExceptionClasses: ['DocBusinessException', 'BaseBusinessException', 'BusinessException'],
   runtimeExceptionClasses: [
     'NullPointerException', 'IllegalArgumentException', 'IllegalStateException',
     'ClassCastException', 'IndexOutOfBoundsException', 'ArrayIndexOutOfBoundsException',
@@ -70,6 +73,7 @@ function businessRules(cfg) {
     loggers: arr(s.businessLoggers, DEFAULT_BUSINESS.loggers),
     messagePrefixes: arr(s.businessMessagePrefixes, DEFAULT_BUSINESS.messagePrefixes),
     exceptionClasses: arr(s.businessExceptionClasses, DEFAULT_BUSINESS.exceptionClasses),
+    alertErrorLevels: arr(s.businessAlertErrorLevels, DEFAULT_BUSINESS.alertErrorLevels).map((x) => x.toLowerCase()),
   };
 }
 
@@ -138,7 +142,12 @@ function dispositionBasis(c) {
     return '簇内混合：' + dist + '，按最高优先级取 ' + c.disposition;
   }
   if (c.disposition === 'business-control') {
-    return '业务异常信号，未命中外部调用异常或人工处理关键词';
+    const alert = c.businessAlertCount || 0;
+    const notice = c.businessNoticeCount || 0;
+    if (alert > 0 && notice > 0) return '业务异常统一日志，错误级别混合（错误计异常，其余计提醒）';
+    if (alert > 0) return '业务异常统一日志错误级别=错误，按异常统计';
+    if (notice > 0) return '业务异常统一日志错误级别为提醒级（提醒/信息/警告/严重），按提醒统计';
+    return '业务异常统一日志，未命中外部调用异常或人工处理关键词';
   }
   if (c.disposition === 'business-escalation') {
     return c.businessCount > 0
@@ -181,6 +190,8 @@ function buildClusters(items, index, cfg) {
         confidence: res.confidence,
         count: 0,
         businessCount: 0,
+        businessAlertCount: 0,
+        businessNoticeCount: 0,
         dispositions: {},
         firstSeen: it.timestamp || '',
         lastSeen: it.timestamp || '',
@@ -202,7 +213,12 @@ function buildClusters(items, index, cfg) {
       map.set(hash, c);
     }
     c.count += 1;
-    if (isBusinessItem(it, rules)) c.businessCount += 1;
+    if (isBusinessItem(it, rules)) {
+      c.businessCount += 1;
+      const blvl = parseBusinessErrorLevel(it.fullMessage || it.message || '');
+      if (rules.alertErrorLevels.includes(blvl)) c.businessAlertCount += 1;
+      else c.businessNoticeCount += 1;
+    }
     const disp = itemDisposition(it, rules, dispRules);
     c.dispositions[disp] = (c.dispositions[disp] || 0) + 1;
     if (kind === 'slow') {
@@ -331,12 +347,21 @@ function buildClusters(items, index, cfg) {
       c.severity = 'P0';
       c.severityBasis = `接口耗时超过 ${Math.round(thresholdMs / 1000)}s（最大 ${(c.durationMaxMs / 1000).toFixed(1)}s / ${c.count} 次）`;
     } else if (c.disposition === 'business-control') {
-      // 业务控制不强制改码；混合簇里只要还有需要动作的条目就落到 P0
-      c.severity = 'P1';
+      // 业务异常统一日志按「错误级别为：」中文值分「异常 / 提醒」：错误级为异常需干预，其余为提醒
+      const alert = c.businessAlertCount || 0;
+      const notice = c.businessNoticeCount || 0;
       c.severityMixed = c.businessCount > 0 && c.businessCount < c.count;
-      c.severityBasis = c.severityMixed
-        ? `混合：${c.businessCount}/${c.count} 条为业务控制，其余按需干预处理`
-        : '业务正常处理抛出（业务控制，前端可提示）';
+      if (alert > 0) {
+        c.businessLevel = notice > 0 ? 'mixed' : 'alert';
+        c.severity = 'P0';
+        c.severityBasis = notice > 0
+          ? `业务异常统一日志 错误级别=错误 ${alert}/${c.businessCount} 条按异常处理，其余 ${notice} 条为提醒`
+          : '业务异常统一日志错误级别=错误，按异常处理';
+      } else {
+        c.businessLevel = 'notice';
+        c.severity = 'P1';
+        c.severityBasis = '业务异常统一日志错误级别为提醒级（提醒/信息/警告/严重），前端可提示，不强制改码';
+      }
     } else {
       c.severity = 'P0';
       c.severityMixed = c.businessCount > 0 && c.businessCount < c.count;

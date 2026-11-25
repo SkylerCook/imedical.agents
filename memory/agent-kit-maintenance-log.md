@@ -28,6 +28,12 @@
 - demand-delivery-plugin 0.10.1 将交付结论与接续动作放在回执开头，按目标仓库记录实仓提交和远端核验。BOS 日志、历史部署及批次可复制编号采用技能中的回执格式。
 - Windows 本地验收和主子需求专项共 41 项通过，覆盖部分推送、模拟 BOS 恢复、共享回执和编号汇总。文档链接与插件清单检查通过，工作区版本审计与 HEAD 相比新增发现 0 项。更新后的真实业务回执沿既有 P2 队列观察。
 
+## 2026-11-25 graylog-toolkit 业务异常按错误级别分「异常/提醒」
+
+- 依据 `CompletionExceptionComp` 实测：拦截器统一日志「接收到业务异常，错误级别为：<中文>…」恒以 ERROR 打印，识别改靠消息前缀；`HisBusinessException` 抛出堆栈不再作为业务信号。
+- graylog-toolkit 0.2.0 新增 `parseBusinessErrorLevel`，`business-control` 簇按「错误级别为：」中文值定级：`错误`→P0 异常，提醒/信息/警告/严重→P1 提醒；簇新增 `businessAlertCount`/`businessNoticeCount`/`businessLevel`。渲染仍显示 P0/P1，不分栏。
+- 消费方 imedicalxc-doctor-graylog-error-triage 1.0.1 同步 `severity`/`disposition` 配置；schema、example、接入手册、使用指南、SKILL、owner-classification 的业务信号与严重度口径一并更新。发布记录见 `releases/plugin/<name>/<version>.md`。
+
 ## 2026-11-23 配置 Markdown 占位项增量合并
 
 - 根更新器不再向已有配置补回空值、TODO 混合占位和 `<required>` / `<unset>`；保留有值默认项、人工内容、首次模板创建和显式复核。工程可精简迁移后的 Markdown 而不在下次更新恢复模板噪声，必需参数继续由 owner 校验。

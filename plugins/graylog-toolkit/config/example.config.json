@@ -43,8 +43,9 @@
   },
   "severity": {
     "businessLoggers": ["com.example.server.advise.BusinessInterceptor"],
-    "businessMessagePrefixes": ["业务异常("],
-    "businessExceptionClasses": ["BusinessException"]
+    "businessMessagePrefixes": ["接收到业务异常，错误级别为："],
+    "businessExceptionClasses": ["BusinessException"],
+    "businessAlertErrorLevels": ["错误"]
   },
   "disposition": {
     "businessExceptionClasses": ["BusinessException"],

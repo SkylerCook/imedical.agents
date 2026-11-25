@@ -322,8 +322,9 @@ node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\classify-own
 | 配置键 | 默认值 | 判据 |
 |---|---|---|
 | `businessLoggers` | `com.mediway.his.server.advise.HisBusinessInterceptor` | `loggerName` 全等匹配 |
-| `businessMessagePrefixes` | `业务异常(` | 消息**首行**以此开头 |
-| `businessExceptionClasses` | `HisBusinessException`、`DocBusinessException`、`BaseBusinessException`、`BusinessException` | 异常类**简名**匹配（去包名） |
+| `businessMessagePrefixes` | `接收到业务异常，错误级别为：` | 消息**首行**以此开头（统一日志由 `CompletionExceptionComp` 打印，logger 非拦截器，靠前缀命中） |
+| `businessExceptionClasses` | `DocBusinessException`、`BaseBusinessException`、`BusinessException` | 异常类**简名**匹配（去包名）；**已移除 `HisBusinessException`，不再捕获其抛出堆栈** |
+| `businessAlertErrorLevels` | `错误` | 统一日志「错误级别为：」后的中文值命中记「异常」（P0），其余（提醒/信息/警告/严重）记「提醒」（P1） |
 
 外部调用类名与人工处理关键词在 `config.disposition.externalCallClasses` / `escalationKeywords`；运行时异常清单在 `disposition.runtimeExceptionClasses`。
 
@@ -335,7 +336,10 @@ node .agents\plugins\imedicalxc-doctor-graylog-error-triage\scripts\classify-own
 | 条件 | severity | severityBasis |
 |---|---|---|
 | `slow-perf` / `runtime-defect` / `business-escalation` / `log-level-review` | **P0** | 按分类写明需改码、需人工介入或需复核级别 |
-| `business-control` | **P1** | 业务正常处理抛出（业务控制）；`businessCount < count` 时标 `severityMixed` |
+| `business-control` 且错误级别=`错误` | **P0** | 业务异常统一日志错误级别=错误，按异常处理；簇记 `businessLevel=alert` |
+| `business-control` 且错误级别为提醒级 | **P1** | 业务异常统一日志提醒级（提醒/信息/警告/严重），前端可提示；簇记 `businessLevel=notice` |
+
+`businessCount < count` 时标 `severityMixed`；同簇混合 alert/notice 记 `businessLevel=mixed` 并按 P0 处理。
 
 **已知的保守偏差**：配置/数据前提缺失类的 log.error（如「没有关联扩展数据，请注意！」「没有关联的厂家模块代码」）没有异常类，初判落 `log-level-review` + P0，复核后给「应降级」或「保留但改文案」结论。
 

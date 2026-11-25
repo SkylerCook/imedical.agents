@@ -37,11 +37,11 @@ description: |
 |---|---|---|
 | `runtime-defect` 运行时缺陷 | 异常类属 NPE / 类型转换 / 越界 / 算术等运行时异常；**运行时异常优先于业务信号**，即使日志经 `HisBusinessInterceptor` 打印也按本类 | 报错位置（source_* 或堆栈帧）+ 改哪个类哪个方法、加什么判空或边界校验 |
 | `log-level-review` 日志级别待复核 | 没有异常类与堆栈，只有 log.error 文案 | 「降级为 warn/info」或「保留 error」的结论与理由；若背后是真故障，改判运行时缺陷 |
-| `business-control` 业务控制 | 业务异常信号（业务拦截器 / 「业务异常(」前缀 / `HisBusinessException`、`DocBusinessException` 等），且未命中外部调用与人工处理关键词 | 确认业务语义与前端提示文案，不强制改码 |
+| `business-control` 业务控制 | 业务异常信号（业务拦截器 logger / 「接收到业务异常，错误级别为：」前缀 / `DocBusinessException`、`BaseBusinessException` 等，**不再含 `HisBusinessException`**），且未命中外部调用与人工处理关键词 | 确认业务语义与前端提示文案，不强制改码；按统一日志「错误级别为：」中文值定级（`错误`→P0 异常，其余→P1 提醒） |
 | `business-escalation` 业务异常·需人工介入 | 业务异常包裹外部调用失败（Feign/HTTP/超时/熔断类名，或「调用失败 / 接口返回 / 配置缺失 / 线程池 / 执行失败」等关键词），或提示本身就是给开发排障的 | 写明被调方与原始错误 / 需处理事项，给排障、容错、降级或提示方案 |
 | `slow-perf` 慢请求耗时 | 耗时超阈值 | 耗时归因与优化方案 |
 
-业务异常信号（`config/graylog-triage.json` 的 `severity` 段）：logger 为 `HisBusinessInterceptor` / 消息首行以「业务异常(」开头 / 异常类简名属于 `HisBusinessException`、`DocBusinessException`、`BaseBusinessException`、`BusinessException`。外部调用与人工处理关键词见 `disposition` 段。
+业务异常信号（`config/graylog-triage.json` 的 `severity` 段）：logger 为 `HisBusinessInterceptor` / 消息首行以「接收到业务异常，错误级别为：」开头 / 异常类简名属于 `DocBusinessException`、`BaseBusinessException`、`BusinessException`（**已移除 `HisBusinessException`，不再捕获其抛出堆栈**）。外部调用与人工处理关键词见 `disposition` 段。业务控制簇按统一日志「错误级别为：」的中文值分「异常/提醒」：`severity.businessAlertErrorLevels`（默认 `["错误"]`）命中记 P0 异常，其余记 P1 提醒。
 
 > 业务信号只用于「可预期的人工抛错」，不能压过运行时异常：NPE 等必须先判 `runtime-defect`。「线程池执行任务」「执行失败」按 `business-escalation` 处理，即需人工干预。
 
@@ -51,8 +51,8 @@ description: |
 
 | 级别 | 初判条件 | 必须产出 |
 |---|---|---|
-| **P0** | 慢请求；或处置分类为 `runtime-defect` / `business-escalation` / `log-level-review` | 按处置分类给对应方案（见上表） |
-| **P1** | 处置分类为 `business-control` | 确认业务语义与提示文案，不强制改代码 |
+| **P0** | 慢请求；或处置分类为 `runtime-defect` / `business-escalation` / `log-level-review`；或 `business-control` 且统一日志错误级别=`错误`（异常） | 按处置分类给对应方案（见上表） |
+| **P1** | 处置分类为 `business-control` 且统一日志错误级别为提醒级（提醒/信息/警告/严重） | 确认业务语义与提示文案，不强制改代码 |
 
 混合簇（部分业务控制、部分需干预）**保守取 P0** 并标 `severityMixed`。分析轮可在队列条目的 `analysis.severity` 改判（附 `severityReason`），渲染时**全篇以改判为准**——严重度分布表、P0 优先处理清单、处置分流、簇标题徽标同步生效。
 

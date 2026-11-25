@@ -1,6 +1,6 @@
 {
   "name": "graylog-toolkit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Graylog Toolkit",
   "description": "可复用的 Graylog 查询、日志解析、归属与处置判定库及薄 CLI（零依赖）。供其他智能体插件以库或 JSON 文件方式复用两路并集查询、簇键、归属规则与日志语句定位。",
   "entry": "AGENTS.md",
